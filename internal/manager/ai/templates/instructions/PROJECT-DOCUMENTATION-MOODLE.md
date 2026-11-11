@@ -1,0 +1,103 @@
+# Documentation Complement — Moodle Plugins
+
+Type-specific documentation requirements for **Moodle plugins**. Complements `.instructions/PROJECT-DOCUMENTATION.md` — apply both; this file lists only what it adds.
+
+Last verified: 2026-11-04
+
+Source every value from the plugin itself — `version.php` (`$plugin->component`, `version`, `requires`, `supported`, `release`, `maturity`, `dependencies`), `db/`, `settings.php`, `lang/`, `classes/privacy/` — never from memory.
+
+---
+
+## 1. Requirements (README)
+
+In the README's **Prerequisites & Quick Installation** section, include a requirements table:
+
+| Item | Source |
+|---|---|
+| Moodle versions supported | `$plugin->requires` (minimum) and `$plugin->supported` (range), translated into human versions (e.g. 4.5 – 5.1) |
+| PHP versions supported | The range supported by those Moodle versions, narrowed by anything the plugin itself requires |
+| Plugin dependencies | `$plugin->dependencies` (component + minimum version) |
+| Maturity / release | `$plugin->maturity`, `$plugin->release` |
+
+---
+
+## 2. Installation
+
+Document every install method, the quick one in the README and all of them in `docs/en/getting-started/installation.md`:
+
+1. **Manual install:** copy/extract the plugin into the directory that matches its type — derived from the frankenstyle prefix of `$plugin->component` (e.g. `mod_` → `mod/`, `block_` → `blocks/`, `local_` → `local/`, `tool_` → `admin/tool/`, `theme_` → `theme/`, `auth_` → `auth/`, `enrol_` → `enrol/`, `filter_` → `filter/`, `report_` → `report/`, `qtype_` → `question/type/`). The folder name must be the part after the prefix. On **Moodle 5.1+** the code root is `public/` (e.g. `public/mod/<name>`) — document both layouts when the supported range spans them.
+2. **ZIP upload** via *Site administration → Plugins → Install plugins*, when the plugin is distributed as a ZIP.
+3. **Git clone** into the target directory, when the repository is public.
+
+### Finishing the installation
+- **Database upgrade (CLI):**
+  ```bash
+  sudo -u www-data php admin/cli/upgrade.php --non-interactive
+  ```
+- **Cache purge:**
+  ```bash
+  sudo -u www-data php admin/cli/purge_caches.php
+  ```
+- **Through the web interface:** log in as an administrator → *Site administration → Notifications*, review the plugin being installed, click *Upgrade Moodle database now*, then fill in the plugin's settings page if it has one (document every setting in `docs/en/reference/`).
+
+Adjust the web server user (`www-data`, `apache`, `nginx`) to the target environment, and verify the CLI script paths against the Moodle versions in the supported range — the 5.1+ `public/` restructure changed where files live, so don't assume the pre-5.1 layout.
+
+---
+
+## 3. Update & Uninstall
+
+- **Update:** replace the plugin files with the new version, then run the database upgrade and cache purge above (or visit *Site administration → Notifications*).
+- **Uninstall** (`docs/en/getting-started/uninstallation.md`): *Site administration → Plugins → Plugins overview → Uninstall*, or
+  ```bash
+  sudo -u www-data php admin/cli/uninstall_plugins.php --plugins={{COMPONENT}} --run
+  ```
+  then delete the plugin folder. State what data is removed (tables, files, settings) — check `db/uninstall.php` and the Privacy API provider.
+
+---
+
+## 4. Reference
+
+Under `docs/en/reference/`, document (when present in the plugin): admin settings (`settings.php`), capabilities (`db/access.php`), events (`classes/event/`), scheduled/ad-hoc tasks (`db/tasks.php`), web services (`db/services.php`), and what personal data it stores (Privacy API).
+
+---
+
+## 5. License and Release Packaging
+
+### License
+
+Moodle core is GPL v3 or later, but the GPL does not automatically extend to plugins: plugins distributed through **Moodle Marketplace** (formerly the Moodle Plugins Directory) are licensed by their developers, who must state the license accurately on the listing and, where applicable, in a license file inside the package. Apply the base standard's license rules (Section 5 — GPL-3.0 or later by default, the usual choice for Moodle plugins) and keep the license declared consistently in `LICENSE`, the file headers and the README.
+
+### Release ZIP
+
+Moodle's ZIP installer (*Site administration → Plugins → Install plugins*) validates the package layout — build the release ZIP so it passes:
+
+- Exactly **one top-level folder**, named after the plugin — the part of `$plugin->component` after the type prefix (e.g. `mod_quizplus` → `quizplus/`). A GitHub "Download ZIP" archive (`<repo>-<branch>/`) does not match and is rejected.
+- `version.php` at the root of that folder, and the English language file under `lang/en/` (`<name>.php` for activity modules, `<type>_<name>.php` for other types).
+- No development-only files (`.git/`, `node_modules/`, CI config) — exclude them via the build script or `.gitattributes` `export-ignore`, when the project uses one.
+
+Build it from the **tagged release** (base standard → Repository Metadata and Releases), e.g.:
+
+```bash
+git archive --format=zip --prefix={{PLUGIN_NAME}}/ -o {{COMPONENT}}-v1.2.0.zip v1.2.0
+```
+
+Bump `$plugin->version` and `$plugin->release` in `version.php` before tagging. Submitting or releasing the plugin on Moodle Marketplace is done by the user — the agent prepares the ZIP command, release notes and listing text.
+
+---
+
+## Quality
+
+In addition to the base standard's checks:
+
+```bash
+# Values the docs must match
+grep -nE '\$plugin->(component|version|requires|supported|release|maturity|dependencies)' version.php
+
+# Release ZIP layout: a single top-level folder with version.php inside
+unzip -Z1 {{COMPONENT}}-v1.2.0.zip | cut -d/ -f1 | sort -u     # must print only {{PLUGIN_NAME}}
+unzip -Z1 {{COMPONENT}}-v1.2.0.zip | grep -x '{{PLUGIN_NAME}}/version.php'
+```
+
+- [ ] Requirements table matches `version.php`; both code layouts (pre-5.1 and `public/`) documented when the supported range spans them.
+- [ ] Every setting, capability, task, web service and event present in the code is in `docs/en/reference/`.
+- [ ] Uninstallation states the data removed, checked against `db/uninstall.php` and the Privacy API provider.

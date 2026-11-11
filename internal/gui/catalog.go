@@ -1,0 +1,352 @@
+// Copyright (C) 2026  oito2
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+package gui
+
+import "github.com/oito2/perci82/internal/config"
+
+// MenuItem is one entry inside a category's accordion panel — rendered
+// with the daisyUI `menu` component.
+type MenuItem struct {
+	Title string `json:"title"`
+	Desc  string `json:"desc"` // may hold multiple lines (\n) — rendered with line breaks preserved
+
+	// ActionID identifies which bound method the "Executar" button calls for
+	// this item — empty means "no real screen yet": the button stays
+	// disabled.
+	ActionID string `json:"actionId,omitempty"`
+
+	// Button is the "Executar" button's text when ActionID != "" —
+	// screen-specific text (e.g. "Executar atualização"). Empty uses the
+	// generic "Executar" label.
+	Button string `json:"button,omitempty"`
+
+	// Notes are warnings shown below the screen's buttons. Empty renders no
+	// notes section.
+	Notes []string `json:"notes,omitempty"`
+
+	// Tab is the "📝 <Tab>" tab's text (#tab-desc-label) when this item is
+	// selected — empty uses the generic "Perci" label (the app's own name,
+	// used by Home :: Visão Geral).
+	Tab string `json:"tab,omitempty"`
+
+	// AccountID is the Git account an item of the "Repositórios" category
+	// opens (ActionID "git-account").
+	AccountID string `json:"accountId,omitempty"`
+}
+
+// MenuCategory is one of the top-level sidebar sections.
+type MenuCategory struct {
+	Label string     `json:"label"`
+	Items []MenuItem `json:"items"`
+}
+
+// devCategories returns Perci82 Dev's sidebar categories: the static
+// catalogue with the "Repositórios" category inserted right after
+// "Docker". That category lists "Configurar Conta", "Gerenciar
+// Repositórios" and then one item per Git account, in accounts' order.
+func devCategories(accounts []config.GitAccount) []MenuCategory {
+	repos := MenuCategory{
+		Label: "Repositórios",
+		Items: []MenuItem{{
+			// "contas git" mode (#gitaccounts-container): the account table
+			// and its create/edit form, plus the top-level tab
+			// "Identidade padrão".
+			Title:    "Configurar Conta",
+			Desc:     "Cadastre as contas do GitHub e do GitLab: pasta, identidade dos commits, chave SSH e token.",
+			ActionID: "git-accounts",
+			Tab:      "Contas",
+		}, {
+			// "gerenciar repositórios" mode (#gittransfer-container): the
+			// Exportar checklist, plus the top-level tab "Importar".
+			Title:    "Gerenciar Repositórios",
+			Desc:     "Exporte as contas e os repositórios para um arquivo e importe-os em outra máquina.",
+			ActionID: "git-transfer",
+			Tab:      "Exportar",
+		}},
+	}
+	for _, acc := range accounts {
+		repos.Items = append(repos.Items, MenuItem{
+			Title:     acc.Name,
+			Desc:      "Repositórios da conta " + acc.Name + ".",
+			ActionID:  "git-account",
+			AccountID: acc.ID,
+			Tab:       acc.Name,
+		})
+	}
+
+	cats := make([]MenuCategory, 0, len(devStaticCategories)+1)
+	for _, c := range devStaticCategories {
+		cats = append(cats, c)
+		if c.Label == "Docker" {
+			cats = append(cats, repos)
+		}
+	}
+	return cats
+}
+
+// systemCategories returns Perci82 System's sidebar categories.
+func systemCategories() []MenuCategory {
+	return append([]MenuCategory(nil), systemStaticCategories...)
+}
+
+// systemStaticCategories is Perci82 System's static category/item
+// catalogue. An item without an ActionID keeps the placeholder behavior
+// (Executar disabled).
+var systemStaticCategories = []MenuCategory{
+	{
+		// Home has 2 wired items: "Visão Geral" ("dashboard" mode,
+		// #dashboard-container — also the initial screen shown before any sidebar
+		// selection) and "Configurações".
+		Label: "Home",
+		Items: []MenuItem{
+			{
+				Title:    "Visão Geral",
+				Desc:     "Veja o sistema detectado e a versão do Perci82 System.",
+				ActionID: "dashboard",
+			},
+			{
+				// "self-config" mode (#selfconfig-container): theme, sidebar logo and Flatpak scope.
+				Title:    "Configurações",
+				Desc:     "Tema, logo da sidebar e escopo de instalação do Flatpak.",
+				ActionID: "self-config",
+				Tab:      "Configurações",
+			},
+		},
+	},
+	{
+		Label: "Linux",
+		Items: []MenuItem{
+			{
+				// Shows the "Sistema" status bar (#simple-container, fed by
+				// GetPostinstallProfile, the same source as the dashboard's "Sistema"
+				// section), so it has its own Tab ("Atualizar Sistema") instead of the
+				// generic "Definições".
+				Title: "Atualizar Sistema",
+				Desc: "Executa o processo de atualização do seu SO.\n" +
+					"- Atualiza os pacotes da sua distribuição\n" +
+					"- Atualiza os pacotes Snap (se disponível)\n" +
+					"- Atualiza os pacotes Flatpak, do usuário e do sistema (se disponível)\n" +
+					"\nApós a atualização...",
+				ActionID: "system-update",
+				Button:   "Executar atualização",
+				Tab:      "Atualizar Sistema",
+			},
+			{
+				// Desc/Button are deliberately empty: this screen uses the "checklist com
+				// dependência" mode (ActionID "postinstall", #postinstall-container), not
+				// the simple description+button mode.
+				Title:    "Pós-instalação",
+				ActionID: "postinstall",
+				Tab:      "Definições",
+			},
+			{
+				// "checklist simples" mode (#multiselect-container) — checkbox reflects
+				// the current state (installed ⇄ unchecked), with no dependency between
+				// items.
+				Title:    "Gerenciar Fontes",
+				Desc:     "Selecione as fontes que deseja instalar. Para desinstalar, remova a seleção.",
+				ActionID: "fonts",
+				Tab:      "Definições",
+			},
+			{
+				// "checklist simples" mode, same as Gerenciar Fontes above.
+				Title:    "Gerenciar Templates de Arquivos",
+				Desc:     "Selecione os templates de arquivos que deseja instalar. Para desinstalar, remova a seleção.",
+				ActionID: "templates",
+				Tab:      "Definições",
+			},
+			{
+				// "checklist simples" mode, same as Fontes/Templates above.
+				Title:    "Aplicativos: Flatpak",
+				Desc:     "Selecione aplicativos que deseja instalar. Para desinstalar, remova a seleção.",
+				ActionID: "flatpak-apps",
+				Tab:      "Definições",
+			},
+		},
+	},
+}
+
+// devStaticCategories is Perci82 Dev's static category/item catalogue,
+// without the "Repositórios" category devCategories builds from the Git
+// accounts.
+var devStaticCategories = []MenuCategory{
+	{
+		// Home has 2 wired items: "Visão Geral" ("dashboard" mode,
+		// #dashboard-container — also the initial screen shown before any sidebar
+		// selection) and "Configurações".
+		Label: "Home",
+		Items: []MenuItem{
+			{
+				Title:    "Visão Geral",
+				Desc:     "Veja o resumo dos contêineres Docker e a versão do Perci82 Dev.",
+				ActionID: "dashboard",
+			},
+			{
+				// "self-config" mode (#selfconfig-container): theme, sidebar logo, workspace and tray.
+				Title:    "Configurações",
+				Desc:     "Tema, logo da sidebar, workspace e bandeja do sistema.",
+				ActionID: "self-config",
+				Tab:      "Configurações",
+			},
+		},
+	},
+	{
+		Label: "Desenvolvimento",
+		Items: []MenuItem{
+			{
+				// Item table mode (#itemtable-container): one row per item
+				// with its own Instalar/Atualizar/Desinstalar buttons.
+				Title:    "Pré-requisitos",
+				Desc:     "Instale, atualize ou desinstale cada pré-requisito. Os itens exigidos por outros aparecem primeiro; um item que depende de outro só pode ser instalado depois dele.",
+				ActionID: "prereqs",
+				Tab:      "Definições",
+			},
+			{
+				// Item table mode, same as Pré-requisitos above.
+				Title:    "Linguagens e SDKs",
+				Desc:     "Instale, atualize ou desinstale cada SDK. Um SDK que depende de um pré-requisito só pode ser instalado depois dele.",
+				ActionID: "sdks",
+				Tab:      "Definições",
+			},
+			{
+				// "checklist simples" mode (#multiselect-container), same as
+				// Fontes/Templates/Flatpak.
+				Title:    "Aplicativos: IA",
+				Desc:     "Selecione aplicativos de IA que deseja instalar. Para desinstalar, remova a seleção.",
+				ActionID: "ai-apps",
+				Tab:      "Definições",
+			},
+			{
+				// "checklist simples" mode plus extra "Aplicar Starship" / "Remover
+				// Starship" buttons (#multiselect-container, via the extras on the
+				// MULTISELECT_SCREENS registry). Starship isn't a checkable item in this
+				// list — the extra buttons handle it, independent of the selection.
+				Title:    "Aplicativos: Terminais",
+				Desc:     "Selecione os terminais que deseja instalar. Para desinstalar, remova a seleção.\nTerminais instalados ganham a opção \"Abrir no <terminal>\" no menu de contexto do Nautilus (submenu Scripts), Nemo e Dolphin.",
+				ActionID: "terminals",
+				Tab:      "Definições",
+			},
+			{
+				// Item table mode, same as Pré-requisitos above.
+				Title:    "IDEs",
+				Desc:     "Instale, atualize ou desinstale cada IDE. Uma IDE que depende de um pré-requisito só pode ser instalada depois dele.",
+				ActionID: "ides",
+				Tab:      "Definições",
+			},
+			{
+				// "external app via local file install/uninstall" mode
+				// (#fileapp-container): no Atualizar button — Android Studio updates
+				// itself (the frontend shows Notes).
+				Title: "IDE: Android Studio",
+				Desc: "O ambiente de desenvolvimento integrado oficial para desenvolvimento de apps Android agora acelera sua produtividade com o Gemini no Android Studio, seu parceiro de programação com tecnologia de IA.\n\n" +
+					"Para instalar o Android Studio, faça o download do arquivo .tar.gz em https://developer.android.com/studio?hl=pt-br",
+				Notes: []string{
+					`O instalador do Android Studio abrirá em uma janela gráfica. Durante o assistente inicial, na tela de boas-vindas ou no menu principal, clique no ícone de engrenagem (Configure ou menu de três pontos) e selecione "Create Desktop Entry". Isso adicionará o ícone do Android Studio ao menu de aplicativos do seu sistema operacional.`,
+					"Utilize o Android Studio para atualizar.",
+				},
+				ActionID: "androidstudio",
+				Tab:      "Definições",
+			},
+			{
+				// "external app via local file install/update/uninstall" mode (same
+				// #fileapp-container, with the Atualizar button enabled).
+				Title: "IDE: Antigravity IDE",
+				Desc: "A visualização do editor do Google Antigravity oferece preenchimento automático com a tecla Tab, comandos de código em linguagem natural e um agente configurável e sensível ao contexto.\n\n" +
+					"Para instalar o Antigravity IDE (Standalone), faça o download do arquivo .tar.gz em https://antigravity.google/download#antigravity-ide",
+				ActionID: "antigravityide",
+				Tab:      "Definições",
+			},
+		},
+	},
+	// Its own category, separate from "Desenvolvimento".
+	{
+		Label: "Docker",
+		Items: []MenuItem{
+			{
+				// "criar container" mode (#dockercreate-container): a "Tipo de contêiner"
+				// select with per-type dynamic fields, covering the 7 types the domain
+				// layer (internal/appstack) validates — Nginx/MariaDB are disabled in the
+				// select once they already exist (both are singletons).
+				Title:    "Criar Contêiner",
+				Desc:     "Crie um novo contêiner Nginx, MariaDB ou Aplicativo (Moodle, PHP, Genérico, Node ou PHP + Node).",
+				ActionID: "docker-create",
+				Tab:      "Novo Contêiner",
+			},
+			{
+				// "gerenciar containers" mode (#dockerlist-container): a table with live
+				// status and per-row action icons.
+				Title:    "Gerenciar Contêineres",
+				Desc:     "Inicie, pare, reinicie, recrie, veja logs, edite ou remova os contêineres Docker do Perci.",
+				ActionID: "docker-manage",
+				Tab:      "Contêineres",
+			},
+			{
+				// "exportar/importar" mode (#transfer-container): the checklist of
+				// what to export (Nginx, MariaDB, each app, each Moodle plugin
+				// mount), plus the top-level "Importar" tab with the checklist of
+				// an export file.
+				Title:    "Exportar/Importar",
+				Desc:     "Exporte ou importe os contêineres Docker e os plugins Moodle montados, escolhendo os itens.",
+				ActionID: "docker-transfer",
+				Tab:      "Exportar",
+			},
+		},
+	},
+	// Its own category, alongside "Docker": Moodle plugin mounts and the
+	// AI tooling (contexts, skills, MCP servers).
+	{
+		Label: "Dev Tools",
+		Items: []MenuItem{
+			{
+				// "plugins moodle" mode (#moodleplugins-container): a plugin
+				// development folder + a Moodle container + type/name, then a
+				// table of the mounted plugins with status, restart and remove.
+				Title:    "Plugins Moodle",
+				Desc:     "Monte a pasta de desenvolvimento de um plugin dentro dos contêineres Moodle do Perci.",
+				ActionID: "moodleplugins",
+				Tab:      "Plugins Moodle",
+			},
+			{
+				// "IA: Contextos" mode: the registered folders (#aicontext-container)
+				// plus the "Definir Contexto" (folder picker + checklist of
+				// internal/manager/ai.Models()) and "Exportar/Importar" tabs.
+				Title:    "IA: Contextos",
+				Desc:     "Contextos de IA são regras para direcionar o seu agente na realização de tarefas.",
+				ActionID: "aicontext",
+				Tab:      "Contextos",
+			},
+			{
+				// "IA: SKILLs" mode (#agentskills-container): shortcuts to install
+				// third-party skills.sh skills (internal/dev/agentskills, `npx skills
+				// add/remove/update`), separate from internal/manager/skills, which
+				// copies Perci's own templates.
+				Title:    "IA: SKILLs",
+				Desc:     "Atalhos para instalar skills de agente de IA disponibilizadas pelo skills.sh",
+				ActionID: "agentskills",
+				Tab:      "SKILLs",
+			},
+			{
+				// "IA: MCPs" mode (#mcpservers-container): registers MCP servers with
+				// Claude Code/Codex/Antigravity (internal/dev/mcpservers) — a per-agent
+				// mechanism.
+				Title:    "IA: MCPs",
+				Desc:     "Registre servidores MCP para Claude Code, Codex e Antigravity.",
+				ActionID: "mcpservers",
+				Tab:      "MCPs",
+			},
+		},
+	},
+}

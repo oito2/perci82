@@ -1,0 +1,419 @@
+<!--
+  Copyright (C) 2026  oito2
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Perci82 System</title>
+
+<!--
+  daisyUI 5.7.33 + Tailwind CSS v4 (@tailwindcss/browser 4.3.3), no build
+  step — vendored, like xterm/lucide. Not loaded from a
+  CDN, so no third-party JavaScript runs with access to every Wails
+  binding.
+
+  The sidebar collapse is plain custom CSS (`#sidebar[data-collapsed]` in
+  the <style> below) instead of daisyUI's `is-drawer-open:`/
+  `is-drawer-close:` variants, which aren't included in the pre-compiled
+  CSS files.
+-->
+<!--
+  Content-Security-Policy: only same-origin resources, and no inline
+  scripts at all (script-src 'self', no 'unsafe-inline') — the app's code
+  lives in ./js/.
+  style-src needs 'unsafe-inline': @tailwindcss/browser injects the
+  generated CSS as a <style> element at runtime (and this file has its own
+  <style> block and style="" attributes). img-src/font-src allow data:
+  URIs (daisyUI's CSS embeds its SVG masks that way).
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'" />
+<link rel="stylesheet" href="./vendor/daisyui/daisyui.css" />
+<link rel="stylesheet" href="./vendor/daisyui/themes.css" />
+<script src="./vendor/tailwindcss/browser.js"></script>
+<link rel="stylesheet" href="./vendor/xterm/xterm.css" />
+
+<style>
+  /* Sidebar collapse, in plain CSS. Two views per category: the normal
+     one (accordion-view, inline items) and the rail one (rail-view, just
+     the icon + a flyout with the items) — only one of them is visible at
+     a time, based on data-collapsed. */
+  #sidebar { width: 18rem; transition: width .15s ease; overflow: visible; }
+  #sidebar[data-collapsed="true"] { width: 4.5rem; }
+  #sidebar[data-collapsed="true"] .sidebar-label { display: none; }
+
+  #sidebar .rail-view { display: none; }
+  #sidebar[data-collapsed="true"] .accordion-view { display: none; }
+  #sidebar[data-collapsed="true"] .rail-view { display: flex; }
+
+  /* #accordion normally scrolls (an expanded category can have many
+     items); in rail mode that would clip the flyout coming out of the
+     icon, so it becomes visible while collapsed (only 4 categories, no
+     need to scroll in that mode). */
+  #accordion { overflow-y: auto; }
+  #sidebar[data-collapsed="true"] #accordion { overflow: visible; }
+
+  /* daisyUI's `.drawer-side` has `overflow: hidden auto`, which clips
+     anything that spills outside the collapsed sidebar's ~4.5rem band,
+     including the rail flyout below. Overridden so the flyout is
+     painted. */
+  .drawer-side { overflow: visible; }
+
+  /* Rail flyout: custom implementation, not daisyUI's `dropdown`
+     component — plain focus-within, without depending on the
+     ready-made component. */
+  .rail-item { position: relative; }
+  .rail-flyout {
+    position: absolute; left: 100%; top: 0; margin-left: .5rem;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity .1s ease;
+    z-index: 100;
+  }
+  /* Click-only open, by design — no :hover on purpose. */
+  .rail-item:focus-within .rail-flyout {
+    opacity: 1; visibility: visible; pointer-events: auto;
+  }
+
+  .cat-badge {
+    display: inline-flex; width: 2rem; height: 2rem; border-radius: 9999px;
+    align-items: center; justify-content: center; font-size: .7rem; font-weight: 700;
+    flex-shrink: 0;
+  }
+  /* Rail icons have no background; hovering (or opening the flyout)
+     makes the stroke heavier — the icon's "bold". */
+  .cat-badge svg { stroke-width: 2; transition: stroke-width .1s ease; }
+  .rail-item:hover .cat-badge svg,
+  .rail-item:focus-within .cat-badge svg { stroke-width: 2.75; }
+
+  /* The sidebar logo shrinks to fit the collapsed rail (4.5rem wide,
+     minus 1rem padding on each side and the 1px border). */
+  #sidebar[data-collapsed="true"] #sidebar-logo-img { width: 2.25rem; height: 2.25rem; }
+
+  /* Locked height (h-screen/h-full) through the whole chain (body →
+     .drawer-content → aside#sidebar), so #accordion (which has
+     overflow-y:auto) scrolls on its own, contained, instead of pushing
+     <body> to scroll. Same for <main>/tabs, so the terminal doesn't spill
+     outside the content area. */
+  html, body { height: 100%; overflow: hidden; }
+  body { background: var(--color-base-100, #1e1e2e); }
+
+  #terminal { height: 100%; }
+
+  /* Tabs (Definições/Execução): each panel is explicitly shown/hidden
+     by the checked radio, since daisyUI's `.tab-content` has no
+     `display:none` rule for an inactive tab. */
+  #panel-desc, #panel-terminal, #panel-mp-mounted, #panel-transfer-import,
+  #panel-git-identity, #panel-git-import, #panel-aic-define, #panel-aic-transfer { display: none; }
+  .tabs:has(#tab-radio-desc:checked) #panel-desc { display: block; }
+  .tabs:has(#tab-radio-terminal:checked) #panel-terminal { display: flex; }
+  .tabs:has(#tab-radio-mp-mounted:checked) #panel-mp-mounted { display: block; }
+  .tabs:has(#tab-radio-transfer-import:checked) #panel-transfer-import { display: block; }
+  .tabs:has(#tab-radio-git-identity:checked) #panel-git-identity { display: block; }
+  .tabs:has(#tab-radio-git-import:checked) #panel-git-import { display: block; }
+  .tabs:has(#tab-radio-aic-define:checked) #panel-aic-define { display: block; }
+  .tabs:has(#tab-radio-aic-transfer:checked) #panel-aic-transfer { display: block; }
+
+  /* "Docker :: Criar Contêiner" and "Docker :: Gerenciar Contêineres ::
+     Editar" — "label on the right + field" layout, styled like a
+     GNOME/KDE Settings dialog. The fields are generated by
+     textFieldHTML/selectFieldHTML/checkboxFieldHTML (shared between
+     #dc-fields and #edit-fields) — each one produces a
+     <label class="form-control"> with a <div class="label"> and the
+     <input>/<select> inside. The .dc-form-grid class turns into the
+     2-column grid; inside it, that wrapper becomes `display: contents`
+     (generates no box of its own) so the <div class="label"> and the
+     field land directly into the grid's two columns — same for the
+     "<div id="*-phpVersion-wrap">" wrapper (exists only so
+     wireMoodlePHPFilter can rewrite "Versão PHP" without re-rendering the
+     whole row), which would otherwise be its own box and misalign
+     everything after it. */
+  .dc-form-grid {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    align-items: center;
+    column-gap: 1rem;
+    row-gap: .75rem;
+  }
+  .dc-form-grid #dc-fields,
+  .dc-form-grid label.form-control,
+  .dc-form-grid div[id$="-phpVersion-wrap"] {
+    display: contents;
+  }
+  /* .hidden (e.g. "Tipo", only visible when "Contêiner Aplicativo" is
+     chosen) needs to override the display:contents above — one extra
+     class in the selector guarantees higher specificity than the rule
+     right above it. */
+  .dc-form-grid label.form-control.hidden {
+    display: none;
+  }
+  .dc-form-grid label.form-control div.label {
+    justify-content: flex-end;
+    text-align: right;
+  }
+  /* The "Habilitar acesso ao banco" checkbox (checkboxFieldHTML) doesn't
+     use form-control — it's a single <label class="label ..."> with the
+     checkbox and text side by side, same as every other screen; here it
+     just spans both full columns instead of getting stuck in the label
+     column (the selector is by tag+class, it doesn't match the
+     <div class="label"> from the other rules). */
+  .dc-form-grid label.label.cursor-pointer {
+    grid-column: 1 / -1;
+  }
+</style>
+</head>
+<body class="h-screen">
+
+<div class="drawer lg:drawer-open h-full">
+  <input id="mobile-drawer-toggle" type="checkbox" class="drawer-toggle" />
+
+  <div class="drawer-content flex flex-col h-full min-h-0">
+    <!-- top: menu button (only shows on narrow screens, lg:hidden) + collapse
+         sidebar. Hidden in compact mode (see id="mobile-topbar" in
+         activateCompactMode), whose 735px window is narrower than the lg
+         breakpoint. -->
+    <div id="mobile-topbar" class="flex items-center gap-2 p-3 border-b border-base-300 lg:hidden flex-none">
+      <label for="mobile-drawer-toggle" class="btn btn-square btn-ghost btn-sm" aria-label="Abrir menu">☰</label>
+      <span class="font-semibold">Perci82 System</span>
+    </div>
+
+    <main class="flex-1 min-h-0 p-6 flex flex-col">
+      <div id="normal-header-row" class="flex items-center gap-3 mb-4 flex-none">
+        <button id="btn-collapse-sidebar" class="btn btn-ghost btn-xs hidden lg:inline-flex" title="Recolher/expandir menu" aria-label="Recolher/expandir menu">⇔</button>
+        <div class="breadcrumbs text-sm opacity-70">
+          <ul id="breadcrumb"><li>Perci82 System</li></ul>
+        </div>
+      </div>
+
+      <div class="tabs tabs-lift flex-1 min-h-0">
+        <label class="tab flex-none">
+          <input type="radio" name="content-tabs" id="tab-radio-desc" checked />
+          <span class="mr-1">📝</span><span id="tab-desc-label">Perci82 System</span>
+        </label>
+        <div id="panel-desc" class="tab-content bg-base-100 border-base-300 p-6 overflow-y-auto">
+          <!-- "dashboard" mode (Home :: Visão Geral): a system summary plus the
+               "Atualizar" and "Desinstalar" screens embedded right
+               here. This is also the screen's initial state, before any sidebar
+               selection — shown by default (no class="hidden") instead of inside
+               selectItem's dispatch. -->
+          <div id="dashboard-container">
+            <div class="stats stats-vertical sm:stats-horizontal shadow mb-8 w-full bg-base-200">
+              <div class="stat">
+                <div class="stat-title">Sistema</div>
+                <div id="dashboard-system-label" class="stat-value text-base">—</div>
+              </div>
+              <div class="stat">
+                <div class="stat-title">Versão instalada</div>
+                <div id="dashboard-version" class="stat-value text-base">—</div>
+              </div>
+            </div>
+
+            <!-- "Atualizar" (ActionID "self-update"). -->
+            <div class="mb-8">
+              <h3 class="font-semibold mb-3">Atualizar Perci82 System</h3>
+              <p id="su-status" class="opacity-80 mb-4">Verificando...</p>
+              <div class="flex gap-2">
+                <button id="btn-su-check" class="btn btn-outline">Verificar Novamente</button>
+                <button id="btn-su-update" class="btn btn-primary" disabled>Atualizar</button>
+              </div>
+            </div>
+
+            <!-- "Desinstalar" (ActionID "self-uninstall"): the "Também remover
+                 configurações" checkbox, then the "Desinstalar" button. -->
+            <div>
+              <h3 class="font-semibold mb-3">Desinstalar Perci82 System</h3>
+              <div class="alert alert-warning mb-4">
+                <span>Esta ação remove o binário do Perci82 System do seu sistema. É irreversível.</span>
+              </div>
+              <div class="flex flex-col gap-2 mb-4 max-w-md">
+                <label class="label cursor-pointer justify-start gap-2">
+                  <input id="su2-remove-config" type="checkbox" class="checkbox" />
+                  <span class="label-text">Também remover as configurações do Perci82 System</span>
+                </label>
+              </div>
+              <button id="btn-su2-uninstall" class="btn btn-outline btn-error">Desinstalar</button>
+            </div>
+          </div>
+
+          <!-- Simple mode: static description + a single button (most
+               screens, e.g. "Atualizar Sistema"). -->
+          <div id="simple-container" class="hidden">
+            <!-- Same status bar as Home :: Visão Geral, but with only "Sistema"
+                 — #simple-container is only used by "Linux :: Atualizar Sistema"
+                 (the only item falling into the generic "simple" mode), so it's
+                 always visible here, with no actionId check. -->
+            <div class="stats shadow mb-6 bg-base-200">
+              <div class="stat">
+                <div class="stat-title">Sistema</div>
+                <div id="simple-system-label" class="stat-value text-base">—</div>
+              </div>
+            </div>
+
+            <p id="content-desc" class="opacity-80 mb-6" style="white-space: pre-line;">
+              Escolha uma categoria na barra lateral, depois um item, para ver a descrição aqui.
+            </p>
+            <!-- Optional cleanups of "Atualizar Sistema" (update.Options),
+                 unchecked by default. -->
+            <div class="flex flex-col gap-2 mb-6">
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input id="su-opt-journal" type="checkbox" class="checkbox checkbox-sm" />
+                <span>Limpar logs do journal com mais de 7 dias</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input id="su-opt-autoremove" type="checkbox" class="checkbox checkbox-sm" />
+                <span>Remover pacotes órfãos (autoremove) e runtimes Flatpak sem uso</span>
+              </label>
+            </div>
+            <button id="btn-executar" class="btn btn-primary" disabled>
+              Executar
+            </button>
+            <p id="executar-hint" class="text-xs opacity-50 mt-2">
+              Selecione um item para continuar.
+            </p>
+          </div>
+
+          <!-- "self-config" mode (Home :: Configurações): Tema/Logo apply (and
+               persist) immediately on swatch click, and Flatpak on select —
+               none of this screen's actions are async/streamed, so the
+               "Execução" tab stays hidden here (see selectItem). -->
+          <div id="selfconfig-container" class="hidden">
+            <div class="mb-8">
+              <h3 class="font-semibold mb-3">Tema</h3>
+              <div id="cfg-theme-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-xl"></div>
+            </div>
+
+            <div class="mb-8">
+              <h3 class="font-semibold mb-3">Logo da Sidebar</h3>
+              <div id="cfg-logo-grid" class="flex flex-wrap gap-3"></div>
+            </div>
+
+            <div class="max-w-md mb-8">
+              <label class="form-control">
+                <div class="label"><span class="label-text">Escopo de instalação Flatpak</span></div>
+                <select id="sc-flatpak" class="select select-bordered">
+                  <option value="system">system (global)</option>
+                  <option value="user">user (usuário)</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <!-- Post-install mode: the items of the detected OS, each with its own
+               "Aplicar" button — item.actionId === "postinstall" triggers this
+               mode instead of the simple one above. -->
+          <div id="postinstall-container" class="hidden">
+            <div id="postinstall-unsupported" class="hidden">
+              <p class="opacity-80">Seu Sistema Operacional não é suportado pelo Perci82 System</p>
+            </div>
+            <div id="postinstall-supported" class="hidden">
+              <p id="postinstall-title" class="font-semibold mb-1">Pós instalação do —</p>
+              <p class="opacity-80 mb-4">Aplique abaixo cada item da pós instalação</p>
+              <ul id="postinstall-actions" class="space-y-4 mb-4"></ul>
+            </div>
+          </div>
+
+          <!-- Simple checklist mode (installed ⇄ unchecked): "toggle install
+               state via multi-select" screens with no dependency between items —
+               the same pattern reused across fonts, templates, Flatpak, AI
+               apps and terminals. Triggered via the MULTISELECT_SCREENS registry, one
+               entry per actionId. -->
+          <div id="multiselect-container" class="hidden">
+            <p id="multiselect-intro" class="opacity-80 mb-4" style="white-space: pre-line;"></p>
+            <ul id="multiselect-items" class="space-y-2 mb-4"></ul>
+            <div class="flex gap-2">
+              <button id="btn-executar-multiselect" class="btn btn-primary">
+                Executar
+              </button>
+              <!-- Optional extra buttons (e.g. "Aplicar Starship" and
+                   "Remover Starship" in "Aplicativos: Terminais") — built
+                   per screen from MULTISELECT_SCREENS[actionId].extras;
+                   empty when a screen doesn't define any. -->
+              <div id="multiselect-extras" class="flex gap-2"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <label id="tab-label-terminal" class="tab flex-none">
+          <input type="radio" name="content-tabs" id="tab-radio-terminal" />
+          <span class="mr-1">▶</span> Execução
+        </label>
+        <div id="panel-terminal" class="tab-content bg-base-100 border-base-300 p-6 flex flex-col">
+          <div id="term-title" role="status" aria-live="polite" class="text-sm opacity-70 mb-2 flex-none">Executando: —</div>
+          <progress id="term-progress" class="progress w-full mb-3 flex-none" value="0" max="100"></progress>
+          <div id="terminal" class="flex-1 min-h-0"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="drawer-side">
+    <label for="mobile-drawer-toggle" class="drawer-overlay"></label>
+    <aside id="sidebar" class="bg-base-200 h-full flex flex-col border-r border-base-300">
+      <div class="p-4 flex flex-col items-center gap-2 border-b border-base-300">
+        <img id="sidebar-logo-img" src="./assets/perci-blue.png" alt="Perci82 System — trocar o formato do logo" role="button" tabindex="0" class="w-28 h-28 rounded-full object-cover cursor-pointer" />
+        <span class="font-bold text-lg sidebar-label">Perci82 System</span>
+      </div>
+
+      <div id="accordion" class="flex-1 py-2"></div>
+    </aside>
+  </div>
+</div>
+
+<!-- Generic "Docker :: Gerenciar Containers" modals — confirmation
+     (Recriar/Remover), error (Iniciar/Parar/Reiniciar/Remover don't open
+     the Execução tab — they report an error here instead of in the
+     terminal), logs (instant, with Atualizar/Exportar) and edit (reuses
+     buildContainerFieldsHTML, same form rendering as Criar). -->
+<dialog id="confirm-modal" class="modal">
+  <div class="modal-box">
+    <h3 id="confirm-modal-title" class="font-bold text-lg mb-2">Confirmar</h3>
+    <p id="confirm-modal-message" class="opacity-80" style="white-space: pre-line;"></p>
+    <div class="modal-action">
+      <form method="dialog"><button class="btn">Cancelar</button></form>
+      <button id="btn-confirm-ok" type="button" class="btn btn-primary">Sim</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+</dialog>
+
+<dialog id="error-modal" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg mb-2 text-error">Erro</h3>
+    <p id="error-modal-message" class="opacity-80" style="white-space: pre-line;"></p>
+    <div class="modal-action">
+      <form method="dialog"><button class="btn">Fechar</button></form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+</dialog>
+
+<script src="./vendor/xterm/xterm.js"></script>
+<script src="./vendor/xterm/addon-fit.js"></script>
+<script src="./vendor/lucide/icons.js"></script>
+<!-- App scripts: the bootstrap module (bindings + runtime) first, then classic
+     scripts sharing one global scope, in this order. -->
+<script type="module" src="./js/bootstrap.js"></script>
+<script defer src="./js/core.js"></script>
+<script defer src="./js/system-core.js"></script>
+<script defer src="./js/screens/checklists.js"></script>
+<script defer src="./js/screens/linux.js"></script>
+<script defer src="./js/screens/home-app.js"></script>
+<script defer src="./js/screens/home.js"></script>
+<script defer src="./js/navigation.js"></script>
+<script defer src="./js/widgets.js"></script>
+<script defer src="./js/app.js"></script>
+</body>
+</html>

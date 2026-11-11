@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Reused by the release workflow as its gate.
+  workflow_call:
+
+# Nothing by default: the job only reads the repository.
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint and test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      # Pinned by commit SHA; Dependabot keeps them current.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Install system dependencies (Wails/GUI — cgo, GTK4/WebKitGTK 6.0)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+
+      - name: Check gofmt
+        run: gofmt -l . | (! grep .)
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run golangci-lint
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+          golangci-lint run
+
+      - name: Run tests
+        run: go test -race ./...
+
+      - name: Build both applications
+        run: make build
+
+      # The runner's preinstalled Node — the suite needs nothing else.
+      - name: Frontend smoke test
+        run: |
+          node --version
+          make test-frontend

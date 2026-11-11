@@ -1,0 +1,527 @@
+// Copyright (C) 2026  oito2
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+package gui
+
+import (
+	"context"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/oito2/perci82/internal/appstack"
+	"github.com/oito2/perci82/internal/config"
+	"github.com/oito2/perci82/internal/executor"
+	managerai "github.com/oito2/perci82/internal/manager/ai"
+	"github.com/oito2/perci82/internal/manager/gitaccount"
+	"github.com/oito2/perci82/internal/selfupdate"
+)
+
+// TestWriteAutostartDesktopFile writes the XDG autostart .desktop entry,
+// checks it has the fields a hidden-on-login autostart entry needs
+// (NoDisplay, Exec), then removes it and confirms it's gone.
+func TestWriteAutostartDesktopFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	if err := writeAutostartDesktopFile(); err != nil {
+		t.Fatalf("writeAutostartDesktopFile: %v", err)
+	}
+
+	path := filepath.Join(home, ".config", "autostart", autostartFileName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ler arquivo gerado: %v", err)
+	}
+	content := string(data)
+	if !strings.HasPrefix(content, "[Desktop Entry]") {
+		t.Error("arquivo .desktop malformado — deveria começar com [Desktop Entry]")
+	}
+	if !strings.Contains(content, "NoDisplay=true") {
+		t.Error("autostart deve ter NoDisplay=true (não deve aparecer no menu de apps, só rodar oculto no login)")
+	}
+	if !strings.Contains(content, "Exec=") {
+		t.Error("arquivo .desktop sem linha Exec=")
+	}
+
+	if err := removeAutostartDesktopFile(); err != nil {
+		t.Fatalf("removeAutostartDesktopFile: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Error("arquivo deveria ter sido removido")
+	}
+}
+
+func TestRemoveAutostartDesktopFile_NeverEnabled(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	if err := removeAutostartDesktopFile(); err != nil {
+		t.Errorf("remover um autostart que nunca existiu não deveria ser erro: %v", err)
+	}
+}
+
+// TestOpenCompactWindow_UnknownTab confirms that openCompactWindow silently
+// ignores an unknown tab (compactTabs[tab] == false) instead of creating a
+// window — doesn't depend on any real Wails window/app, it only exercises
+// the early return that happens before any Wails API call.
+func TestOpenCompactWindow_UnknownTab(t *testing.T) {
+	a := &TrayService{}
+	// Must not try to use a.wailsApp (nil) for an invalid tab — doing so
+	// would panic (nil pointer dereference) instead of simply returning.
+	a.openCompactWindow("aba-que-nao-existe")
+	if a.compactWindow != nil {
+		t.Error("openCompactWindow com aba inválida não deveria criar nenhuma janela")
+	}
+}
+
+func TestDesktopExecQuote(t *testing.T) {
+	cases := map[string]string{
+		"/usr/local/bin/prci":  `"/usr/local/bin/prci"`,
+		"/home/u/My Apps/prci": `"/home/u/My Apps/prci"`,
+		`/opt/a"b`:             `"/opt/a\\"b"`,
+		"/opt/$HOME/`x`":       "\"/opt/\\\\$HOME/\\\\`x\\\\`\"",
+		`/opt/back\slash`:      `"/opt/back\\\\slash"`,
+		"/opt/100%":            `"/opt/100%%"`,
+	}
+	for in, want := range cases {
+		got, err := desktopExecQuote(in)
+		if err != nil || got != want {
+			t.Errorf("desktopExecQuote(%q) = %q, %v; want %q", in, got, err, want)
+		}
+	}
+	if _, err := desktopExecQuote("/opt/a\nb"); err == nil {
+		t.Error("a newline can't be represented in a .desktop value and must be refused")
+	}
+}
+
+// The autostart entry starts Perci hidden in the tray.
+func TestWriteAutostartDesktopFile_StartsHidden(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	if err := writeAutostartDesktopFile(); err != nil {
+		t.Fatal(err)
+	}
+	path, _ := autostartDesktopPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "Exec=") {
+			if !strings.HasPrefix(line, `Exec="`) || !strings.HasSuffix(line, `" `+hiddenFlag) {
+				t.Errorf("Exec line = %q, want a quoted binary followed by %s", line, hiddenFlag)
+			}
+			return
+		}
+	}
+	t.Fatal("no Exec= line")
+}
+
+// TestHandleSecondInstance confirms that a second launch focuses the running
+// instance's main window, except for the hidden autostart launch.
+func TestHandleSecondInstance(t *testing.T) {
+	cases := []struct {
+		args []string
+		want bool
+	}{
+		{[]string{"/usr/local/bin/prci"}, true},
+		{[]string{"/usr/local/bin/prci", "--other"}, true},
+		{[]string{"/usr/local/bin/prci", hiddenFlag}, false},
+		{[]string{hiddenFlag}, true},
+		{nil, true},
+	}
+	for _, c := range cases {
+		focused := false
+		handleSecondInstance(c.args, func() { focused = true })
+		if focused != c.want {
+			t.Errorf("handleSecondInstance(%q): focused = %v, want %v", c.args, focused, c.want)
+		}
+	}
+}
+
+// newTestTray returns a TrayService whose events are recorded.
+func newTestTray() (*TrayService, *recorder) {
+	rec := &recorder{done: make(chan struct{})}
+	t := &TrayService{}
+	t.emitFn = func(name string, data any) {
+		rec.mu.Lock()
+		rec.events = append(rec.events, recordedEvent{name, data})
+		rec.mu.Unlock()
+	}
+	return t, rec
+}
+
+func (r *recorder) names() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out []string
+	for _, e := range r.events {
+		out = append(out, e.name)
+	}
+	return out
+}
+
+// Quitting is refused, and announced to the frontend, only while an action
+// holds the action lock.
+func TestQuitBlocked(t *testing.T) {
+	tray, rec := newTestTray()
+	if tray.quitBlocked() {
+		t.Fatal("idle: quit must be allowed")
+	}
+	if len(rec.names()) != 0 {
+		t.Errorf("idle: unexpected events %v", rec.names())
+	}
+
+	runMu.Lock()
+	blocked := tray.quitBlocked()
+	runMu.Unlock()
+	if !blocked {
+		t.Fatal("an action is running: quit must be refused")
+	}
+	if got := rec.names(); len(got) != 1 || got[0] != "quit-blocked" {
+		t.Errorf("events = %v, want [quit-blocked]", got)
+	}
+	if !runMu.TryLock() {
+		t.Fatal("quitBlocked left the action lock held")
+	}
+	runMu.Unlock()
+}
+
+// A quit that was decided on purpose (finished uninstall) is never refused,
+// even though the uninstall itself still holds the action lock.
+func TestQuitBlocked_AllowedWhenQuitting(t *testing.T) {
+	quitAllowed.Store(true)
+	defer quitAllowed.Store(false)
+	tray, _ := newTestTray()
+	runMu.Lock()
+	defer runMu.Unlock()
+	if tray.quitBlocked() {
+		t.Error("quit must not be refused once it was allowed")
+	}
+}
+
+// Closing the main window: hides into the tray when it's enabled; cancels
+// while an action runs; quits when idle with the tray off.
+func TestMainCloseDecision(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	tray, rec := newTestTray()
+
+	if cancel, hide := tray.mainCloseDecision(); cancel || hide {
+		t.Errorf("idle, tray off: cancel=%v hide=%v, want both false", cancel, hide)
+	}
+
+	runMu.Lock()
+	cancel, hide := tray.mainCloseDecision()
+	runMu.Unlock()
+	if !cancel || hide {
+		t.Errorf("running, tray off: cancel=%v hide=%v, want cancel only", cancel, hide)
+	}
+	if got := rec.names(); len(got) != 1 || got[0] != "quit-blocked" {
+		t.Errorf("events = %v, want [quit-blocked]", got)
+	}
+
+	if err := config.Update(func(c *config.Config) error { c.TrayEnabled = true; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if cancel, hide := tray.mainCloseDecision(); !cancel || !hide {
+		t.Errorf("tray on: cancel=%v hide=%v, want both true", cancel, hide)
+	}
+}
+
+// Turning the tray off persists the setting and removes the autostart
+// entry (the tray icon itself is a Wails object, absent here).
+func TestSetTrayEnabled_Off(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	if err := config.Update(func(c *config.Config) error { c.TrayEnabled = true; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAutostartDesktopFile(); err != nil {
+		t.Fatal(err)
+	}
+	tray, _ := newTestTray()
+	if err := tray.SetTrayEnabled(false); err != nil {
+		t.Fatalf("SetTrayEnabled(false): %v", err)
+	}
+	if tray.GetTrayEnabled() {
+		t.Error("TrayEnabled still true in config")
+	}
+	path, _ := autostartDesktopPath()
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Error("autostart entry should be gone")
+	}
+}
+
+func TestTrayIconsAreTheOnesRunSet(t *testing.T) {
+	tray := &TrayService{windowIcon: []byte("window"), trayIcon: []byte("tray")}
+	if w, tr := tray.icons(); string(w) != "window" || string(tr) != "tray" {
+		t.Errorf("icons() = %q, %q, want the icons Run set", w, tr)
+	}
+}
+
+// enableSelfManagement switches on the self-update and uninstall bindings
+// for the duration of the test.
+func enableSelfManagement(t *testing.T) {
+	t.Helper()
+	prev := selfManagementEnabled
+	selfManagementEnabled = true
+	t.Cleanup(func() { selfManagementEnabled = prev })
+}
+
+// The self-update and uninstall bindings refuse to run while
+// selfManagementEnabled is off, before touching anything.
+func TestSelfManagementDisabledByDefault(t *testing.T) {
+	calls := 0
+	prev := uninstallPerci
+	uninstallPerci = func(_ context.Context, _ *executor.Executor, _ io.Writer, _ bool) error {
+		calls++
+		return nil
+	}
+	t.Cleanup(func() { uninstallPerci = prev })
+	dev := &DevHomeService{}
+	if err := dev.RunSelfUninstall(true, true, "", "", ""); !errors.Is(err, errSelfManagementUnavailable) {
+		t.Errorf("Dev RunSelfUninstall = %v, want errSelfManagementUnavailable", err)
+	}
+	if err := (&SystemHomeService{}).RunSelfUninstall(true); !errors.Is(err, errSelfManagementUnavailable) {
+		t.Errorf("System RunSelfUninstall = %v, want errSelfManagementUnavailable", err)
+	}
+	if err := dev.RunSelfUpdate(); !errors.Is(err, errSelfManagementUnavailable) {
+		t.Errorf("RunSelfUpdate = %v, want errSelfManagementUnavailable", err)
+	}
+	if info := dev.GetSelfUpdateInfo(); info.Error == "" || info.UpdateAvailable {
+		t.Errorf("GetSelfUpdateInfo = %+v, want an error and no update", info)
+	}
+	if calls != 0 {
+		t.Errorf("uninstall ran %d times", calls)
+	}
+}
+
+// newUninstallHome prepares a temp HOME with a registered Nginx (so a
+// backup has something to export) and replaces the uninstall step with a
+// recorder that never touches the real binary.
+func newUninstallHome(t *testing.T, onUninstall func() error) (*DevHomeService, *int) {
+	t.Helper()
+	enableSelfManagement(t)
+	t.Setenv("HOME", t.TempDir())
+	calls := 0
+	prev := uninstallPerci
+	uninstallPerci = func(_ context.Context, _ *executor.Executor, _ io.Writer, _ bool) error {
+		calls++
+		return onUninstall()
+	}
+	t.Cleanup(func() { uninstallPerci = prev })
+	exe := executor.New(nil, nil)
+	exe.DryRun = true
+	return &DevHomeService{homeCore{serviceBase{exe: exe}}}, &calls
+}
+
+func registerNginx(t *testing.T) {
+	t.Helper()
+	if err := config.Update(func(c *config.Config) error { c.Docker.NginxCreated = true; return nil }); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A backup that fails stops the uninstall before anything is removed.
+func TestSelfUninstall_FailedBackupAborts(t *testing.T) {
+	h, calls := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
+	registerNginx(t)
+	if err := writeAutostartDesktopFile(); err != nil {
+		t.Fatal(err)
+	}
+	blocker := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocker, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The destination's parent is a regular file: the export cannot succeed.
+	err := h.selfUninstall(io.Discard, true, true, filepath.Join(blocker, "backup.yaml"), "", "")
+	if err == nil || !strings.Contains(err.Error(), "nada foi removido") {
+		t.Fatalf("err = %v, want the backup failure", err)
+	}
+	if errors.Is(err, selfupdate.ErrUninstalled) || *calls != 0 {
+		t.Errorf("uninstall ran after a failed backup (calls=%d, err=%v)", *calls, err)
+	}
+	if path, _ := autostartDesktopPath(); !fileExists(path) {
+		t.Error("the autostart entry was removed despite the failed backup")
+	}
+	if cfg, err := config.Load(); err != nil || !cfg.Docker.NginxCreated {
+		t.Error("the configuration was altered despite the failed backup")
+	}
+}
+
+func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
+
+// With a working backup, the file exists before the uninstall step runs,
+// and the autostart entry goes away after it succeeds.
+func TestSelfUninstall_BackupBeforeUninstall(t *testing.T) {
+	backup := filepath.Join(t.TempDir(), "backup.yaml")
+	backedUp := false
+	h, calls := newUninstallHome(t, func() error {
+		backedUp = fileExists(backup)
+		return selfupdate.ErrUninstalled
+	})
+	registerNginx(t)
+	if err := writeAutostartDesktopFile(); err != nil {
+		t.Fatal(err)
+	}
+	err := h.selfUninstall(io.Discard, false, false, backup, "", "")
+	if !errors.Is(err, selfupdate.ErrUninstalled) || *calls != 1 {
+		t.Fatalf("err=%v calls=%d, want ErrUninstalled after one uninstall", err, *calls)
+	}
+	if !backedUp {
+		t.Error("the uninstall ran before the backup was written")
+	}
+	if path, _ := autostartDesktopPath(); fileExists(path) {
+		t.Error("the autostart entry should be removed after the uninstall")
+	}
+}
+
+// "Nothing to export" is only a warning: the uninstall goes on.
+func TestSelfUninstall_NothingToExportIsWarning(t *testing.T) {
+	h, calls := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
+	backup := filepath.Join(t.TempDir(), "backup.yaml")
+	var out strings.Builder
+	err := h.selfUninstall(&out, false, false, backup, "", "")
+	if !errors.Is(err, selfupdate.ErrUninstalled) || *calls != 1 {
+		t.Fatalf("err=%v calls=%d, want the uninstall to proceed", err, *calls)
+	}
+	if !strings.Contains(out.String(), appstack.ErrNothingToExport.Error()) {
+		t.Errorf("no warning in the output: %q", out.String())
+	}
+	if fileExists(backup) {
+		t.Error("no backup file expected")
+	}
+}
+
+// registerGitAccount records one Git account whose folder exists.
+func registerGitAccount(t *testing.T) config.GitAccount {
+	t.Helper()
+	acc := config.GitAccount{
+		ID: "oito2", Name: "OITO2", Provider: "github", Host: "github.com", Username: "oito2",
+		GitName: "Oito Dois", GitEmail: "oito2@example.com", Folder: t.TempDir(),
+	}
+	if err := config.Update(func(c *config.Config) error { c.GitAccounts = []config.GitAccount{acc}; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	return acc
+}
+
+// The repositories backup is its own file; failing to write it stops the
+// uninstall, and "nothing to export" is only a warning.
+func TestSelfUninstall_ReposBackup(t *testing.T) {
+	h, calls := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
+	var out strings.Builder
+	empty := filepath.Join(t.TempDir(), "repos.yaml")
+	if err := h.selfUninstall(&out, false, false, "", empty, ""); !errors.Is(err, selfupdate.ErrUninstalled) {
+		t.Fatalf("without accounts: err=%v, want the uninstall to proceed", err)
+	}
+	if !strings.Contains(out.String(), gitaccount.ErrNothingToExport.Error()) || fileExists(empty) {
+		t.Errorf("without accounts: output %q, file written %v", out.String(), fileExists(empty))
+	}
+
+	registerGitAccount(t)
+	backup := filepath.Join(t.TempDir(), "repos.yaml")
+	if err := h.selfUninstall(io.Discard, false, false, "", backup, ""); !errors.Is(err, selfupdate.ErrUninstalled) {
+		t.Fatalf("err=%v, want ErrUninstalled", err)
+	}
+	if data, err := os.ReadFile(backup); err != nil || !strings.Contains(string(data), "username: oito2") {
+		t.Errorf("repositories backup = %q, %v", data, err)
+	}
+
+	blocker := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocker, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before := *calls
+	err := h.selfUninstall(io.Discard, true, true, "", filepath.Join(blocker, "repos.yaml"), "")
+	if err == nil || !strings.Contains(err.Error(), "nada foi removido") || *calls != before {
+		t.Errorf("err=%v calls=%d, want the backup failure before the uninstall", err, *calls-before)
+	}
+}
+
+// The AI contexts backup is its own file, with folders inside the
+// workspace relative to it; failing to write it stops the uninstall, and
+// "nothing to export" is only a warning.
+func TestSelfUninstall_AIContextsBackup(t *testing.T) {
+	h, calls := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
+	var out strings.Builder
+	empty := filepath.Join(t.TempDir(), "ai.yaml")
+	if err := h.selfUninstall(&out, false, false, "", "", empty); !errors.Is(err, selfupdate.ErrUninstalled) {
+		t.Fatalf("without contexts: err=%v, want the uninstall to proceed", err)
+	}
+	if !strings.Contains(out.String(), managerai.ErrNothingToExport.Error()) || fileExists(empty) {
+		t.Errorf("without contexts: output %q, file written %v", out.String(), fileExists(empty))
+	}
+
+	ws := t.TempDir()
+	if err := config.Update(func(c *config.Config) error { c.WorkspacePath = ws; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := managerai.RecordContext("App", filepath.Join(ws, "app"), nil, []string{managerai.AgentCodex}); err != nil {
+		t.Fatal(err)
+	}
+	backup := filepath.Join(t.TempDir(), "ai.yaml")
+	if err := h.selfUninstall(io.Discard, false, false, "", "", backup); !errors.Is(err, selfupdate.ErrUninstalled) {
+		t.Fatalf("err=%v, want ErrUninstalled", err)
+	}
+	f, err := managerai.LoadTransfer(backup)
+	if err != nil || len(f.Contexts) != 1 || f.Contexts[0].Path != "app" || !f.Contexts[0].Relative {
+		t.Errorf("AI contexts backup = %+v, %v", f, err)
+	}
+
+	blocker := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocker, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before := *calls
+	err = h.selfUninstall(io.Discard, true, true, "", "", filepath.Join(blocker, "ai.yaml"))
+	if err == nil || !strings.Contains(err.Error(), "nada foi removido") || *calls != before {
+		t.Errorf("err=%v calls=%d, want the backup failure before the uninstall", err, *calls-before)
+	}
+}
+
+// Removing the configuration also forgets the Git accounts — read before
+// ~/.perci goes away — and only after the uninstall succeeded.
+func TestSelfUninstall_RemoveConfigForgetsGitAccounts(t *testing.T) {
+	h, _ := newUninstallHome(t, func() error {
+		home, _ := os.UserHomeDir()
+		_ = os.RemoveAll(filepath.Join(home, ".perci"))
+		return selfupdate.ErrUninstalled
+	})
+	registerGitAccount(t)
+	var out strings.Builder
+	if err := h.selfUninstall(&out, true, false, "", "", ""); !errors.Is(err, selfupdate.ErrUninstalled) {
+		t.Fatalf("err=%v", err)
+	}
+	if !strings.Contains(out.String(), "Regra da conta OITO2 removida") {
+		t.Errorf("the account rule was not removed:\n%s", out.String())
+	}
+
+	registerGitAccount(t)
+	out.Reset()
+	if err := h.selfUninstall(&out, false, false, "", "", ""); !errors.Is(err, selfupdate.ErrUninstalled) {
+		t.Fatalf("err=%v", err)
+	}
+	if strings.Contains(out.String(), "Regra da conta") {
+		t.Errorf("the account was forgotten although the configuration stays:\n%s", out.String())
+	}
+
+	failing, _ := newUninstallHome(t, func() error { return errors.New("falhou") })
+	registerGitAccount(t)
+	out.Reset()
+	if err := failing.selfUninstall(&out, true, false, "", "", ""); err == nil || strings.Contains(out.String(), "Regra da conta") {
+		t.Errorf("a failed uninstall forgot the accounts (err=%v):\n%s", err, out.String())
+	}
+}

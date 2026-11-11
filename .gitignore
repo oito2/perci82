@@ -1,0 +1,46 @@
+# Build outputs — `make build` writes ./perci82-system and ./perci82-dev,
+# `make release` writes dist/; a plain `go build` inside cmd/<app> leaves
+# the binary there.
+/perci82-system
+/perci82-dev
+/cmd/perci82-system/perci82-system
+/cmd/perci82-dev/perci82-dev
+/dist/
+
+# Go test and coverage artifacts (go test -c, -coverprofile, -cpuprofile)
+*.test
+*.out
+*.prof
+coverage.html
+
+# Local, per-machine tool configuration
+/.claude/settings.local.json
+/.claude/settings.json
+/.sync82.json
+/.agents/mcp_config.json
+
+# AI agent rules and context files (kept locally, not versioned)
+/AGENTS.md
+/CLAUDE.md
+/.instructions/
+/.aiexclude
+/.claudeignore
+/.geminiignore
+/GEMINI.md
+/opencode.json
+/.claude/rules/
+/*.perci-bak
+/.claude/*.perci-bak
+
+# Frontend tests use plain Node — no npm dependencies, just in case
+node_modules/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Local working notes (code reviews, plans)
+/.dev/

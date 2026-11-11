@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Perci82 Dev
+Comment=Development environment on Linux: SDKs, IDEs, Docker, repositories, AI contexts and MCPs
+Comment[pt_BR]=Ambiente de desenvolvimento no Linux: SDKs, IDEs, Docker, repositórios, contextos de IA e MCPs
+Exec=/usr/local/bin/perci82-dev
+Icon=io.github.oito2.perci82.dev
+Terminal=false
+Categories=Development;Utility;
+StartupWMClass=io.github.oito2.perci82.dev

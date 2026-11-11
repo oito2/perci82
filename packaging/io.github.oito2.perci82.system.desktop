@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Perci82 System
+Comment=Linux administration: post-install setup, updates, fonts, templates and Flatpaks
+Comment[pt_BR]=Administração do Linux: pós-instalação, atualizações, fontes, templates e Flatpaks
+Exec=/usr/local/bin/perci82-system
+Icon=io.github.oito2.perci82.system
+Terminal=false
+Categories=System;Settings;Utility;
+StartupWMClass=io.github.oito2.perci82.system

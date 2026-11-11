@@ -1,0 +1,46 @@
+// Copyright (C) 2026  oito2
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+package terminal
+
+import (
+	"context"
+	"io"
+
+	"github.com/oito2/perci82/internal/checklist"
+	"github.com/oito2/perci82/internal/dev/localbin"
+	"github.com/oito2/perci82/internal/distro"
+	"github.com/oito2/perci82/internal/executor"
+)
+
+// Apply installs terminal emulators listed in toInstall and removes those in
+// toRemove, one ui.Step per processed terminal (via checklist.Apply).
+// Starship is not handled here; see InstallStarship.
+//
+// Every run ends by syncing the file-manager context-menu entries with what
+// is actually installed (SyncContextMenuEntries), even when an item failed.
+func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, toInstall, toRemove []string) error {
+	family := distro.Detect()
+	err := checklist.Apply(stdout, Catalogue, func(t Terminal) string { return t.Name }, toInstall, toRemove,
+		func(t Terminal) error { return InstallOne(ctx, exe, stdout, t, family) },
+		func(t Terminal) error { return UninstallOne(ctx, exe, stdout, t, family) },
+	)
+	if !exe.DryRun {
+		// Kitty lands in ~/.local/bin: refresh PATH so InstalledMap sees it.
+		localbin.RefreshPath(ctx, exe)
+		SyncContextMenuEntries(InstalledMap(ctx, exe), stdout)
+	}
+	return err
+}
