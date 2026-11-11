@@ -9,3 +9,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wails is upgraded by hand, as its own change: its releases include
+    # nightly builds, and an upgrade needs the bindings regenerated.
+    ignore:
+      - dependency-name: github.com/wailsapp/wails/v3
