@@ -48,6 +48,7 @@ export {
     RepoFilesView,
     SelfUpdateInfo,
     SingleAppInfo,
+    ThemeOption,
     TransferApp,
     TransferItems,
     TransferPlugin,

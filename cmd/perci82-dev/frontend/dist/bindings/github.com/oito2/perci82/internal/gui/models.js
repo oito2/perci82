@@ -2142,6 +2142,63 @@ export class SingleAppInfo {
 }
 
 /**
+ * ThemeOption is one choice of the theme selector.
+ */
+export class ThemeOption {
+    /**
+     * Creates a new ThemeOption instance.
+     * @param {Partial<ThemeOption>} [$$source = {}] - The source object to create the ThemeOption.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * ID is the value GetTheme/SetTheme use.
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("label" in $$source)) {
+            /**
+             * Label is the name shown to the user.
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
+        if (!("scheme" in $$source)) {
+            /**
+             * Scheme is the CSS scheme name of a preset in normal contrast; empty
+             * for "system", which follows GetSystemScheme.
+             * @member
+             * @type {string}
+             */
+            this["scheme"] = "";
+        }
+        if (!("dark" in $$source)) {
+            /**
+             * Dark reports whether a preset is dark.
+             * @member
+             * @type {boolean}
+             */
+            this["dark"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ThemeOption instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ThemeOption}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ThemeOption(/** @type {Partial<ThemeOption>} */($$parsedSource));
+    }
+}
+
+/**
  * TransferApp is one Container Aplicativo listed on Exportar/Importar.
  * Exists (import only) means an app with the same folder is already
  * registered here and would be replaced.

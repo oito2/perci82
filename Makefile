@@ -21,7 +21,7 @@ DIST     := dist
 # The production tag turns off Wails' debug mode (webview developer tools).
 TAGS     := production
 
-.PHONY: build build-system build-dev run-system run-dev test test-frontend lint clean release release-system release-dev generate-bindings
+.PHONY: build build-system build-dev run-system run-dev test test-frontend lint clean release release-system release-dev generate-bindings generate check-generated parity-sync
 
 # Builds both applications with the production tag only: GTK4 + WebKitGTK
 # 6.0 is the default stack. -trimpath keeps the builder's local paths out of
@@ -108,3 +108,19 @@ generate-bindings:
 	for app in $(APPS); do \
 		(cd cmd/$$app && wails3 generate bindings -names -b -d frontend/dist/bindings ./...) || exit 1; \
 	done
+
+# generate rewrites the files generated from the oito2_ui parity fixtures
+# (internal/gui/web/css/oito2.css); check-generated fails when they are
+# out of date, without writing anything.
+generate:
+	go generate ./internal/theme
+
+check-generated:
+	go run ./internal/theme/gencss -out internal/gui/web/css/oito2.css -check
+
+# parity-sync copies the oito2_ui fixtures Perci82 uses from a checkout of
+# oito2_ui (default references/oito2_ui; OITO2_UI=<dir> picks another) and
+# records its commit; run `make generate` afterwards.
+OITO2_UI ?= references/oito2_ui
+parity-sync:
+	go run ./tools/parity-sync --from $(OITO2_UI)

@@ -123,3 +123,42 @@ test("every icon the page uses is in the vendored lucide set", () => {
   const missing = [...used].filter((name) => !new RegExp("^\\s+" + name + ":\\s*'", "m").test(icons));
   assert.deepEqual(missing, []);
 });
+
+const THEME_OPTIONS = [
+  { id: "system", label: "Definido pelo sistema", scheme: "" },
+  { id: "nordDark", label: "Nord Dark", scheme: "nord-dark", dark: true },
+];
+
+test("theme: the saved choice sets data-oito2-scheme, following the system scheme and contrast", async () => {
+  const { ctx, emit } = load({
+    GetThemeOptions: THEME_OPTIONS,
+    GetSystemScheme: { scheme: "dark-teal", highContrast: false },
+    GetTheme: "system",
+  });
+  const scheme = () => evalIn(ctx, "document.documentElement").attributes["data-oito2-scheme"];
+  await tick();
+  await tick();
+  assert.equal(scheme(), "dark-teal");
+
+  ctx.applyTheme("nordDark");
+  assert.equal(scheme(), "nord-dark");
+
+  // The desktop switches to high contrast: the preset follows.
+  emit("system-scheme-changed", { scheme: "light-blue-hc", highContrast: true });
+  assert.equal(scheme(), "nord-dark-hc");
+
+  ctx.applyTheme("system");
+  assert.equal(scheme(), "light-blue-hc");
+
+  // A choice this version doesn't know shows the system scheme.
+  ctx.applyTheme("garden");
+  assert.equal(scheme(), "light-blue-hc");
+});
+
+test("theme: the stylesheet with the oito2 schemes is loaded, and daisyUI's theme file is not", () => {
+  const html = fs.readFileSync(path.join(distDir, "index.html"), "utf8");
+  assert.ok(html.includes('href="./css/oito2.css"'));
+  assert.ok(!html.includes("themes.css"));
+  assert.ok(html.indexOf("daisyui.css") < html.indexOf("css/oito2.css"), "oito2.css comes after daisyui.css");
+  assert.ok(fs.existsSync(path.join(commonDir, "css", "oito2.css")));
+});

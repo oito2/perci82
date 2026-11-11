@@ -15,5 +15,6 @@ export {
     MultiSelectItemInfo,
     PostinstallActionInfo,
     PostinstallProfileInfo,
-    SelfUpdateInfo
+    SelfUpdateInfo,
+    ThemeOption
 } from "./models.js";

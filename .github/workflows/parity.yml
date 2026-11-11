@@ -1,0 +1,43 @@
+name: Parity
+
+# Compares the oito2_ui fixtures copied into internal/theme/parity with
+# oito2_ui's main branch, so a change in the design system shows up here.
+# Updating the copies is a manual change: `make parity-sync`, then
+# `make generate`.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+# Nothing by default: the job only reads public repositories.
+permissions: {}
+
+jobs:
+  check:
+    name: Check parity fixtures
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      # Pinned by commit SHA; Dependabot keeps them current.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout oito2_ui
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: oito2/oito2_ui
+          ref: main
+          path: references/oito2_ui
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Compare the fixtures with oito2_ui main
+        run: go run ./tools/parity-sync --from references/oito2_ui --check

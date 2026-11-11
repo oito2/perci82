@@ -25,6 +25,7 @@ import (
 	"io/fs"
 	"os"
 	"slices"
+	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -34,6 +35,7 @@ import (
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/gui/web"
 	"github.com/oito2/perci82/internal/manager/gitaccount"
+	"github.com/oito2/perci82/internal/theme"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -106,6 +108,10 @@ func actionRunning() bool {
 	}
 	return true
 }
+
+// watchSystemSettings reports the desktop's appearance changes — a
+// variable so tests never watch the machine's session bus.
+var watchSystemSettings = theme.WatchSystem
 
 // Run starts the application described by p, serving assets (the
 // application's own frontend, over the shared web.FS files) and binding
@@ -260,6 +266,18 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 			fmt.Fprintln(stderr, "aviso: não foi possível atualizar o autostart da bandeja:", err)
 		}
 	}
+
+	// "Definido pelo sistema" follows the desktop's appearance settings
+	// while the application runs.
+	watchCtx, stopWatch := context.WithCancel(context.Background())
+	var watchers sync.WaitGroup
+	defer watchers.Wait()
+	defer stopWatch()
+	watchers.Go(func() {
+		_ = watchSystemSettings(watchCtx, func(s theme.SystemSettings) {
+			wailsApp.Event.Emit("system-scheme-changed", s.Resolve())
+		})
+	})
 
 	if err := wailsApp.Run(); err != nil {
 		fmt.Fprintln(stderr, "erro ao iniciar o "+p.Name+":", err)

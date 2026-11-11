@@ -14,7 +14,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Package web embeds the frontend files both Perci82 applications share:
-// the vendored libraries, the sidebar logo images and the common scripts.
+// the vendored libraries, the sidebar logo images, the oito2 stylesheet
+// and the common scripts.
 // Each application serves them under its own frontend (see gui.Run).
 package web
 
@@ -23,7 +24,7 @@ import (
 	"io/fs"
 )
 
-//go:embed all:vendor all:assets all:js
+//go:embed all:vendor all:assets all:css all:js
 var files embed.FS
 
 // FS returns the shared frontend files, rooted so that "js/core.js" is a

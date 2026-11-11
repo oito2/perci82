@@ -1,0 +1,986 @@
+{
+	"en": {
+		"localeName": "en",
+		"material": {
+			"back": "Back",
+			"searchField": "Search",
+			"previousPage": "Previous page",
+			"nextPage": "Next page",
+			"clearText": "Clear text",
+			"copy": "Copy",
+			"ok": "OK",
+			"cancel": "Cancel",
+			"dateInput": "Enter Date",
+			"dateHelp": "mm/dd/yyyy",
+			"invalidDateFormat": "Invalid format.",
+			"dateOutOfRange": "Out of range.",
+			"timeInput": "Enter time",
+			"invalidTime": "Enter a valid time",
+			"am": "AM",
+			"pm": "PM",
+			"previousMonth": "Previous month",
+			"nextMonth": "Next month",
+			"today": "Today",
+			"selectDate": "Select date"
+		},
+		"getters": {
+			"minimizeWindow": "Minimize",
+			"maximizeWindow": "Maximize",
+			"restoreWindow": "Restore",
+			"closeWindow": "Close",
+			"resizePane": "Resize pane",
+			"moreOptions": "More options",
+			"scrollBack": "Scroll back",
+			"scrollForward": "Scroll forward",
+			"justNow": "now",
+			"commandPaletteHint": "Type a command",
+			"noCommandsFound": "No commands found",
+			"pressShortcut": "Press a shortcut",
+			"noShortcut": "No shortcut",
+			"clearShortcut": "Clear shortcut",
+			"noResults": "No results",
+			"close": "Close",
+			"dismiss": "Dismiss",
+			"notifications": "Notifications",
+			"resizeSheet": "Resize sheet",
+			"tourBack": "Back",
+			"tourNext": "Next",
+			"tourDone": "Done",
+			"tourSkip": "Skip tour",
+			"showPassword": "Show password",
+			"hidePassword": "Hide password",
+			"capsLockOn": "Caps Lock is on",
+			"increase": "Increase",
+			"decrease": "Decrease",
+			"editText": "Press Enter to edit",
+			"hue": "Hue",
+			"saturation": "Saturation",
+			"brightness": "Brightness",
+			"lightness": "Lightness",
+			"opacity": "Opacity",
+			"red": "Red",
+			"green": "Green",
+			"blue": "Blue",
+			"saturationAndBrightness": "Saturation and brightness",
+			"weekNumberHeading": "Wk",
+			"copied": "Copied",
+			"copyFailed": "Couldn't copy",
+			"moveWithArrowKeys": "Use the arrow keys to move it",
+			"mainMenu": "Main menu",
+			"moveUp": "Move up",
+			"moveDown": "Move down",
+			"moveLeft": "Move left",
+			"moveRight": "Move right",
+			"itemsPerPage": "Items per page",
+			"stepCompleted": "Completed",
+			"stepCurrent": "Current",
+			"stepError": "Needs attention",
+			"removeTagHint": "Press Delete to remove",
+			"hexColor": "Hex",
+			"infoInformation": "Information",
+			"infoSuccess": "Success",
+			"infoWarning": "Warning",
+			"infoDanger": "Error",
+			"infoImportant": "Important",
+			"loading": "Loading",
+			"statusOnline": "Online",
+			"statusAway": "Away",
+			"statusBusy": "Busy",
+			"statusOffline": "Offline",
+			"qrCode": "QR code",
+			"qrTooLong": "Too much data for a QR code",
+			"signature": "Signature",
+			"signHere": "Sign here",
+			"signed": "Signed",
+			"empty": "Empty",
+			"undo": "Undo",
+			"clear": "Clear",
+			"imageCropper": "Image cropper",
+			"rotateLeft": "Rotate left",
+			"rotateRight": "Rotate right",
+			"flipHorizontally": "Flip horizontally",
+			"zoomIn": "Zoom in",
+			"zoomOut": "Zoom out",
+			"reset": "Reset",
+			"dropFilesHere": "Drop files here",
+			"chooseFiles": "Choose files",
+			"chooseFile": "Choose a file",
+			"download": "Download",
+			"downloadUnavailable": "Downloads are not available on this device"
+		},
+		"calls": [
+			{
+				"name": "pageOf",
+				"args": [
+					2,
+					5
+				],
+				"result": "Page 2 of 5"
+			},
+			{
+				"name": "partOf",
+				"args": [
+					1,
+					3
+				],
+				"result": "Part 1 of 3"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"second"
+				],
+				"result": "1 second ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"second"
+				],
+				"result": "in 1 second"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"second"
+				],
+				"result": "3 seconds ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"second"
+				],
+				"result": "in 3 seconds"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"minute"
+				],
+				"result": "1 minute ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"minute"
+				],
+				"result": "in 1 minute"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"minute"
+				],
+				"result": "3 minutes ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"minute"
+				],
+				"result": "in 3 minutes"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"hour"
+				],
+				"result": "1 hour ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"hour"
+				],
+				"result": "in 1 hour"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"hour"
+				],
+				"result": "3 hours ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"hour"
+				],
+				"result": "in 3 hours"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"day"
+				],
+				"result": "1 day ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"day"
+				],
+				"result": "in 1 day"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"day"
+				],
+				"result": "3 days ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"day"
+				],
+				"result": "in 3 days"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"week"
+				],
+				"result": "1 week ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"week"
+				],
+				"result": "in 1 week"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"week"
+				],
+				"result": "3 weeks ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"week"
+				],
+				"result": "in 3 weeks"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"month"
+				],
+				"result": "1 month ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"month"
+				],
+				"result": "in 1 month"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"month"
+				],
+				"result": "3 months ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"month"
+				],
+				"result": "in 3 months"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"year"
+				],
+				"result": "1 year ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"year"
+				],
+				"result": "in 1 year"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"year"
+				],
+				"result": "3 years ago"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"year"
+				],
+				"result": "in 3 years"
+			},
+			{
+				"name": "resultCount",
+				"args": [
+					1
+				],
+				"result": "1 result"
+			},
+			{
+				"name": "resultCount",
+				"args": [
+					3
+				],
+				"result": "3 results"
+			},
+			{
+				"name": "resultCount",
+				"args": [
+					0
+				],
+				"result": "0 results"
+			},
+			{
+				"name": "tourProgress",
+				"args": [
+					2,
+					4
+				],
+				"result": "Step 2 of 4"
+			},
+			{
+				"name": "codeEntry",
+				"args": [
+					6
+				],
+				"result": "Code of 6 characters"
+			},
+			{
+				"name": "ratingValue",
+				"args": [
+					"3.5",
+					5
+				],
+				"result": "3.5 of 5 stars"
+			},
+			{
+				"name": "removeItem",
+				"args": [
+					"Tag"
+				],
+				"result": "Remove Tag"
+			},
+			{
+				"name": "weekNumber",
+				"args": [
+					12
+				],
+				"result": "Week 12"
+			},
+			{
+				"name": "pageNumber",
+				"args": [
+					3
+				],
+				"result": "Page 3"
+			},
+			{
+				"name": "stepOf",
+				"args": [
+					2,
+					5
+				],
+				"result": "Step 2 of 5"
+			},
+			{
+				"name": "dateRange",
+				"args": [
+					"1/2",
+					"3/4"
+				],
+				"result": "1/2 – 3/4"
+			},
+			{
+				"name": "moreCount",
+				"args": [
+					4
+				],
+				"result": "4 more"
+			},
+			{
+				"name": "acceptedFileTypes",
+				"args": [
+					"PNG, JPG"
+				],
+				"result": "Accepted: PNG, JPG"
+			},
+			{
+				"name": "maxFileSizeHint",
+				"args": [
+					"2 MB"
+				],
+				"result": "Up to 2 MB each"
+			},
+			{
+				"name": "fileTypeNotAccepted",
+				"args": [
+					"a.txt"
+				],
+				"result": "a.txt: this file type is not accepted"
+			},
+			{
+				"name": "fileTooLarge",
+				"args": [
+					"a.png",
+					"2 MB"
+				],
+				"result": "a.png: larger than 2 MB"
+			},
+			{
+				"name": "tooManyFiles",
+				"args": [
+					"a.png",
+					1
+				],
+				"result": "a.png: only 1 file can be added"
+			},
+			{
+				"name": "tooManyFiles",
+				"args": [
+					"a.png",
+					3
+				],
+				"result": "a.png: only 3 files can be added"
+			},
+			{
+				"name": "folderNotAccepted",
+				"args": [
+					"docs"
+				],
+				"result": "docs: folders are not accepted"
+			}
+		]
+	},
+	"pt-BR": {
+		"localeName": "pt_BR",
+		"material": {
+			"back": "Voltar",
+			"searchField": "Pesquisa",
+			"previousPage": "Página anterior",
+			"nextPage": "Próxima página",
+			"clearText": "Limpar texto",
+			"copy": "Copiar",
+			"ok": "OK",
+			"cancel": "Cancelar",
+			"dateInput": "Inserir data",
+			"dateHelp": "dd/mm/aaaa",
+			"invalidDateFormat": "Formato inválido.",
+			"dateOutOfRange": "Fora de alcance.",
+			"timeInput": "Insira o horário",
+			"invalidTime": "Insira um horário válido",
+			"am": "AM",
+			"pm": "PM",
+			"previousMonth": "Mês anterior",
+			"nextMonth": "Próximo mês",
+			"today": "Hoje",
+			"selectDate": "Selecione a data"
+		},
+		"getters": {
+			"minimizeWindow": "Minimizar",
+			"maximizeWindow": "Maximizar",
+			"restoreWindow": "Restaurar",
+			"closeWindow": "Fechar",
+			"resizePane": "Redimensionar painel",
+			"moreOptions": "Mais opções",
+			"scrollBack": "Rolar para trás",
+			"scrollForward": "Rolar para frente",
+			"justNow": "agora",
+			"commandPaletteHint": "Digite um comando",
+			"noCommandsFound": "Nenhum comando encontrado",
+			"pressShortcut": "Pressione um atalho",
+			"noShortcut": "Sem atalho",
+			"clearShortcut": "Limpar atalho",
+			"noResults": "Nenhum resultado",
+			"close": "Fechar",
+			"dismiss": "Dispensar",
+			"notifications": "Notificações",
+			"resizeSheet": "Redimensionar painel",
+			"tourBack": "Voltar",
+			"tourNext": "Próximo",
+			"tourDone": "Concluir",
+			"tourSkip": "Pular tour",
+			"showPassword": "Mostrar senha",
+			"hidePassword": "Ocultar senha",
+			"capsLockOn": "Caps Lock está ativado",
+			"increase": "Aumentar",
+			"decrease": "Diminuir",
+			"editText": "Pressione Enter para editar",
+			"hue": "Matiz",
+			"saturation": "Saturação",
+			"brightness": "Brilho",
+			"lightness": "Luminosidade",
+			"opacity": "Opacidade",
+			"red": "Vermelho",
+			"green": "Verde",
+			"blue": "Azul",
+			"saturationAndBrightness": "Saturação e brilho",
+			"weekNumberHeading": "Sem",
+			"copied": "Copiado",
+			"copyFailed": "Não foi possível copiar",
+			"moveWithArrowKeys": "Use as setas do teclado para mover",
+			"mainMenu": "Menu principal",
+			"moveUp": "Mover para cima",
+			"moveDown": "Mover para baixo",
+			"moveLeft": "Mover para a esquerda",
+			"moveRight": "Mover para a direita",
+			"itemsPerPage": "Itens por página",
+			"stepCompleted": "Concluído",
+			"stepCurrent": "Atual",
+			"stepError": "Requer atenção",
+			"removeTagHint": "Pressione Delete para remover",
+			"hexColor": "Hex",
+			"infoInformation": "Informação",
+			"infoSuccess": "Sucesso",
+			"infoWarning": "Aviso",
+			"infoDanger": "Erro",
+			"infoImportant": "Importante",
+			"loading": "Carregando",
+			"statusOnline": "Online",
+			"statusAway": "Ausente",
+			"statusBusy": "Ocupado",
+			"statusOffline": "Offline",
+			"qrCode": "Código QR",
+			"qrTooLong": "Dados demais para um código QR",
+			"signature": "Assinatura",
+			"signHere": "Assine aqui",
+			"signed": "Assinado",
+			"empty": "Vazio",
+			"undo": "Desfazer",
+			"clear": "Limpar",
+			"imageCropper": "Recorte de imagem",
+			"rotateLeft": "Girar à esquerda",
+			"rotateRight": "Girar à direita",
+			"flipHorizontally": "Espelhar horizontalmente",
+			"zoomIn": "Ampliar",
+			"zoomOut": "Reduzir",
+			"reset": "Redefinir",
+			"dropFilesHere": "Solte os arquivos aqui",
+			"chooseFiles": "Escolher arquivos",
+			"chooseFile": "Escolher um arquivo",
+			"download": "Baixar",
+			"downloadUnavailable": "Downloads não estão disponíveis neste dispositivo"
+		},
+		"calls": [
+			{
+				"name": "pageOf",
+				"args": [
+					2,
+					5
+				],
+				"result": "Página 2 de 5"
+			},
+			{
+				"name": "partOf",
+				"args": [
+					1,
+					3
+				],
+				"result": "Parte 1 de 3"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"second"
+				],
+				"result": "há 1 segundo"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"second"
+				],
+				"result": "em 1 segundo"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"second"
+				],
+				"result": "há 3 segundos"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"second"
+				],
+				"result": "em 3 segundos"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"minute"
+				],
+				"result": "há 1 minuto"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"minute"
+				],
+				"result": "em 1 minuto"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"minute"
+				],
+				"result": "há 3 minutos"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"minute"
+				],
+				"result": "em 3 minutos"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"hour"
+				],
+				"result": "há 1 hora"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"hour"
+				],
+				"result": "em 1 hora"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"hour"
+				],
+				"result": "há 3 horas"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"hour"
+				],
+				"result": "em 3 horas"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"day"
+				],
+				"result": "há 1 dia"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"day"
+				],
+				"result": "em 1 dia"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"day"
+				],
+				"result": "há 3 dias"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"day"
+				],
+				"result": "em 3 dias"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"week"
+				],
+				"result": "há 1 semana"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"week"
+				],
+				"result": "em 1 semana"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"week"
+				],
+				"result": "há 3 semanas"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"week"
+				],
+				"result": "em 3 semanas"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"month"
+				],
+				"result": "há 1 mês"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"month"
+				],
+				"result": "em 1 mês"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"month"
+				],
+				"result": "há 3 meses"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"month"
+				],
+				"result": "em 3 meses"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					1,
+					"year"
+				],
+				"result": "há 1 ano"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					1,
+					"year"
+				],
+				"result": "em 1 ano"
+			},
+			{
+				"name": "timeAgo",
+				"args": [
+					3,
+					"year"
+				],
+				"result": "há 3 anos"
+			},
+			{
+				"name": "timeFromNow",
+				"args": [
+					3,
+					"year"
+				],
+				"result": "em 3 anos"
+			},
+			{
+				"name": "resultCount",
+				"args": [
+					1
+				],
+				"result": "1 resultado"
+			},
+			{
+				"name": "resultCount",
+				"args": [
+					3
+				],
+				"result": "3 resultados"
+			},
+			{
+				"name": "resultCount",
+				"args": [
+					0
+				],
+				"result": "0 resultados"
+			},
+			{
+				"name": "tourProgress",
+				"args": [
+					2,
+					4
+				],
+				"result": "Passo 2 de 4"
+			},
+			{
+				"name": "codeEntry",
+				"args": [
+					6
+				],
+				"result": "Código de 6 caracteres"
+			},
+			{
+				"name": "ratingValue",
+				"args": [
+					"3.5",
+					5
+				],
+				"result": "3.5 de 5 estrelas"
+			},
+			{
+				"name": "removeItem",
+				"args": [
+					"Tag"
+				],
+				"result": "Remover Tag"
+			},
+			{
+				"name": "weekNumber",
+				"args": [
+					12
+				],
+				"result": "Semana 12"
+			},
+			{
+				"name": "pageNumber",
+				"args": [
+					3
+				],
+				"result": "Página 3"
+			},
+			{
+				"name": "stepOf",
+				"args": [
+					2,
+					5
+				],
+				"result": "Passo 2 de 5"
+			},
+			{
+				"name": "dateRange",
+				"args": [
+					"1/2",
+					"3/4"
+				],
+				"result": "1/2 – 3/4"
+			},
+			{
+				"name": "moreCount",
+				"args": [
+					4
+				],
+				"result": "Mais 4"
+			},
+			{
+				"name": "acceptedFileTypes",
+				"args": [
+					"PNG, JPG"
+				],
+				"result": "Aceitos: PNG, JPG"
+			},
+			{
+				"name": "maxFileSizeHint",
+				"args": [
+					"2 MB"
+				],
+				"result": "Até 2 MB cada"
+			},
+			{
+				"name": "fileTypeNotAccepted",
+				"args": [
+					"a.txt"
+				],
+				"result": "a.txt: este tipo de arquivo não é aceito"
+			},
+			{
+				"name": "fileTooLarge",
+				"args": [
+					"a.png",
+					"2 MB"
+				],
+				"result": "a.png: maior que 2 MB"
+			},
+			{
+				"name": "tooManyFiles",
+				"args": [
+					"a.png",
+					1
+				],
+				"result": "a.png: só é possível adicionar 1 arquivo"
+			},
+			{
+				"name": "tooManyFiles",
+				"args": [
+					"a.png",
+					3
+				],
+				"result": "a.png: só é possível adicionar 3 arquivos"
+			},
+			{
+				"name": "folderNotAccepted",
+				"args": [
+					"docs"
+				],
+				"result": "docs: pastas não são aceitas"
+			}
+		]
+	}
+}

@@ -39,12 +39,13 @@ type Config struct {
 	FlatpakScope  string       `yaml:"flatpak_scope,omitempty"`
 	Docker        DockerConfig `yaml:"docker,omitempty"`
 
-	// GUITheme is Perci82 Dev's daisyUI theme name, one of GUIThemes(). Empty means "not set yet" — GUIThemeOrDefault
-	// fills in the default.
+	// GUITheme is Perci82 Dev's theme: "system" or an oito2 preset ID
+	// (see the theme package). Any other value — unset, or a daisyUI
+	// theme saved by Perci 1.9 — reads as "system".
 	GUITheme string `yaml:"gui_theme,omitempty"`
 
-	// SystemGUITheme is Perci82 System's theme, with the same values and
-	// fallback as GUITheme (SystemGUIThemeOrDefault).
+	// SystemGUITheme is Perci82 System's theme, with the same values as
+	// GUITheme.
 	SystemGUITheme string `yaml:"system_gui_theme,omitempty"`
 
 	// SidebarLogo and AppIcon are the mascot color variants ("blue"/"pink",
@@ -188,16 +189,6 @@ type MCPServerInstall struct {
 	Agents []string `yaml:"agents,omitempty"`
 }
 
-// GUIThemes is the fixed set of daisyUI themes the GUI offers.
-func GUIThemes() []string {
-	return []string{"light", "dark", "cupcake", "synthwave", "retro", "valentine", "halloween", "garden"}
-}
-
-// DefaultGUITheme is used whenever GUITheme is unset or not one of
-// GUIThemes() (e.g. an old config.yaml, or a name from a future release
-// this binary doesn't know yet).
-const DefaultGUITheme = "dark"
-
 // firstMatchOrDefault returns value when it is one of allowed, def
 // otherwise.
 func firstMatchOrDefault(value string, allowed []string, def string) string {
@@ -207,18 +198,6 @@ func firstMatchOrDefault(value string, allowed []string, def string) string {
 		}
 	}
 	return def
-}
-
-// GUIThemeOrDefault returns cfg.GUITheme when it is one of GUIThemes(),
-// DefaultGUITheme otherwise.
-func (c *Config) GUIThemeOrDefault() string {
-	return firstMatchOrDefault(c.GUITheme, GUIThemes(), DefaultGUITheme)
-}
-
-// SystemGUIThemeOrDefault returns cfg.SystemGUITheme when it is one of
-// GUIThemes(), DefaultGUITheme otherwise.
-func (c *Config) SystemGUIThemeOrDefault() string {
-	return firstMatchOrDefault(c.SystemGUITheme, GUIThemes(), DefaultGUITheme)
 }
 
 // SidebarLogos is the fixed set of mascot logo variants the GUI offers for

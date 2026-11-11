@@ -53,17 +53,45 @@ const ACTIONS = {};
 const compactAction = new URLSearchParams(location.search).get("compact");
 
 // --- theme -----------------------------------------------------------------
-// Applies the saved theme (data-theme) on load; the swatch grid is built
-// by renderSelfConfigScreen.
-function applyTheme(name) {
-  document.documentElement.setAttribute("data-theme", name);
+// The theme choice ("system" or an oito2 preset ID), the presets offered
+// and the scheme "system" resolves to. The scheme shown is the
+// data-oito2-scheme attribute of <html>; the selector grid is built by
+// renderSelfConfigScreen.
+let themeChoice = "system";
+let themeOptions = [];
+let systemScheme = { scheme: "light-blue", highContrast: false };
+
+// Returns the CSS scheme name of choice: the system's scheme for "system"
+// (or an unknown choice), otherwise the preset's scheme, in its high
+// contrast variant while the system asks for high contrast.
+function schemeFor(choice) {
+  const preset = themeOptions.find(function (o) { return o.id === choice; });
+  if (choice === "system" || !preset || !preset.scheme) return systemScheme.scheme;
+  return preset.scheme + (systemScheme.highContrast ? "-hc" : "");
+}
+
+function applyTheme(choice) {
+  themeChoice = choice;
+  document.documentElement.setAttribute("data-oito2-scheme", schemeFor(choice));
   // If the logo "easter egg" (below) already has an active mask, its
   // color depends on the theme — reapply it right away, without
   // waiting for a new click.
   if (sidebarLogoMaskIndex >= 0) logoImgEl.style.backgroundColor = sidebarLogoMaskColor();
 }
 
-App.GetTheme().then(applyTheme);
+Promise.all([App.GetThemeOptions(), App.GetSystemScheme(), App.GetTheme()]).then(function (r) {
+  themeOptions = r[0] || [];
+  if (r[1] && r[1].scheme) systemScheme = r[1];
+  applyTheme(r[2] || "system");
+});
+
+// The desktop's appearance changed: "system" (and the contrast of a
+// preset) follows it at once.
+Events.On("system-scheme-changed", function (ev) {
+  if (!ev.data || !ev.data.scheme) return;
+  systemScheme = ev.data;
+  applyTheme(themeChoice);
+});
 
 // --- sidebar logo --------------------------------------------------------
 // Applies the saved sidebar logo on load; the clickable grid is built by
@@ -76,10 +104,8 @@ App.GetSidebarLogo().then(function (name) {
 // different daisyUI mask, cycling through a fixed list of shapes. Both
 // mascot variants (perci-blue.png/perci-pink.png) have a transparent
 // background, so coloring the <img> itself (background-color) shows that
-// color clipped exactly to the mask's shape. Color per theme:
-// "synthwave"/"retro"/"valentine"/"halloween"/"garden" use the theme's
-// primary color (`var(--color-primary)`); every other theme uses the
-// fixed pink #FEC5C4. Purely client-side, no persistence — resets (back
+// color clipped exactly to the mask's shape: the theme's primary color
+// (`var(--color-primary)`). Purely client-side, no persistence — resets (back
 // to the original circle) every time Perci reopens. Uses
 // `document.getElementById` (not the `sidebarLogoImg` const declared
 // further below) because this snippet runs before that const exists;
@@ -89,13 +115,11 @@ const SIDEBAR_LOGO_MASKS = [
   "mask-decagon", "mask-pentagon", "mask-diamond", "mask-star",
   "mask-star-2", "mask-triangle", "mask-circle",
 ];
-const SIDEBAR_LOGO_PRIMARY_THEMES = ["synthwave", "retro", "valentine", "halloween", "garden"];
 let sidebarLogoMaskIndex = -1; // -1 = still the original circle, no mask
 const logoImgEl = document.getElementById("sidebar-logo-img");
 
 function sidebarLogoMaskColor() {
-  const theme = document.documentElement.getAttribute("data-theme");
-  return SIDEBAR_LOGO_PRIMARY_THEMES.indexOf(theme) >= 0 ? "var(--color-primary)" : "#FEC5C4";
+  return "var(--color-primary)";
 }
 
 function applySidebarLogoMask() {

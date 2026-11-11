@@ -30,6 +30,7 @@ import (
 	managerai "github.com/oito2/perci82/internal/manager/ai"
 	"github.com/oito2/perci82/internal/manager/gitaccount"
 	"github.com/oito2/perci82/internal/selfupdate"
+	"github.com/oito2/perci82/internal/theme"
 	"github.com/oito2/perci82/internal/ui"
 	"github.com/oito2/perci82/internal/version"
 )
@@ -75,52 +76,81 @@ func (h *DevHomeService) GetCategories() []MenuCategory {
 	return devCategories(accounts)
 }
 
-// GetTheme returns Perci82 System's daisyUI theme (~/.perci/config.yaml,
-// field system_gui_theme), falling back to the default when unset or
-// unrecognized.
+// GetTheme returns Perci82 System's theme choice (~/.perci/config.yaml,
+// field system_gui_theme): "system" or a preset ID; anything else reads
+// as "system".
 func (h *SystemHomeService) GetTheme() string {
 	cfg, err := config.Load()
 	if err != nil {
-		return config.DefaultGUITheme
+		return theme.SystemChoice
 	}
-	return cfg.SystemGUIThemeOrDefault()
+	return theme.ChoiceOrSystem(cfg.SystemGUITheme)
 }
 
-// SetTheme persists Perci82 System's theme (field system_gui_theme).
-func (h *SystemHomeService) SetTheme(name string) error {
-	name = oneOf(name, config.GUIThemes(), config.DefaultGUITheme)
+// SetTheme persists Perci82 System's theme choice (field
+// system_gui_theme); an unknown value is saved as "system".
+func (h *SystemHomeService) SetTheme(choice string) error {
+	choice = theme.ChoiceOrSystem(choice)
 	return config.Update(func(cfg *config.Config) error {
-		cfg.SystemGUITheme = name
+		cfg.SystemGUITheme = choice
 		return nil
 	})
 }
 
-// GetTheme returns Perci82 Dev's daisyUI theme (~/.perci/config.yaml,
-// field gui_theme), falling back to the default when unset or
-// unrecognized.
+// GetTheme returns Perci82 Dev's theme choice (~/.perci/config.yaml,
+// field gui_theme): "system" or a preset ID; anything else reads as
+// "system".
 func (h *DevHomeService) GetTheme() string {
 	cfg, err := config.Load()
 	if err != nil {
-		return config.DefaultGUITheme
+		return theme.SystemChoice
 	}
-	return cfg.GUIThemeOrDefault()
+	return theme.ChoiceOrSystem(cfg.GUITheme)
 }
 
-// SetTheme persists Perci82 Dev's theme (field gui_theme).
-func (h *DevHomeService) SetTheme(name string) error {
-	name = oneOf(name, config.GUIThemes(), config.DefaultGUITheme)
+// SetTheme persists Perci82 Dev's theme choice (field gui_theme); an
+// unknown value is saved as "system".
+func (h *DevHomeService) SetTheme(choice string) error {
+	choice = theme.ChoiceOrSystem(choice)
 	return config.Update(func(cfg *config.Config) error {
-		cfg.GUITheme = name
+		cfg.GUITheme = choice
 		return nil
 	})
 }
 
-// GetGUIThemes returns the fixed list of daisyUI themes the GUI offers, so
-// the frontend's theme selector doesn't have to duplicate that list by
-// hand.
-func (h *homeCore) GetGUIThemes() []string {
-	return config.GUIThemes()
+// ThemeOption is one choice of the theme selector.
+type ThemeOption struct {
+	// ID is the value GetTheme/SetTheme use.
+	ID string `json:"id"`
+	// Label is the name shown to the user.
+	Label string `json:"label"`
+	// Scheme is the CSS scheme name of a preset in normal contrast; empty
+	// for "system", which follows GetSystemScheme.
+	Scheme string `json:"scheme"`
+	// Dark reports whether a preset is dark.
+	Dark bool `json:"dark"`
 }
+
+// GetThemeOptions returns the theme choices: "Definido pelo sistema",
+// then the oito2 presets.
+func (h *homeCore) GetThemeOptions() []ThemeOption {
+	options := []ThemeOption{{ID: theme.SystemChoice, Label: "Definido pelo sistema"}}
+	for _, p := range theme.Presets() {
+		options = append(options, ThemeOption{ID: p.ID, Label: p.Label, Scheme: p.Scheme, Dark: p.Dark})
+	}
+	return options
+}
+
+// GetSystemScheme returns the scheme "Definido pelo sistema" resolves to
+// from the desktop's current appearance settings; changes arrive in the
+// "system-scheme-changed" event.
+func (h *homeCore) GetSystemScheme(ctx context.Context) theme.SystemScheme {
+	return readSystemSettings(ctx).Resolve()
+}
+
+// readSystemSettings reads the desktop's appearance settings — a variable
+// so tests never depend on the machine's desktop.
+var readSystemSettings = theme.ReadSystem
 
 // GetAppVersion returns the running binary's own version (internal/version)
 // with no network access — used by "Home :: Visão Geral" (dashboard), which

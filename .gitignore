@@ -7,6 +7,9 @@
 /cmd/perci82-dev/perci82-dev
 /dist/
 
+# Local checkout of oito2_ui read by `make parity-sync`
+/references/
+
 # Go test and coverage artifacts (go test -c, -coverprofile, -cpuprofile)
 *.test
 *.out

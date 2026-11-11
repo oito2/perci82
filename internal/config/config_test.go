@@ -256,33 +256,6 @@ func TestExpandPathAbsolute(t *testing.T) {
 	}
 }
 
-func TestGUIThemeOrDefault(t *testing.T) {
-	cases := []struct {
-		name     string
-		guiTheme string
-		want     string
-	}{
-		{name: "unset falls back to default", guiTheme: "", want: config.DefaultGUITheme},
-		{name: "valid theme kept as-is", guiTheme: "synthwave", want: "synthwave"},
-		{
-			// A TUI theme name (internal/theme.Available) must never leak
-			// through here — GUITheme and Theme are deliberately separate
-			// fields/namespaces.
-			name:     "unrecognized name falls back to default",
-			guiTheme: "Dracula",
-			want:     config.DefaultGUITheme,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			cfg := &config.Config{GUITheme: tc.guiTheme}
-			if got := cfg.GUIThemeOrDefault(); got != tc.want {
-				t.Errorf("GUIThemeOrDefault() = %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestSidebarLogoOrDefault(t *testing.T) {
 	cases := []struct {
 		name, sidebarLogo, want string
@@ -316,21 +289,6 @@ func TestAppIconOrDefault(t *testing.T) {
 				t.Errorf("AppIconOrDefault() = %q, want %q", got, tc.want)
 			}
 		})
-	}
-}
-
-func TestGUIThemesContainsDecidedSet(t *testing.T) {
-	// The exact set of 8 themes; guards against an accidental edit to
-	// GUIThemes() dropping or adding a theme.
-	want := []string{"light", "dark", "cupcake", "synthwave", "retro", "valentine", "halloween", "garden"}
-	got := config.GUIThemes()
-	if len(got) != len(want) {
-		t.Fatalf("GUIThemes() = %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("GUIThemes()[%d] = %q, want %q", i, got[i], want[i])
-		}
 	}
 }
 

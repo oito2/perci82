@@ -282,7 +282,9 @@ test("the update check shows a failure instead of staying on Verificando", async
 
 // FE-06
 test("theme grid: two renders in a row leave one button per theme", async () => {
-  const { ctx, element } = load({ GetGUIThemes: ["a", "b", "c"] });
+  const { ctx, element } = load({
+    GetThemeOptions: [{ id: "system", label: "Definido pelo sistema" }, { id: "a", label: "A", scheme: "a" }, { id: "b", label: "B", scheme: "b" }],
+  });
   ctx.renderThemeGrid("a");
   ctx.renderThemeGrid("b");
   await tick();

@@ -89,22 +89,22 @@ if (!compactAction) {
 }
 
 // --- "Home :: Configurar" (self-config) ---------------------------------
-// Tema — a click on a swatch applies and persists
-// right away, with no "Salvar" button involved.
+// Tema — "Definido pelo sistema" or one of the oito2 presets; a click
+// applies and persists right away, with no "Salvar" button involved.
 function renderThemeGrid(current) {
-  App.GetGUIThemes().then(function (themes) {
+  App.GetThemeOptions().then(function (options) {
     cfgThemeGrid.innerHTML = "";
-    themes.forEach(function (name) {
+    (options || []).forEach(function (option) {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "btn btn-sm justify-start" + (name === current ? " btn-active" : "");
-      btn.textContent = name;
+      btn.className = "btn btn-sm justify-start" + (option.id === current ? " btn-active" : "");
+      btn.textContent = option.label;
       btn.addEventListener("click", function () {
-        applyTheme(name);
-        App.SetTheme(name).catch(function (err) {
+        applyTheme(option.id);
+        App.SetTheme(option.id).catch(function (err) {
           openError("Falha ao salvar o tema: " + err);
         });
-        renderThemeGrid(name);
+        renderThemeGrid(option.id);
       });
       cfgThemeGrid.appendChild(btn);
     });

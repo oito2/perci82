@@ -58,6 +58,14 @@ Rodar as verificações:
 make lint
 make test
 make test-frontend
+make check-generated
+```
+
+As cores, medidas e presets vêm do [oito2_ui](https://github.com/oito2/oito2_ui), copiados como fixtures em `internal/theme/parity/`. Para atualizá-los, clone o oito2_ui em `references/oito2_ui` (ou passe `OITO2_UI=<pasta>`) e rode:
+
+```bash
+make parity-sync
+make generate
 ```
 
 ## Licença

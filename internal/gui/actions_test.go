@@ -16,6 +16,7 @@
 package gui
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strings"
@@ -31,6 +32,7 @@ import (
 	"github.com/oito2/perci82/internal/dev/terminal"
 	"github.com/oito2/perci82/internal/system/apps"
 	"github.com/oito2/perci82/internal/system/templates"
+	"github.com/oito2/perci82/internal/theme"
 )
 
 // isolateActions gives every action a throwaway HOME and a PATH with
@@ -120,11 +122,11 @@ func TestHomeSettings_RoundTripAndFallback(t *testing.T) {
 	dev := &DevHomeService{homeCore{*b}}
 	sys := &SystemHomeService{homeCore{*b}}
 
-	themes := dev.GetGUIThemes()
-	if len(themes) < 2 {
-		t.Fatal("theme list too short")
+	options := dev.GetThemeOptions()
+	if len(options) != 14 || options[0].ID != "system" {
+		t.Fatalf("theme options = %+v, want system plus the 13 presets", options)
 	}
-	first, last := themes[0], themes[len(themes)-1]
+	first, last := options[1].ID, options[len(options)-1].ID
 
 	useApp(t, config.AppDev)
 	if err := dev.SetTheme(last); err != nil || dev.GetTheme() != last {
@@ -141,8 +143,8 @@ func TestHomeSettings_RoundTripAndFallback(t *testing.T) {
 	if err := sys.SetTheme("../../etc/passwd"); err != nil {
 		t.Fatal(err)
 	}
-	if sys.GetTheme() == "../../etc/passwd" {
-		t.Error("an unknown value was stored as-is")
+	if got := sys.GetTheme(); got != "system" {
+		t.Errorf("an unknown value was stored as %q, want system", got)
 	}
 
 	if err := sys.SetFlatpakScope("user"); err != nil || sys.GetFlatpakScope() != "user" {
@@ -159,6 +161,39 @@ func TestHomeSettings_RoundTripAndFallback(t *testing.T) {
 	}
 	if got := dev.GetSidebarLogo(); got != config.DefaultSidebarLogo {
 		t.Errorf("sidebar logo = %q, want the default %q", got, config.DefaultSidebarLogo)
+	}
+}
+
+// A theme saved by Perci 1.9 (a daisyUI name) reads as "system" and is
+// left in config.yaml until another choice is saved.
+func TestHomeTheme_Perci19ValueReadsAsSystem(t *testing.T) {
+	isolateActions(t)
+	b, _ := newTestBase(t)
+	dev := &DevHomeService{homeCore{*b}}
+	useApp(t, config.AppDev)
+	if err := config.Update(func(c *config.Config) error { c.GUITheme = "garden"; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if got := dev.GetTheme(); got != "system" {
+		t.Errorf("GetTheme = %q, want system", got)
+	}
+	if cfg, _ := config.Load(); cfg.GUITheme != "garden" {
+		t.Errorf("reading the theme rewrote it to %q", cfg.GUITheme)
+	}
+}
+
+// GetSystemScheme resolves what the desktop reports.
+func TestHomeTheme_SystemScheme(t *testing.T) {
+	isolateActions(t)
+	b, _ := newTestBase(t)
+	sys := &SystemHomeService{homeCore{*b}}
+	orig := readSystemSettings
+	t.Cleanup(func() { readSystemSettings = orig })
+	readSystemSettings = func(context.Context) theme.SystemSettings {
+		return theme.SystemSettings{ColorScheme: "dark", Accent: "#2190A4", HighContrast: true}
+	}
+	if got := sys.GetSystemScheme(t.Context()); got.Scheme != "dark-teal-hc" || !got.HighContrast {
+		t.Errorf("GetSystemScheme = %+v, want dark-teal-hc", got)
 	}
 }
 

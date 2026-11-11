@@ -58,6 +58,14 @@ Run the checks:
 make lint
 make test
 make test-frontend
+make check-generated
+```
+
+The colors, measures and presets come from [oito2_ui](https://github.com/oito2/oito2_ui), copied as fixtures into `internal/theme/parity/`. To update them, check out oito2_ui into `references/oito2_ui` (or pass `OITO2_UI=<dir>`) and run:
+
+```bash
+make parity-sync
+make generate
 ```
 
 ## License

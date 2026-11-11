@@ -13,6 +13,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as theme$0 from "../theme/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -37,18 +41,6 @@ export function GetCategories() {
 }
 
 /**
- * GetGUIThemes returns the fixed list of daisyUI themes the GUI offers, so
- * the frontend's theme selector doesn't have to duplicate that list by
- * hand.
- * @returns {$CancellablePromise<string[]>}
- */
-export function GetGUIThemes() {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetGUIThemes").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
-    }));
-}
-
-/**
  * GetSelfUpdateInfo checks GitHub Releases (internal/selfupdate.
  * LatestRelease) and compares against the running version; RunSelfUpdate
  * redoes the lookup before applying, never trusting this earlier check. A
@@ -60,7 +52,7 @@ export function GetGUIThemes() {
  */
 export function GetSelfUpdateInfo() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetSelfUpdateInfo").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
+        return $$createType2($result);
     }));
 }
 
@@ -74,13 +66,36 @@ export function GetSidebarLogo() {
 }
 
 /**
- * GetTheme returns Perci82 Dev's daisyUI theme (~/.perci/config.yaml,
- * field gui_theme), falling back to the default when unset or
- * unrecognized.
+ * GetSystemScheme returns the scheme "Definido pelo sistema" resolves to
+ * from the desktop's current appearance settings; changes arrive in the
+ * "system-scheme-changed" event.
+ * @returns {$CancellablePromise<theme$0.SystemScheme>}
+ */
+export function GetSystemScheme() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetSystemScheme").then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
+ * GetTheme returns Perci82 Dev's theme choice (~/.perci/config.yaml,
+ * field gui_theme): "system" or a preset ID; anything else reads as
+ * "system".
  * @returns {$CancellablePromise<string>}
  */
 export function GetTheme() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetTheme");
+}
+
+/**
+ * GetThemeOptions returns the theme choices: "Definido pelo sistema",
+ * then the oito2 presets.
+ * @returns {$CancellablePromise<$models.ThemeOption[]>}
+ */
+export function GetThemeOptions() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetThemeOptions").then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType5($result);
+    }));
 }
 
 /**
@@ -192,12 +207,13 @@ export function RunSelfUpdate() {
 }
 
 /**
- * SetTheme persists Perci82 Dev's theme (field gui_theme).
- * @param {string} name
+ * SetTheme persists Perci82 Dev's theme choice (field gui_theme); an
+ * unknown value is saved as "system".
+ * @param {string} choice
  * @returns {$CancellablePromise<void>}
  */
-export function SetTheme(name) {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.SetTheme", name);
+export function SetTheme(choice) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.SetTheme", choice);
 }
 
 /**
@@ -221,5 +237,7 @@ export function SetWorkspacePath(path) {
 // Private type creation functions
 const $$createType0 = $models.MenuCategory.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $models.SelfUpdateInfo.createFrom;
+const $$createType2 = $models.SelfUpdateInfo.createFrom;
+const $$createType3 = theme$0.SystemScheme.createFrom;
+const $$createType4 = $models.ThemeOption.createFrom;
+const $$createType5 = $Create.Array($$createType4);

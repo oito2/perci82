@@ -15,7 +15,7 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 -->
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-oito2-scheme="light-blue">
 <head>
 <meta charset="utf-8" />
 <title>Perci82 System</title>
@@ -42,7 +42,12 @@
 -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'" />
 <link rel="stylesheet" href="./vendor/daisyui/daisyui.css" />
-<link rel="stylesheet" href="./vendor/daisyui/themes.css" />
+<!--
+  oito2.css holds the oito2 color schemes, selected by the data-oito2-scheme
+  attribute of <html>, and maps daisyUI's theme variables onto them. It
+  comes after daisyui.css so its rules win over daisyUI's built-in theme.
+-->
+<link rel="stylesheet" href="./css/oito2.css" />
 <script src="./vendor/tailwindcss/browser.js"></script>
 <link rel="stylesheet" href="./vendor/xterm/xterm.css" />
 
