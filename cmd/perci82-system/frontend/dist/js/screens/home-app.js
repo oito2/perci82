@@ -48,8 +48,8 @@ btnSu2Uninstall.addEventListener("click", function () {
   });
 });
 
-// Escopo de instalação Flatpak — applies right away, like Tema/Logo/
-// Ícone, with no "Salvar" button at all.
+// Escopo de instalação Flatpak — applies right away, like Tema,
+// with no "Salvar" button at all.
 scFlatpak.addEventListener("change", function () {
   App.SetFlatpakScope(scFlatpak.value).catch(function (err) {
     openError("Falha ao salvar o escopo do Flatpak: " + err);

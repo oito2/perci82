@@ -1,0 +1,42 @@
+workspace_path: /home/pessoa/workspace
+docker:
+    nginx_created: true
+    mariadb:
+        db_user: perci
+        db_pass: 'p@ss: ''x'' #1'
+        db_root_pass: root-secret
+        data_user: perci
+        data_pass: 'p@ss: ''x'' #1'
+    apps:
+        - name: Moodle Escola
+          folder: moodle-escola
+          type: moodle
+          url: escola.localhost
+          php_version: "8.3"
+          db_access: true
+          moodle_version: 5.1+
+          php_memory_limit: 1G
+        - name: Painel
+          folder: painel
+          type: php_node
+          url: painel.localhost
+          php_version: "8.4"
+          db_access: false
+          node_version: "24"
+          dev_command: npm run dev
+          dev_port: 5173
+          worker_command: php artisan queue:work
+        - name: Site
+          folder: site
+          type: node
+          url: site.localhost
+          php_version: ""
+          db_access: false
+          node_version: "22"
+          dev_command: npm run dev -- --host
+          dev_port: 3000
+moodle_plugins:
+    - app: moodle-escola
+      component: local_exemplo
+      dev_path: /home/pessoa/workspace/plugins/local_exemplo
+      rel_path: public/local/exemplo

@@ -28,6 +28,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/dev/localbin"
 	"github.com/oito2/perci82/internal/executor"
 )
@@ -234,6 +235,68 @@ func completeUTF8Prefix(b []byte) int {
 // password twice.
 var runMu sync.Mutex
 
+// actionLock holds ~/.perci/action.lock, shared with the other Perci82
+// application, from the first privileged command of an action until the
+// action ends, so the two applications never run package managers or
+// pkexec at the same time. app is the running application (empty turns
+// the lock off); mu guards every field.
+var actionLock struct {
+	mu       sync.Mutex
+	app      config.App
+	inAction bool
+	release  func()
+}
+
+// setActionLockApp makes privilegedGate take action.lock for app.
+func setActionLockApp(app config.App) {
+	actionLock.mu.Lock()
+	defer actionLock.mu.Unlock()
+	actionLock.app = app
+}
+
+// beginAction marks the start of an action holding runMu.
+func beginAction() {
+	actionLock.mu.Lock()
+	defer actionLock.mu.Unlock()
+	actionLock.inAction = true
+}
+
+// endAction marks the end of the action started by beginAction, releasing
+// action.lock when the action took it.
+func endAction() {
+	actionLock.mu.Lock()
+	defer actionLock.mu.Unlock()
+	actionLock.inAction = false
+	if actionLock.release != nil {
+		actionLock.release()
+		actionLock.release = nil
+	}
+}
+
+// privilegedGate is installed as the executor's privileged gate: inside an
+// action it takes action.lock on the first privileged command and keeps it
+// until endAction; outside one it holds the lock for that command only.
+// While the other application holds the lock, the command is refused with
+// a *config.ActionBusyError.
+func privilegedGate() (func(), error) {
+	actionLock.mu.Lock()
+	defer actionLock.mu.Unlock()
+	if actionLock.app == "" {
+		return func() {}, nil
+	}
+	if !actionLock.inAction {
+		return config.LockActions(actionLock.app)
+	}
+	if actionLock.release == nil {
+		release, err := config.LockActions(actionLock.app)
+		if err != nil {
+			return nil, err
+		}
+		actionLock.release = release
+	}
+	return func() {}, nil
+}
+
 // errActionRunning is returned (synchronously, to the one caller) when
 // another action is still in progress — never announced through
 // "action-done", which every window receives.
@@ -254,6 +317,8 @@ func (b *serviceBase) runAction(fn func(stdout io.Writer) error) error {
 	go func() {
 		err := func() error {
 			defer runMu.Unlock()
+			beginAction()
+			defer endAction()
 			w := b.newEventWriter()
 			err := runRecovered(func() error { return fn(w) })
 			w.Flush()
@@ -276,6 +341,8 @@ func runExclusive(fn func() error) error {
 		return errActionRunning
 	}
 	defer runMu.Unlock()
+	beginAction()
+	defer endAction()
 	return runRecovered(fn)
 }
 

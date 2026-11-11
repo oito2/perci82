@@ -26,6 +26,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/gui"
 	"github.com/oito2/perci82/packaging"
 )
@@ -46,6 +47,7 @@ func run() int {
 	home := &gui.SystemHomeService{}
 	linux := &gui.LinuxService{}
 	return gui.Run(gui.Profile{
+		App:        config.AppSystem,
 		Name:       "Perci82 System",
 		ID:         packaging.IconName(packaging.AppSystem),
 		WindowIcon: packaging.MustIcon(packaging.AppSystem, 512),

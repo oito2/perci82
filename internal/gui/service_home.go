@@ -43,8 +43,8 @@ var errSelfManagementUnavailable = errors.New("a atualização e a desinstalaç�
 // builds of this version; tests switch it on.
 var selfManagementEnabled = false
 
-// homeCore holds the "Home" bindings both applications share: theme,
-// version, self-update and sidebar logo. SystemHomeService and
+// homeCore holds the "Home" bindings both applications share: theme
+// list, version, self-update and sidebar logo. SystemHomeService and
 // DevHomeService embed it, so its exported methods are bound for both.
 type homeCore struct {
 	serviceBase
@@ -75,9 +75,30 @@ func (h *DevHomeService) GetCategories() []MenuCategory {
 	return devCategories(accounts)
 }
 
-// GetTheme returns the active daisyUI theme (~/.perci/config.yaml, field
-// gui_theme), falling back to the default when unset or unrecognized.
-func (h *homeCore) GetTheme() string {
+// GetTheme returns Perci82 System's daisyUI theme (~/.perci/config.yaml,
+// field system_gui_theme), falling back to the default when unset or
+// unrecognized.
+func (h *SystemHomeService) GetTheme() string {
+	cfg, err := config.Load()
+	if err != nil {
+		return config.DefaultGUITheme
+	}
+	return cfg.SystemGUIThemeOrDefault()
+}
+
+// SetTheme persists Perci82 System's theme (field system_gui_theme).
+func (h *SystemHomeService) SetTheme(name string) error {
+	name = oneOf(name, config.GUIThemes(), config.DefaultGUITheme)
+	return config.Update(func(cfg *config.Config) error {
+		cfg.SystemGUITheme = name
+		return nil
+	})
+}
+
+// GetTheme returns Perci82 Dev's daisyUI theme (~/.perci/config.yaml,
+// field gui_theme), falling back to the default when unset or
+// unrecognized.
+func (h *DevHomeService) GetTheme() string {
 	cfg, err := config.Load()
 	if err != nil {
 		return config.DefaultGUITheme
@@ -85,13 +106,9 @@ func (h *homeCore) GetTheme() string {
 	return cfg.GUIThemeOrDefault()
 }
 
-// SetTheme persists the chosen theme to ~/.perci/config.yaml. Always
-// reloads the config first, so as not to overwrite other fields (e.g.
-// Docker containers) changed elsewhere (another window, the tray) in the
-// meantime.
-func (h *homeCore) SetTheme(name string) error {
+// SetTheme persists Perci82 Dev's theme (field gui_theme).
+func (h *DevHomeService) SetTheme(name string) error {
 	name = oneOf(name, config.GUIThemes(), config.DefaultGUITheme)
-
 	return config.Update(func(cfg *config.Config) error {
 		cfg.GUITheme = name
 		return nil
@@ -230,31 +247,14 @@ func (h *DevHomeService) SetWorkspacePath(path string) error {
 	})
 }
 
-// GetSidebarLogo returns the active sidebar mascot variant ("blue"/"pink"),
-// with the same load/fallback shape as GetTheme.
+// GetSidebarLogo returns the sidebar mascot variant ("blue"/"pink") an
+// earlier Perci version saved, the default when unset or unreadable.
 func (h *homeCore) GetSidebarLogo() string {
 	cfg, err := config.Load()
 	if err != nil {
 		return config.DefaultSidebarLogo
 	}
 	return cfg.SidebarLogoOrDefault()
-}
-
-// SetSidebarLogo persists the chosen sidebar mascot variant — applies
-// immediately in the frontend (just swaps an <img> src, no restart needed),
-// same "click applies and persists right away" convention as SetTheme.
-func (h *homeCore) SetSidebarLogo(name string) error {
-	name = oneOf(name, config.SidebarLogos(), config.DefaultSidebarLogo)
-
-	return config.Update(func(cfg *config.Config) error {
-		cfg.SidebarLogo = name
-		return nil
-	})
-}
-
-// GetSidebarLogos returns the fixed list of sidebar mascot variants offered.
-func (h *homeCore) GetSidebarLogos() []string {
-	return config.SidebarLogos()
 }
 
 // PickUninstallBackupPath opens the native "Salvar Como" dialog for the
@@ -344,6 +344,8 @@ func (h *DevHomeService) RunSelfUninstall(removeConfig, removeDocker bool, backu
 	}
 	go func() {
 		defer runMu.Unlock()
+		beginAction()
+		defer endAction()
 		w := h.newEventWriter()
 		quit := false
 		err := runRecovered(func() error {

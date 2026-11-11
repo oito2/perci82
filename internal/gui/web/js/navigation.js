@@ -229,7 +229,7 @@ function selectItem(cat, item, catIdx, itemIdx) {
   screenContainers().forEach(function (el) { el.classList.add("hidden"); });
   // "Execução" is visible by default (almost every screen goes through
   // it) — only "Home :: Configurações" hides it (noTerminal), since none of
-  // its actions are async/streamed (Tema/Logo/Ícone/Flatpak apply
+  // its actions are async/streamed (Tema/Flatpak apply
   // immediately, Workspace persists on its own when "Criar Workspace"
   // is clicked).
   tabLabelTerminal.classList.remove("hidden");

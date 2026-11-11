@@ -7,7 +7,7 @@
 
 Two Linux desktop apps: **Perci82 System** manages the OS, **Perci82 Dev** sets up your development environment.
 
-![Go](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go) ![Platform](https://img.shields.io/badge/platform-linux%2Famd64-informational) ![License](https://img.shields.io/badge/license-GPL--3.0-blue) [![CI](https://github.com/oito2/perci82/actions/workflows/ci.yml/badge.svg)](https://github.com/oito2/perci82/actions/workflows/ci.yml)
+![Go](https://img.shields.io/badge/go-1.27%2B-00ADD8?logo=go) ![Platform](https://img.shields.io/badge/platform-linux%2Famd64-informational) ![License](https://img.shields.io/badge/license-GPL--3.0-blue) [![CI](https://github.com/oito2/perci82/actions/workflows/ci.yml/badge.svg)](https://github.com/oito2/perci82/actions/workflows/ci.yml)
 
 🌐 **Language:** English · [Português](docs/pt-br/leiame.md)
 
@@ -33,7 +33,7 @@ Perci82 is a monorepo with two independent desktop apps built with Go and [Wails
 Requirements:
 
 - Linux on amd64.
-- Go 1.26.3 or later.
+- Go 1.27.4 or later.
 - GTK 4 and WebKitGTK 6.0 development packages, for example on Debian/Ubuntu:
 
   ```bash

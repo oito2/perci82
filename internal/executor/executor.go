@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -62,6 +63,34 @@ type Executor struct {
 	LookPath func(name string) (string, error)
 }
 
+// privilegedGate, when set, is called before every privileged command
+// runs (not in DryRun). An error refuses the command; the returned function
+// is called once the command finished. Guarded by privilegedGateMu.
+var (
+	privilegedGateMu sync.Mutex
+	privilegedGate   func() (func(), error)
+)
+
+// SetPrivilegedGate installs gate as the check every privileged command
+// passes before it runs; nil removes it.
+func SetPrivilegedGate(gate func() (func(), error)) {
+	privilegedGateMu.Lock()
+	defer privilegedGateMu.Unlock()
+	privilegedGate = gate
+}
+
+// enterPrivileged runs the privileged gate, returning the function to call
+// when the command finished.
+func enterPrivileged() (func(), error) {
+	privilegedGateMu.Lock()
+	gate := privilegedGate
+	privilegedGateMu.Unlock()
+	if gate == nil {
+		return func() {}, nil
+	}
+	return gate()
+}
+
 // New returns an Executor that writes to the provided writers by default.
 func New(stdout, stderr io.Writer) *Executor {
 	return &Executor{Stdout: stdout, Stderr: stderr}
@@ -95,6 +124,13 @@ func (e *Executor) Run(ctx context.Context, opts Options, name string, args ...s
 	if e.DryRun {
 		_, _ = fmt.Fprintf(stdout, "[dry-run] %s %v\n", cmdName, cmdArgs)
 		return nil
+	}
+	if opts.RequiresSudo {
+		leave, err := enterPrivileged()
+		if err != nil {
+			return err
+		}
+		defer leave()
 	}
 
 	cmd := exec.CommandContext(ctx, cmdName, cmdArgs...)
@@ -175,6 +211,11 @@ func (e *Executor) RunSudoSequence(ctx context.Context, opts Options, steps []Pr
 		_, _ = fmt.Fprintf(stdout, "[dry-run] %s %v\n", cmdName, cmdArgs)
 		return nil
 	}
+	leave, err := enterPrivileged()
+	if err != nil {
+		return err
+	}
+	defer leave()
 
 	cmd := exec.CommandContext(ctx, cmdName, cmdArgs...)
 	cmd.Stdin = opts.Stdin
@@ -271,6 +312,13 @@ func (e *Executor) Output(ctx context.Context, opts Options, name string, args .
 
 	if e.DryRun {
 		return fmt.Sprintf("[dry-run] %s %v", cmdName, cmdArgs), nil
+	}
+	if opts.RequiresSudo {
+		leave, err := enterPrivileged()
+		if err != nil {
+			return "", err
+		}
+		defer leave()
 	}
 
 	cmd := exec.CommandContext(ctx, cmdName, cmdArgs...)

@@ -1,0 +1,27 @@
+version: 2
+accounts:
+    - name: GitHub Exemplo
+      provider: github
+      host: github.com
+      username: exemplo
+      git_name: Pessoa Exemplo
+      git_email: pessoa@example.com
+      folder: /home/pessoa/workspace/github
+      contact_email: contato@example.com
+      repos:
+        - path: labs/site
+          url: git@github.com:exemplo/site.git
+          contact_email: site@example.com
+        - path: labs/app
+          url: git@github.com:exemplo/app.git
+    - name: GitLab Empresa
+      provider: gitlab
+      host: git.example.org
+      ssh_port: 2222
+      username: dev
+      git_name: Dev Exemplo
+      git_email: dev@example.org
+      folder: /home/pessoa/workspace/gitlab
+      repos:
+        - path: dev/api
+          url: ssh://git@git.example.org:2222/dev/api.git

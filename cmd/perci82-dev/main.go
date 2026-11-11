@@ -26,6 +26,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/gui"
 	"github.com/oito2/perci82/packaging"
 )
@@ -50,6 +51,7 @@ func run() int {
 	repos := &gui.RepositoriesService{}
 	tray := &gui.TrayService{}
 	return gui.Run(gui.Profile{
+		App:        config.AppDev,
 		Name:       "Perci82 Dev",
 		ID:         packaging.IconName(packaging.AppDev),
 		WindowIcon: packaging.MustIcon(packaging.AppDev, 512),

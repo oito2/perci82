@@ -1,0 +1,116 @@
+workspace_path: /home/pessoa/workspace
+flatpak_scope: user
+docker:
+    nginx_created: true
+    mariadb:
+        db_user: perci
+        db_pass: 'p@ss: ''x'' #1'
+        db_root_pass: root-secret
+        data_user: perci
+        data_pass: 'p@ss: ''x'' #1'
+    apps:
+        - name: Moodle Escola
+          folder: moodle-escola
+          type: moodle
+          url: escola.localhost
+          php_version: "8.3"
+          db_access: true
+          moodle_version: 5.1+
+          php_memory_limit: 1G
+        - name: Painel
+          folder: painel
+          type: php_node
+          url: painel.localhost
+          php_version: "8.4"
+          db_access: false
+          node_version: "24"
+          dev_command: npm run dev
+          dev_port: 5173
+          worker_command: php artisan queue:work
+        - name: Site
+          folder: site
+          type: node
+          url: site.localhost
+          php_version: ""
+          db_access: false
+          node_version: "22"
+          dev_command: npm run dev -- --host
+          dev_port: 3000
+gui_theme: garden
+sidebar_logo: pink
+app_icon: pink
+git_accounts:
+    - id: github-exemplo
+      name: GitHub Exemplo
+      provider: github
+      host: github.com
+      username: exemplo
+      git_name: Pessoa Exemplo
+      git_email: pessoa@example.com
+      folder: /home/pessoa/workspace/github
+      ssh_key: /home/pessoa/.ssh/id_ed25519_github-exemplo
+      key_generated: true
+      has_token: true
+      pending:
+        - path: labs/app
+          url: git@github.com:exemplo/app.git
+      contact_email: contato@example.com
+      repo_settings:
+        - path: labs/site
+          contact_email: site@example.com
+    - id: gitlab-empresa
+      name: GitLab Empresa
+      provider: gitlab
+      host: git.example.org
+      ssh_port: 2222
+      username: dev
+      git_name: Dev Exemplo
+      git_email: dev@example.org
+      folder: /home/pessoa/workspace/gitlab
+      ssh_key: /home/pessoa/.ssh/id_ed25519
+agent_skills:
+    - slug: vercel-labs/agent-skills/web-design
+      global: true
+      agents:
+        - claude-code
+        - gemini-cli
+    - slug: anthropics/skills/pdf
+      global: false
+      folder: /home/pessoa/workspace/github/labs/site
+mcp_servers:
+    - slug: build82
+      global: true
+      agents:
+        - claude-code
+    - slug: filesystem
+      global: false
+      folder: /home/pessoa/workspace/site
+      param: /home/pessoa/workspace/site/docs
+moodle_plugins:
+    - app: moodle-escola
+      component: local_exemplo
+      dev_path: /home/pessoa/workspace/plugins/local_exemplo
+      rel_path: public/local/exemplo
+      mega_ignore: /home/pessoa/workspace/.megaignore
+      mega_ignore_rule: -:moodle-escola/html/public/local/exemplo
+ai_contexts:
+    - name: Site
+      path: /home/pessoa/workspace/github/labs/site
+      models:
+        - GO
+        - WAILS
+      agents:
+        - claude-code
+        - gemini-cli
+    - name: Fora
+      path: /srv/projetos/fora
+      agents:
+        - opencode
+postinstall_applied:
+    fedora:
+        - rpmfusion
+    ubuntu:
+        - remove-snap
+        - enable-flathub
+postinstall_machine_id: 0123456789abcdef0123456789abcdef
+tray_enabled: true

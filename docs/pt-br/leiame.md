@@ -7,7 +7,7 @@
 
 Dois aplicativos desktop para Linux: o **Perci82 System** administra o sistema operacional e o **Perci82 Dev** prepara o seu ambiente de desenvolvimento.
 
-![Go](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go) ![Plataforma](https://img.shields.io/badge/plataforma-linux%2Famd64-informational) ![Licença](https://img.shields.io/badge/licen%C3%A7a-GPL--3.0-blue) [![CI](https://github.com/oito2/perci82/actions/workflows/ci.yml/badge.svg)](https://github.com/oito2/perci82/actions/workflows/ci.yml)
+![Go](https://img.shields.io/badge/go-1.27%2B-00ADD8?logo=go) ![Plataforma](https://img.shields.io/badge/plataforma-linux%2Famd64-informational) ![Licença](https://img.shields.io/badge/licen%C3%A7a-GPL--3.0-blue) [![CI](https://github.com/oito2/perci82/actions/workflows/ci.yml/badge.svg)](https://github.com/oito2/perci82/actions/workflows/ci.yml)
 
 🌐 **Idioma:** [English](../../README.md) · Português
 
@@ -33,7 +33,7 @@ O Perci82 é um monorepo com dois aplicativos desktop independentes, feitos em G
 Requisitos:
 
 - Linux em amd64.
-- Go 1.26.3 ou mais recente.
+- Go 1.27.4 ou mais recente.
 - Pacotes de desenvolvimento do GTK 4 e do WebKitGTK 6.0, por exemplo no Debian/Ubuntu:
 
   ```bash

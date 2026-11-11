@@ -39,14 +39,18 @@ type Config struct {
 	FlatpakScope  string       `yaml:"flatpak_scope,omitempty"`
 	Docker        DockerConfig `yaml:"docker,omitempty"`
 
-	// GUITheme is the daisyUI theme name active in the GUI (internal/gui),
-	// one of GUIThemes(). Empty means "not set yet" — GUIThemeOrDefault
+	// GUITheme is Perci82 Dev's daisyUI theme name, one of GUIThemes(). Empty means "not set yet" — GUIThemeOrDefault
 	// fills in the default.
 	GUITheme string `yaml:"gui_theme,omitempty"`
 
-	// SidebarLogo and AppIcon pick the mascot color variant ("blue"/"pink",
-	// see SidebarLogos()/AppIcons()) shown as the sidebar logo and as the
-	// window/taskbar icon, respectively. They are independent fields.
+	// SystemGUITheme is Perci82 System's theme, with the same values and
+	// fallback as GUITheme (SystemGUIThemeOrDefault).
+	SystemGUITheme string `yaml:"system_gui_theme,omitempty"`
+
+	// SidebarLogo and AppIcon are the mascot color variants ("blue"/"pink",
+	// see SidebarLogos()/AppIcons()) earlier Perci versions saved for the
+	// sidebar logo and the window icon. They are read only; Update never
+	// changes them.
 	SidebarLogo string `yaml:"sidebar_logo,omitempty"`
 	AppIcon     string `yaml:"app_icon,omitempty"`
 
@@ -211,6 +215,12 @@ func (c *Config) GUIThemeOrDefault() string {
 	return firstMatchOrDefault(c.GUITheme, GUIThemes(), DefaultGUITheme)
 }
 
+// SystemGUIThemeOrDefault returns cfg.SystemGUITheme when it is one of
+// GUIThemes(), DefaultGUITheme otherwise.
+func (c *Config) SystemGUIThemeOrDefault() string {
+	return firstMatchOrDefault(c.SystemGUITheme, GUIThemes(), DefaultGUITheme)
+}
+
 // SidebarLogos is the fixed set of mascot logo variants the GUI offers for
 // its sidebar.
 func SidebarLogos() []string {
@@ -349,57 +359,69 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
-// save writes cfg to ~/.perci/config.yaml atomically, creating the directory if needed.
-//
-// The file holds credentials (the MariaDB root/user passwords), so it is
-// 0600 and ~/.perci is kept 0700, also tightened when it already exists
-// with 0755. The data is synced to disk before the rename
-// (fsutil.WriteFileAtomic), so a power loss cannot leave an empty
-// config.yaml.
-func save(cfg *Config) error {
-	path, err := configPath()
-	if err != nil {
-		return err
-	}
-
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("create config dir: %w", err)
-	}
-	if err := os.Chmod(dir, 0o700); err != nil {
-		return fmt.Errorf("chmod config dir: %w", err)
-	}
-
-	data, err := yaml.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("marshal config: %w", err)
-	}
-
-	if err := fsutil.WriteFileAtomic(path, data, 0o600); err != nil {
-		return fmt.Errorf("write config: %w", err)
-	}
-	return nil
-}
-
-// mu serializes every Load-mutate-save cycle against config.yaml, so
-// concurrent callers (each bindable GUI method runs on its own goroutine)
-// cannot lose each other's updates.
+// mu serializes Update calls within this process and guards currentApp;
+// config.lock serializes them with the other Perci82 application.
 var mu sync.Mutex
 
-// Update loads the config, applies mutate to it, and saves the result,
-// all under mu. Use it for any read-modify-write of the config.
+// Update loads the config, applies mutate to it, and writes back only the
+// top-level keys mutate changed. Use it for any read-modify-write of the
+// config.
+//
+// It holds config.lock for the whole cycle, so the file is re-read after
+// any other process's write and no update is lost. Every key mutate did
+// not change keeps its bytes in the file — keys this version doesn't know
+// included — and a changed key the running application doesn't own (see
+// SetApp) fails with a *ForeignKeyError before anything is written.
+// When nothing changed, the file is not written.
+//
+// The file holds credentials (the MariaDB root/user passwords), so it is
+// 0600 and ~/.perci is kept 0700. The data is synced to disk before the
+// rename (fsutil.WriteFileAtomic), so a power loss cannot leave an empty
+// config.yaml.
 func Update(mutate func(cfg *Config) error) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	cfg, err := Load()
+	unlock, err := lockConfig()
 	if err != nil {
 		return err
 	}
-	if err := mutate(cfg); err != nil {
+	defer unlock()
+
+	path, err := configPath()
+	if err != nil {
 		return err
 	}
-	return save(cfg)
+	data, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("read config: %w", err)
+	}
+
+	var before, cfg Config
+	if err := yaml.Unmarshal(data, &before); err != nil {
+		return fmt.Errorf("parse config: %w", err)
+	}
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return fmt.Errorf("parse config: %w", err)
+	}
+	if err := mutate(&cfg); err != nil {
+		return err
+	}
+
+	merged, changed, err := mergeChanged(data, &before, &cfg)
+	if err != nil {
+		return err
+	}
+	if len(changed) == 0 {
+		return nil
+	}
+	if err := checkOwnership(currentApp, changed); err != nil {
+		return err
+	}
+	if err := fsutil.WriteFileAtomic(path, merged, 0o600); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+	return nil
 }
 
 // FlatpakFlag returns the --system or --user scope flag based on the config.

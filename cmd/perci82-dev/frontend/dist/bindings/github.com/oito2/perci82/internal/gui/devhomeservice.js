@@ -65,8 +65,8 @@ export function GetSelfUpdateInfo() {
 }
 
 /**
- * GetSidebarLogo returns the active sidebar mascot variant ("blue"/"pink"),
- * with the same load/fallback shape as GetTheme.
+ * GetSidebarLogo returns the sidebar mascot variant ("blue"/"pink") an
+ * earlier Perci version saved, the default when unset or unreadable.
  * @returns {$CancellablePromise<string>}
  */
 export function GetSidebarLogo() {
@@ -74,18 +74,9 @@ export function GetSidebarLogo() {
 }
 
 /**
- * GetSidebarLogos returns the fixed list of sidebar mascot variants offered.
- * @returns {$CancellablePromise<string[]>}
- */
-export function GetSidebarLogos() {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetSidebarLogos").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
-    }));
-}
-
-/**
- * GetTheme returns the active daisyUI theme (~/.perci/config.yaml, field
- * gui_theme), falling back to the default when unset or unrecognized.
+ * GetTheme returns Perci82 Dev's daisyUI theme (~/.perci/config.yaml,
+ * field gui_theme), falling back to the default when unset or
+ * unrecognized.
  * @returns {$CancellablePromise<string>}
  */
 export function GetTheme() {
@@ -201,21 +192,7 @@ export function RunSelfUpdate() {
 }
 
 /**
- * SetSidebarLogo persists the chosen sidebar mascot variant — applies
- * immediately in the frontend (just swaps an <img> src, no restart needed),
- * same "click applies and persists right away" convention as SetTheme.
- * @param {string} name
- * @returns {$CancellablePromise<void>}
- */
-export function SetSidebarLogo(name) {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.SetSidebarLogo", name);
-}
-
-/**
- * SetTheme persists the chosen theme to ~/.perci/config.yaml. Always
- * reloads the config first, so as not to overwrite other fields (e.g.
- * Docker containers) changed elsewhere (another window, the tray) in the
- * meantime.
+ * SetTheme persists Perci82 Dev's theme (field gui_theme).
  * @param {string} name
  * @returns {$CancellablePromise<void>}
  */

@@ -49,6 +49,9 @@ type Profile struct {
 	WindowIcon []byte
 	// TrayIcon is the PNG tray icon, used only when a TrayService is bound.
 	TrayIcon []byte
+	// App is the application config.Update writes keys for and the holder
+	// written into the shared action lock.
+	App config.App
 }
 
 // Service is a bound service Run can wire: every service type of this
@@ -114,6 +117,12 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 	if gitaccount.IsAskpassCall() {
 		return gitaccount.RespondAskpass(stdout)
 	}
+
+	// Writes only this application's config keys, and privileged commands
+	// wait for no action of the other application.
+	config.SetApp(p.App)
+	setActionLockApp(p.App)
+	executor.SetPrivilegedGate(privilegedGate)
 
 	var tray *TrayService
 	registered := make([]application.Service, 0, len(services))

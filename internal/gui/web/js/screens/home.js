@@ -89,29 +89,6 @@ if (!compactAction) {
 }
 
 // --- "Home :: Configurar" (self-config) ---------------------------------
-// Generic button grid with an image above the label — used for Logo da
-// Sidebar (same visual pattern as the theme grid, just with a preview
-// instead of only the name).
-function renderImagePickerGrid(container, values, current, srcFor, onPick) {
-  container.innerHTML = "";
-  values.forEach(function (value) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn btn-ghost h-auto flex-col items-center gap-1 p-2" + (value === current ? " btn-active" : "");
-    const img = document.createElement("img");
-    img.src = srcFor(value);
-    img.alt = value;
-    img.className = "w-12 h-12 object-contain rounded";
-    const span = document.createElement("span");
-    span.className = "text-xs capitalize";
-    span.textContent = value;
-    btn.appendChild(img);
-    btn.appendChild(span);
-    btn.addEventListener("click", function () { onPick(value); });
-    container.appendChild(btn);
-  });
-}
-
 // Tema — a click on a swatch applies and persists
 // right away, with no "Salvar" button involved.
 function renderThemeGrid(current) {
@@ -134,28 +111,8 @@ function renderThemeGrid(current) {
   });
 }
 
-// Logo da Sidebar — a click swaps the sidebar image (#sidebar-logo-img)
-// and persists right away, same pattern as the theme — it's just a
-// visual preference, no restart needed.
-function renderLogoGrid(current) {
-  App.GetSidebarLogos().then(function (values) {
-    renderImagePickerGrid(
-      cfgLogoGrid, values, current,
-      function (v) { return "./assets/perci-" + v + ".png"; },
-      function (value) {
-        sidebarLogoImg.src = "./assets/perci-" + value + ".png";
-        App.SetSidebarLogo(value).catch(function (err) {
-          openError("Falha ao salvar o logo da sidebar: " + err);
-        });
-        renderLogoGrid(value);
-      }
-    );
-  });
-}
-
 function renderSelfConfigScreen() {
   App.GetTheme().then(renderThemeGrid);
-  App.GetSidebarLogo().then(renderLogoGrid);
   renderAppSelfConfig();
 }
 

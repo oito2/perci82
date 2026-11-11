@@ -180,7 +180,6 @@ const su2RemoveConfig = document.getElementById("su2-remove-config");
 const btnSu2Uninstall = document.getElementById("btn-su2-uninstall");
 const selfconfigContainer = document.getElementById("selfconfig-container");
 const cfgThemeGrid = document.getElementById("cfg-theme-grid");
-const cfgLogoGrid = document.getElementById("cfg-logo-grid");
 const sidebarLogoImg = document.getElementById("sidebar-logo-img");
 // Buttons built from MULTISELECT_SCREENS[actionId].extras for the screen
 // currently shown (renderMultiselectScreen).

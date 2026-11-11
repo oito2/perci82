@@ -16,10 +16,12 @@
 package gui
 
 import (
+	"errors"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/dev/agentskills"
 	"github.com/oito2/perci82/internal/dev/ide"
 	"github.com/oito2/perci82/internal/dev/llm"
@@ -110,42 +112,61 @@ func TestActions_ReachTheirDomainCode(t *testing.T) {
 
 // Settings saved straight from the Home screen: a known value round-trips
 // through config.yaml, anything else falls back to the default instead of
-// being stored as-is.
+// being stored as-is, and each application saves its theme under its own
+// key, writing only keys it owns.
 func TestHomeSettings_RoundTripAndFallback(t *testing.T) {
 	isolateActions(t)
 	b, _ := newTestBase(t)
-	h := &DevHomeService{homeCore{*b}}
+	dev := &DevHomeService{homeCore{*b}}
+	sys := &SystemHomeService{homeCore{*b}}
 
-	themes := h.GetGUIThemes()
-	logos := h.GetSidebarLogos()
-	if len(themes) == 0 || len(logos) == 0 {
-		t.Fatal("empty option lists")
+	themes := dev.GetGUIThemes()
+	if len(themes) < 2 {
+		t.Fatal("theme list too short")
 	}
-	last := func(s []string) string { return s[len(s)-1] }
+	first, last := themes[0], themes[len(themes)-1]
 
-	if err := h.SetTheme(last(themes)); err != nil || h.GetTheme() != last(themes) {
-		t.Errorf("theme = %q (err %v), want %q", h.GetTheme(), err, last(themes))
+	useApp(t, config.AppDev)
+	if err := dev.SetTheme(last); err != nil || dev.GetTheme() != last {
+		t.Errorf("Dev theme = %q (err %v), want %q", dev.GetTheme(), err, last)
 	}
-	if err := h.SetSidebarLogo(last(logos)); err != nil || h.GetSidebarLogo() != last(logos) {
-		t.Errorf("logo = %q (err %v), want %q", h.GetSidebarLogo(), err, last(logos))
+	useApp(t, config.AppSystem)
+	if err := sys.SetTheme(first); err != nil || sys.GetTheme() != first {
+		t.Errorf("System theme = %q (err %v), want %q", sys.GetTheme(), err, first)
+	}
+	if dev.GetTheme() != last {
+		t.Errorf("System's SetTheme changed the Dev theme to %q", dev.GetTheme())
 	}
 
-	for _, set := range []func(string) error{h.SetTheme, h.SetSidebarLogo} {
-		if err := set("../../etc/passwd"); err != nil {
-			t.Fatal(err)
-		}
+	if err := sys.SetTheme("../../etc/passwd"); err != nil {
+		t.Fatal(err)
 	}
-	if h.GetTheme() == "../../etc/passwd" || h.GetSidebarLogo() == "../../etc/passwd" {
+	if sys.GetTheme() == "../../etc/passwd" {
 		t.Error("an unknown value was stored as-is")
 	}
 
-	sys := &SystemHomeService{homeCore{*b}}
 	if err := sys.SetFlatpakScope("user"); err != nil || sys.GetFlatpakScope() != "user" {
 		t.Errorf("scope = %q (err %v), want user", sys.GetFlatpakScope(), err)
 	}
 	if err := sys.SetFlatpakScope("anything"); err != nil || sys.GetFlatpakScope() != "system" {
 		t.Errorf("unknown scope should fall back to system, got %q (err %v)", sys.GetFlatpakScope(), err)
 	}
+
+	// Perci82 System refuses to write a key Perci82 Dev owns.
+	var foreign *config.ForeignKeyError
+	if err := dev.SetTheme(first); !errors.As(err, &foreign) {
+		t.Errorf("Dev's SetTheme under Perci82 System: err = %v, want *config.ForeignKeyError", err)
+	}
+	if got := dev.GetSidebarLogo(); got != config.DefaultSidebarLogo {
+		t.Errorf("sidebar logo = %q, want the default %q", got, config.DefaultSidebarLogo)
+	}
+}
+
+// useApp makes config.Update write only app's keys until the test ends.
+func useApp(t *testing.T, app config.App) {
+	t.Helper()
+	config.SetApp(app)
+	t.Cleanup(func() { config.SetApp("") })
 }
 
 func TestDockerHelpers(t *testing.T) {
