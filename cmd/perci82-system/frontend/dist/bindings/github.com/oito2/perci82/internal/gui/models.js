@@ -268,7 +268,7 @@ export class PostinstallActionInfo {
 /**
  * PostinstallProfileInfo is what the frontend needs to render "Linux ::
  * Pós-instalação" — either Supported (with the item list) or not (shows
- * "Seu Sistema Operacional não é suportado pelo Perci").
+ * that the system is not supported).
  */
 export class PostinstallProfileInfo {
     /**
@@ -427,6 +427,49 @@ export class SelfUpdateInfo {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new SelfUpdateInfo(/** @type {Partial<SelfUpdateInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * SystemInfo is the "Sistema" and "Ambiente" cards of Perci82 System's
+ * Visão Geral.
+ */
+export class SystemInfo {
+    /**
+     * Creates a new SystemInfo instance.
+     * @param {Partial<SystemInfo>} [$$source = {}] - The source object to create the SystemInfo.
+     */
+    constructor($$source = {}) {
+        if (!("system" in $$source)) {
+            /**
+             * System is the post-install profile's name of a supported system
+             * ("ZorinOS 18.1 Lite"), otherwise the distribution's name and version;
+             * "" when unknown.
+             * @member
+             * @type {string}
+             */
+            this["system"] = "";
+        }
+        if (!("desktop" in $$source)) {
+            /**
+             * Desktop is the desktop environment's name ("GNOME"); "" when unknown.
+             * @member
+             * @type {string}
+             */
+            this["desktop"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SystemInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SystemInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SystemInfo(/** @type {Partial<SystemInfo>} */($$parsedSource));
     }
 }
 

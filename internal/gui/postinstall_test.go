@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/oito2/perci82/internal/config"
+	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/system/postinstall"
 )
@@ -171,5 +172,23 @@ func TestPostinstallRecords_TiedToMachineID(t *testing.T) {
 	status := (&LinuxService{}).GetPostinstallStatus()
 	if status["update-index"] || !status["upgrade"] {
 		t.Errorf("status = %v", status)
+	}
+}
+
+// Visão Geral names a supported system by its post-install profile, any
+// other by its distribution, and the desktop by its own name.
+func TestGetSystemInfo(t *testing.T) {
+	t.Setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+	t.Setenv("DESKTOP_SESSION", "")
+	prev := detectPostinstallProfile
+	t.Cleanup(func() { detectPostinstallProfile = prev })
+
+	detectPostinstallProfile = func() *postinstall.Profile { return &postinstall.Profile{ID: "zorin-lite", Label: "ZorinOS 18.1 Lite"} }
+	if got := (&SystemHomeService{}).GetSystemInfo(); got != (SystemInfo{System: "ZorinOS 18.1 Lite", Desktop: "GNOME"}) {
+		t.Errorf("supported system: got %+v", got)
+	}
+	detectPostinstallProfile = func() *postinstall.Profile { return nil }
+	if got := (&SystemHomeService{}).GetSystemInfo(); got.System != strings.TrimSpace(distro.DisplayName()+" "+distro.VersionID()) || got.Desktop != "GNOME" {
+		t.Errorf("unsupported system: got %+v", got)
 	}
 }

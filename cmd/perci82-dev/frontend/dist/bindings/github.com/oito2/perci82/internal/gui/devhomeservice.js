@@ -212,9 +212,9 @@ export function RunSelfUpdate() {
 
 /**
  * SetLanguage persists Perci82 Dev's language choice (field language; an
- * unknown value is saved as "system"), emits "language-changed" with the
- * new state to every window and calls onLanguageChanged, when set, with
- * the new locale.
+ * unknown value is saved as "system"), makes the messages built in Go
+ * follow it, emits "language-changed" with the new state to every window
+ * and calls onLanguageChanged, when set, with the new locale.
  * @param {string} choice
  * @returns {$CancellablePromise<$models.LanguageState>}
  */

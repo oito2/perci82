@@ -17,5 +17,6 @@ export {
     PostinstallProfileInfo,
     Section,
     SelfUpdateInfo,
+    SystemInfo,
     ThemeOption
 } from "./models.js";

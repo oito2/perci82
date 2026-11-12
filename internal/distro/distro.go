@@ -197,3 +197,32 @@ func DetectDE() string {
 	}
 	return "other"
 }
+
+// DesktopName returns the desktop environment's name as shown to the user
+// ("GNOME", "KDE Plasma", "Cinnamon"...), read like DetectDE; an unknown
+// desktop shows the first name of XDG_CURRENT_DESKTOP (without an "X-"
+// prefix), and "" when neither variable is set.
+func DesktopName() string {
+	switch DetectDE() {
+	case "cinnamon":
+		return "Cinnamon"
+	case "budgie":
+		return "Budgie"
+	case "gnome":
+		return "GNOME"
+	case "xfce":
+		return "Xfce"
+	case "cosmic":
+		return "COSMIC"
+	}
+	raw := os.Getenv("XDG_CURRENT_DESKTOP")
+	if raw == "" {
+		raw = os.Getenv("DESKTOP_SESSION")
+	}
+	name, _, _ := strings.Cut(raw, ":")
+	name = strings.TrimPrefix(strings.TrimSpace(name), "X-")
+	if strings.EqualFold(name, "kde") || strings.HasPrefix(strings.ToLower(name), "plasma") {
+		return "KDE Plasma"
+	}
+	return name
+}

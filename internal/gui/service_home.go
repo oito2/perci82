@@ -20,12 +20,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/oito2/perci82/internal/appstack"
 	"github.com/oito2/perci82/internal/config"
+	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/i18n"
 	managerai "github.com/oito2/perci82/internal/manager/ai"
@@ -299,6 +301,28 @@ func (h *DevHomeService) GetSelfUpdateInfo() SelfUpdateInfo {
 // "Atualizar" button click is itself the confirmation.
 func (h *DevHomeService) RunSelfUpdate() error {
 	return h.runSelfUpdate(packaging.AppDev)
+}
+
+// SystemInfo is the "Sistema" and "Ambiente" cards of Perci82 System's
+// Visão Geral.
+type SystemInfo struct {
+	// System is the post-install profile's name of a supported system
+	// ("ZorinOS 18.1 Lite"), otherwise the distribution's name and version;
+	// "" when unknown.
+	System string `json:"system"`
+	// Desktop is the desktop environment's name ("GNOME"); "" when unknown.
+	Desktop string `json:"desktop"`
+}
+
+// GetSystemInfo returns the detected system and desktop environment.
+func (h *SystemHomeService) GetSystemInfo() SystemInfo {
+	info := SystemInfo{Desktop: distro.DesktopName()}
+	if profile := detectPostinstallProfile(); profile != nil {
+		info.System = profile.Label
+		return info
+	}
+	info.System = strings.TrimSpace(distro.DisplayName() + " " + distro.VersionID())
+	return info
 }
 
 // GetFlatpakScope returns the persisted Flatpak install scope, "user" or

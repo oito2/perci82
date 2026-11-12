@@ -44,17 +44,37 @@ function renderDashboardStats() {
 const SELF_UPDATE_RECHECK_MS = 10 * 60 * 1000;
 let selfUpdateCheckedAt = 0;
 // selfUpdateState is what the status line shows: { key, args } of its
-// message — kept so a language switch rewrites it without a new check.
-let selfUpdateState = { key: "dashboard.checking", args: null };
-function showSelfUpdateState(key, args) {
-  selfUpdateState = { key: key, args: args || null };
+// message and the version badge's — kept so a language switch rewrites
+// them without a new check.
+let selfUpdateState = { key: "dashboard.checking", args: null, badge: null };
+
+// The version badge of Visão Geral, when the page has one: "up to date" or
+// "update available" after a successful check, hidden otherwise.
+const dashboardVersionBadge = document.getElementById("dashboard-version-badge");
+const VERSION_BADGES = {
+  upToDate: { key: "dashboard.badgeUpToDate", cls: "badge badge-sm badge-success" },
+  update: { key: "dashboard.badgeUpdate", cls: "badge badge-sm badge-warning" },
+};
+
+function showSelfUpdateState(key, args, badge) {
+  selfUpdateState = { key: key, args: args || null, badge: badge || null };
   suStatus.textContent = t(key, args);
+  if (!dashboardVersionBadge) return;
+  const b = VERSION_BADGES[badge];
+  dashboardVersionBadge.className = b ? b.cls : "badge badge-sm hidden";
+  dashboardVersionBadge.textContent = b ? t(b.key) : "";
+}
+
+// showUpdateButton shows "Atualizar" only while a newer release exists.
+function showUpdateButton(available) {
+  btnSuUpdate.disabled = !available;
+  btnSuUpdate.classList.toggle("hidden", !available);
 }
 function loadSelfUpdateStatus(force) {
   if (!force && selfUpdateCheckedAt && Date.now() - selfUpdateCheckedAt < SELF_UPDATE_RECHECK_MS) return;
   selfUpdateCheckedAt = Date.now();
   showSelfUpdateState("dashboard.checking");
-  btnSuUpdate.disabled = true;
+  showUpdateButton(false);
   App.GetSelfUpdateInfo().then(function (info) {
     if (info.error) {
       selfUpdateCheckedAt = 0; // retried on the next visit
@@ -62,10 +82,10 @@ function loadSelfUpdateStatus(force) {
       return;
     }
     if (info.updateAvailable) {
-      showSelfUpdateState("dashboard.updateAvailable", { app: document.title, version: info.latestVersion });
-      btnSuUpdate.disabled = false;
+      showSelfUpdateState("dashboard.updateAvailable", { app: document.title, version: info.latestVersion }, "update");
+      showUpdateButton(true);
     } else {
-      showSelfUpdateState("dashboard.upToDate", { app: document.title });
+      showSelfUpdateState("dashboard.upToDate", { app: document.title }, "upToDate");
     }
   }).catch(function (err) {
     selfUpdateCheckedAt = 0;
@@ -74,7 +94,7 @@ function loadSelfUpdateStatus(force) {
 }
 
 // A language switch rewrites the status line in the new language.
-onLocaleChange(function () { suStatus.textContent = t(selfUpdateState.key, selfUpdateState.args); });
+onLocaleChange(function () { showSelfUpdateState(selfUpdateState.key, selfUpdateState.args, selfUpdateState.badge); });
 
 btnSuCheck.addEventListener("click", function () {
   if (running) return;

@@ -85,24 +85,57 @@ test("getPostinstallProfile asks the backend once", async () => {
   assert.ok(after - before <= 1, `called ${after - before} times`);
 });
 
-test("Visão Geral shows the detected system; Configurações the Flatpak scope", async () => {
+test("Visão Geral shows the detected system and desktop; Configurações the Flatpak scope", async () => {
   const { ctx, element } = load({
-    GetPostinstallProfile: { supported: true, label: "Fedora 43" },
+    GetSystemInfo: { system: "Fedora 43", desktop: "GNOME" },
     GetFlatpakScope: "user",
   });
   ctx.renderDashboardScreen();
   ctx.renderSelfConfigScreen();
   await tick();
   assert.equal(element("dashboard-system-label").textContent, "Fedora 43");
+  assert.equal(element("dashboard-desktop-label").textContent, "GNOME");
   assert.equal(element("sc-flatpak").value, "user");
 });
 
-test("Desinstalar confirms, then asks for the uninstall with the config choice", () => {
-  const { ctx, element, calls } = load();
+test("Visão Geral names an unknown system and desktop as such", async () => {
+  const { ctx, element } = load({ GetSystemInfo: { system: "", desktop: "" } });
+  ctx.renderAppDashboardStats();
+  await tick();
+  assert.equal(element("dashboard-system-label").textContent, "Não identificado");
+  assert.equal(element("dashboard-desktop-label").textContent, "Não identificado");
+});
+
+test("the update check shows the version badge and Atualizar only for a newer release", async () => {
+  let info = { currentVersion: "v1.0.0", latestVersion: "v1.1.0", updateAvailable: true };
+  const { ctx, element } = load({ GetSelfUpdateInfo: () => info });
+  ctx.loadSelfUpdateStatus(true);
+  await tick();
+  assert.match(element("su-status").textContent, /v1\.1\.0/);
+  assert.equal(element("dashboard-version-badge").textContent, "nova versão");
+  assert.equal(element("btn-su-update").disabled, false);
+
+  info = { currentVersion: "v1.1.0", latestVersion: "v1.1.0", updateAvailable: false };
+  ctx.loadSelfUpdateStatus(true);
+  await tick();
+  assert.equal(element("dashboard-version-badge").textContent, "em dia");
+  assert.equal(element("btn-su-update").disabled, true);
+
+  info = { currentVersion: "v1.1.0", error: "offline" };
+  ctx.loadSelfUpdateStatus(true);
+  await tick();
+  assert.equal(element("dashboard-version-badge").textContent, "");
+  assert.match(element("su-status").textContent, /offline/);
+});
+
+test("Desinstalar opens the confirmation window, which starts the uninstall with the config choice", () => {
+  const { element, calls } = load();
   element("su2-remove-config").checked = true;
   element("btn-su2-uninstall").listeners.click[0]();
-  assert.match(element("confirm-modal-message").textContent, /Perci82 System/);
-  element("btn-confirm-ok").listeners.click[0]();
+  assert.equal(element("su2-remove-config").checked, false, "the option starts unchecked each time");
+  assert.ok(!calls.some((c) => c.name === "RunSelfUninstall"), "nothing runs before confirming");
+  element("su2-remove-config").checked = true;
+  element("btn-uninstall-confirm").listeners.click[0]();
   const call = calls.find((c) => c.name === "RunSelfUninstall");
   assert.deepEqual(call && call.args, [true]);
 });

@@ -85,6 +85,16 @@ export function GetSelfUpdateInfo() {
 }
 
 /**
+ * GetSystemInfo returns the detected system and desktop environment.
+ * @returns {$CancellablePromise<$models.SystemInfo>}
+ */
+export function GetSystemInfo() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSystemInfo").then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType6($result);
+    }));
+}
+
+/**
  * GetSystemScheme returns the scheme "Definido pelo sistema" resolves to
  * from the desktop's current appearance settings; changes arrive in the
  * "system-scheme-changed" event.
@@ -92,7 +102,7 @@ export function GetSelfUpdateInfo() {
  */
 export function GetSystemScheme() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSystemScheme").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType6($result);
+        return $$createType7($result);
     }));
 }
 
@@ -113,7 +123,7 @@ export function GetTheme() {
  */
 export function GetThemeOptions() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetThemeOptions").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType8($result);
+        return $$createType9($result);
     }));
 }
 
@@ -149,8 +159,9 @@ export function SetFlatpakScope(scope) {
 
 /**
  * SetLanguage persists Perci82 System's language choice (field
- * system_language; an unknown value is saved as "system") and emits
- * "language-changed" with the new state to every window.
+ * system_language; an unknown value is saved as "system"), makes the
+ * messages built in Go follow it and emits "language-changed" with the
+ * new state to every window.
  * @param {string} choice
  * @returns {$CancellablePromise<$models.LanguageState>}
  */
@@ -177,6 +188,7 @@ const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $models.Section.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = $models.SelfUpdateInfo.createFrom;
-const $$createType6 = theme$0.SystemScheme.createFrom;
-const $$createType7 = $models.ThemeOption.createFrom;
-const $$createType8 = $Create.Array($$createType7);
+const $$createType6 = $models.SystemInfo.createFrom;
+const $$createType7 = theme$0.SystemScheme.createFrom;
+const $$createType8 = $models.ThemeOption.createFrom;
+const $$createType9 = $Create.Array($$createType8);

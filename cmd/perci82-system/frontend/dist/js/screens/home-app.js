@@ -13,36 +13,44 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Perci82 System parts of Home: the detected system in Visão Geral,
-// Desinstalar, and the Flatpak scope of Configurações.
+// Perci82 System parts of Visão Geral (detected system and desktop,
+// Desinstalar) and of Configurações (Flatpak scope).
 //
 // Classic script (not a module): shares one global scope with the other
 // scripts under js/.
 "use strict";
 
-// renderAppDashboardStats fills the "Sistema" stat of Visão Geral.
+// renderAppDashboardStats fills the "Sistema" and "Ambiente" cards of
+// Visão Geral.
+const dashboardDesktopLabel = document.getElementById("dashboard-desktop-label");
 function renderAppDashboardStats() {
-  getPostinstallProfile().then(function (profile) {
-    dashboardSystemLabel.textContent = (profile && profile.supported) ? profile.label : t("shell.unknownSystem");
+  App.GetSystemInfo().then(function (info) {
+    dashboardSystemLabel.textContent = (info && info.system) || t("shell.unknownSystem");
+    dashboardDesktopLabel.textContent = (info && info.desktop) || t("shell.unknownSystem");
   });
 }
 
-// --- "Desinstalar Perci82 System" (embedded in Visão Geral): the "Também
-// remover configurações" checkbox, then the "Desinstalar" button. --------
+// --- "Desinstalar Perci82 System" (Visão Geral): the button opens
+// #uninstall-modal with the "Também remover configurações" option, unchecked
+// each time; its "Desinstalar" button starts the uninstall. ----------------
+const uninstallModal = document.getElementById("uninstall-modal");
+const btnUninstallConfirm = document.getElementById("btn-uninstall-confirm");
+
 btnSu2Uninstall.addEventListener("click", function () {
   if (running) return;
+  su2RemoveConfig.checked = false;
+  showDialog(uninstallModal);
+});
+
+btnUninstallConfirm.addEventListener("click", function () {
+  uninstallModal.close();
+  if (running || activeRun) return;
   const removeConfig = su2RemoveConfig.checked;
-  const message = t("uninstall.binary") + "\n" +
-    (removeConfig ? t("uninstall.removeConfig") : t("uninstall.keepConfig")) +
-    "\n\n" + t("uninstall.irreversible");
-  openConfirm(t("uninstall.confirmTitle"), message, function () {
-    if (running || activeRun) return;
-    dashboardRunningAction = "self-uninstall";
-    beginRun(t("dashboard.uninstall"), function () { return App.RunSelfUninstall(removeConfig); }, {
-      buttons: [btnSu2Uninstall],
-      maxSteps: 1,
-      announce: t("uninstall.starting"),
-    });
+  dashboardRunningAction = "self-uninstall";
+  beginRun(t("dashboard.uninstall"), function () { return App.RunSelfUninstall(removeConfig); }, {
+    buttons: [btnSu2Uninstall],
+    maxSteps: 1,
+    announce: t("uninstall.starting"),
   });
 });
 

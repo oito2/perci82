@@ -157,3 +157,28 @@ func TestClassify(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopName(t *testing.T) {
+	cases := []struct {
+		desktop, session, want string
+	}{
+		{"X-Cinnamon", "", "Cinnamon"},
+		{"ubuntu:GNOME", "", "GNOME"},
+		{"Budgie:GNOME", "", "Budgie"},
+		{"XFCE", "", "Xfce"},
+		{"COSMIC", "", "COSMIC"},
+		{"KDE", "", "KDE Plasma"},
+		{"", "plasmawayland", "KDE Plasma"},
+		{"X-LXQt:extra", "", "LXQt"},
+		{"", "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.desktop+"|"+tc.session, func(t *testing.T) {
+			t.Setenv("XDG_CURRENT_DESKTOP", tc.desktop)
+			t.Setenv("DESKTOP_SESSION", tc.session)
+			if got := DesktopName(); got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
