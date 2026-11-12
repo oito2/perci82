@@ -7,7 +7,6 @@
 Atualiza o sistema operacional e os aplicativos de uma vez, pedindo a senha uma só vez.
 
 ![Atualizar SO & Apps](../../img/system-update.png)
-<!-- TODO: capture a screenshot of the Update OS & Apps screen -->
 
 ## Etapas
 

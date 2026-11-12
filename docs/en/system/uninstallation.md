@@ -19,7 +19,7 @@ Perci82 System has no autostart entry, tray icon or service.
 
 1. Open **Overview** and click **Uninstall Perci82 System** in the **Uninstall** section.
 2. In the confirmation window, check **Also remove the Perci82 System settings** if you want its settings gone too (language, theme, Flatpak scope and the post-install records). Perci82 Dev's settings are kept.
-3. Click **Uninstall** and type your password when asked. The **Execution** tab shows the progress.
+3. Click **Uninstall** and type your password when asked. The **Run** tab shows the progress.
 
 The binary, the menu entry and the icons are removed. With the settings option, Perci82 System's keys are removed from `~/.perci/config.yaml`; the `~/.perci` folder itself goes only when neither Perci82 Dev nor the old Perci is installed and nothing else is left in it.
 

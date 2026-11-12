@@ -7,7 +7,6 @@
 Installs and removes desktop applications from [Flathub](https://flathub.org). Each checkbox shows whether the application is installed: check the ones you want, uncheck the ones to remove, then click **Run**.
 
 ![Flatpaks](../../img/system-flatpaks.png)
-<!-- TODO: capture a screenshot of the Flatpaks screen -->
 
 | Application | Flatpak ID |
 |---|---|

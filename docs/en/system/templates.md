@@ -7,7 +7,6 @@
 Adds empty file templates to your templates folder, so the file manager's **New Document** menu can create them. Check the templates you want, uncheck the ones to remove, then click **Run**.
 
 ![Manage File Templates](../../img/system-templates.png)
-<!-- TODO: capture a screenshot of the Manage File Templates screen -->
 
 | Template | File |
 |---|---|

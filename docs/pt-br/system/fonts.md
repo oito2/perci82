@@ -7,7 +7,6 @@
 Instala e remove fontes. Cada caixa de seleção mostra se a fonte está instalada: marque as fontes que quer, desmarque as que quer remover e clique em **Executar**.
 
 ![Gerenciar Fontes](../../img/system-fonts.png)
-<!-- TODO: capture a screenshot of the Manage Fonts screen -->
 
 | Fonte | Origem |
 |---|---|

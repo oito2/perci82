@@ -7,7 +7,6 @@
 A primeira tela do Perci82 System: o que ele detectou, a versão, as atualizações e a desinstalação.
 
 ![Visão Geral](../../img/system-overview.png)
-<!-- TODO: capture a screenshot of Perci82 System's Overview -->
 
 ## A janela
 

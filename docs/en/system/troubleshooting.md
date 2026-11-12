@@ -29,7 +29,7 @@ Actions that need administrator rights never run in both apps at once. Wait for 
 
 ## The window doesn't close
 
-The window stays open while an action runs. Follow it in the **Execution** tab and close the window after it finishes.
+The window stays open while an action runs. Follow it in the **Run** tab and close the window after it finishes.
 
 ## Post-install says the system is not supported
 

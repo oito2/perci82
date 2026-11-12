@@ -39,7 +39,6 @@ Perci82 System's main features:
 - **Self-update and uninstall** from the Overview screen; Portuguese and English interface; oito2 themes.
 
 ![Perci82 System's Overview](docs/img/system-overview.png)
-<!-- TODO: capture a screenshot of Perci82 System's Overview -->
 
 ## Prerequisites & Quick Installation
 

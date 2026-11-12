@@ -7,7 +7,6 @@
 Recommended setup for a freshly installed system, item by item. Each item has its own **Apply** button.
 
 ![Post-install](../../img/system-post-install.png)
-<!-- TODO: capture a screenshot of the Post-install screen -->
 
 ## Supported systems
 

@@ -7,7 +7,6 @@
 Instala e remove aplicativos desktop do [Flathub](https://flathub.org). Cada caixa de seleção mostra se o aplicativo está instalado: marque os que quer, desmarque os que quer remover e clique em **Executar**.
 
 ![Flatpaks](../../img/system-flatpaks.png)
-<!-- TODO: capture a screenshot of the Flatpaks screen -->
 
 | Aplicativo | ID do Flatpak |
 |---|---|

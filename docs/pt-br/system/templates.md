@@ -7,7 +7,6 @@
 Coloca templates de arquivos vazios na sua pasta de modelos, para o menu **Novo Documento** do gerenciador de arquivos poder criá-los. Marque os templates que quer, desmarque os que quer remover e clique em **Executar**.
 
 ![Gerenciar Templates de Arquivos](../../img/system-templates.png)
-<!-- TODO: capture a screenshot of the Manage File Templates screen -->
 
 | Template | Arquivo |
 |---|---|

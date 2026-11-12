@@ -7,7 +7,6 @@
 As preferências do próprio Perci82 System. Toda mudança é salva e aplicada na hora; não há botão Salvar.
 
 ![Configurações](../../img/system-settings.png)
-<!-- TODO: capture a screenshot of the Settings screen -->
 
 ## Geral
 

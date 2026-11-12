@@ -7,7 +7,6 @@
 Installs and removes fonts. Each checkbox shows whether the font is installed: check the fonts you want, uncheck the ones to remove, then click **Run**.
 
 ![Manage Fonts](../../img/system-fonts.png)
-<!-- TODO: capture a screenshot of the Manage Fonts screen -->
 
 | Font | Source |
 |---|---|

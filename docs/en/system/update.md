@@ -7,7 +7,6 @@
 Updates the operating system and the applications in one run, asking for your password once.
 
 ![Update OS & Apps](../../img/system-update.png)
-<!-- TODO: capture a screenshot of the Update OS & Apps screen -->
 
 ## Steps
 

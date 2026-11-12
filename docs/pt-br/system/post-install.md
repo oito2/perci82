@@ -7,7 +7,6 @@
 Configuração recomendada para um sistema recém-instalado, item por item. Cada item tem o seu próprio botão **Aplicar**.
 
 ![Pós-instalação](../../img/system-post-install.png)
-<!-- TODO: capture a screenshot of the Post-install screen -->
 
 ## Sistemas suportados
 

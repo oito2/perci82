@@ -7,7 +7,6 @@
 Perci82 System's own preferences. Every change is saved and applied at once; there is no Save button.
 
 ![Settings](../../img/system-settings.png)
-<!-- TODO: capture a screenshot of the Settings screen -->
 
 ## General
 

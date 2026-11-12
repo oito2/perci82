@@ -39,7 +39,6 @@ Principais recursos do Perci82 System:
 - **Autoatualização e desinstalação** pela Visão Geral; interface em português e inglês; temas do oito2.
 
 ![Visão Geral do Perci82 System](../img/system-overview.png)
-<!-- TODO: capture a screenshot of Perci82 System's Overview -->
 
 ## Pré-requisitos e instalação rápida
 
