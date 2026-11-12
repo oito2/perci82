@@ -129,11 +129,19 @@ func TestT(t *testing.T) {
 // keyUse matches a literal message key passed to T.
 var keyUse = regexp.MustCompile(`i18n\.T\([^,()]+,\s*"([^"]+)"`)
 
-// usedKeys returns the keys passed to i18n.T in the module's non-test Go
-// files.
-func usedKeys(t *testing.T) map[string]bool {
+// navKey matches a literal key of the section catalog (internal/gui),
+// whose fields are translated later.
+var navKey = regexp.MustCompile(`"(nav\.[A-Za-z0-9.]+)"`)
+
+// stringLiteral matches any double-quoted Go string literal.
+var stringLiteral = regexp.MustCompile(`"((?:[^"\\\n]|\\.)*)"`)
+
+// keyUses returns, over the module's non-test Go files, the keys that
+// must exist (passed to i18n.T, or section catalog keys) and every string
+// literal (a catalog key appearing in none is unused).
+func keyUses(t *testing.T) (required, literals map[string]bool) {
 	t.Helper()
-	used := map[string]bool{}
+	required, literals = map[string]bool{}, map[string]bool{}
 	root := filepath.Join("..", "..")
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -149,15 +157,20 @@ func usedKeys(t *testing.T) map[string]bool {
 		if err != nil {
 			return err
 		}
-		for _, m := range keyUse.FindAllStringSubmatch(string(src), -1) {
-			used[m[1]] = true
+		for _, re := range []*regexp.Regexp{keyUse, navKey} {
+			for _, m := range re.FindAllStringSubmatch(string(src), -1) {
+				required[m[1]] = true
+			}
+		}
+		for _, m := range stringLiteral.FindAllStringSubmatch(string(src), -1) {
+			literals[m[1]] = true
 		}
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return used
+	return required, literals
 }
 
 // The embedded catalogs: same keys and placeholders in every locale, every
@@ -190,17 +203,17 @@ func TestCatalogs(t *testing.T) {
 		}
 	}
 
-	used := usedKeys(t)
-	if len(used) == 0 {
-		t.Fatal("no i18n.T call found")
+	required, literals := keyUses(t)
+	if len(required) == 0 {
+		t.Fatal("no message key found in the code")
 	}
-	for k := range used {
+	for k := range required {
 		if _, ok := base[k]; !ok {
 			t.Errorf("key %q is used but missing from the catalogs", k)
 		}
 	}
 	for k := range base {
-		if !used[k] {
+		if !literals[k] {
 			t.Errorf("key %q is in the catalogs but never used", k)
 		}
 	}

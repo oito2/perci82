@@ -25,9 +25,8 @@ coverage.html
 *.prof
 *.trace
 
-# Dependencies and data (vendor/ and env/ stay readable where git tracks files in them)
+# Dependencies and data (env/ stays readable where git tracks files in it)
 node_modules/
-vendor/
 bower_components/
 moodledata/
 .git/

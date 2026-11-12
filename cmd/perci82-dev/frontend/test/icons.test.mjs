@@ -20,8 +20,9 @@ import path from "node:path";
 
 import { commonDir, distDir } from "./harness.mjs";
 
-// usedIcons collects every icon name the scripts ask for: iconButton("x"),
-// LUCIDE.svg("x") and the values of CATEGORY_ICONS.
+// usedIcons collects every icon name the frontend asks for: iconButton("x")
+// and LUCIDE.svg("x") in the scripts, and the section icons of the Go
+// catalog (icon: "x").
 function usedIcons() {
   const names = new Set();
   const dirs = [distDir, commonDir].flatMap((root) => [path.join(root, "js"), path.join(root, "js", "screens")]);
@@ -29,17 +30,17 @@ function usedIcons() {
     for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".js"))) {
       const src = fs.readFileSync(path.join(dir, f), "utf8");
       for (const m of src.matchAll(/(?:iconButton|LUCIDE\.svg)\("([A-Za-z0-9]+)"/g)) names.add(m[1]);
-      const cat = /const CATEGORY_ICONS = \{([^}]*)\}/.exec(src);
-      if (cat) for (const m of cat[1].matchAll(/:\s*"([A-Za-z0-9]+)"/g)) names.add(m[1]);
     }
   }
+  const catalog = fs.readFileSync(path.join(commonDir, "..", "catalog.go"), "utf8");
+  for (const m of catalog.matchAll(/icon:\s*"([A-Za-z0-9]+)"/g)) names.add(m[1]);
   return [...names].sort();
 }
 
 test("every icon the frontend uses is in the vendored lucide set", () => {
   const icons = fs.readFileSync(path.join(commonDir, "vendor", "lucide", "icons.js"), "utf8");
   const used = usedIcons();
-  assert.ok(used.includes("circleArrowUp") && used.includes("gitBranch"), "the scan finds the icons in use");
+  assert.ok(used.includes("circleArrowUp") && used.includes("gitBranch") && used.includes("house"), "the scan finds the icons in use");
   const missing = used.filter((name) => !new RegExp("^\\s+" + name + ":\\s*'", "m").test(icons));
   assert.deepEqual(missing, []);
 });

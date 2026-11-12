@@ -1,7 +1,11 @@
 {
+	"settings.general": "Geral",
 	"settings.language": "Idioma",
 	"settings.languageSaveFailed": "Falha ao salvar o idioma: {error}",
 	"settings.system": "Definido pelo sistema",
 	"settings.theme": "Tema",
-	"settings.themeSaveFailed": "Falha ao salvar o tema: {error}"
+	"settings.themeSaveFailed": "Falha ao salvar o tema: {error}",
+	"shell.execution": "Execução",
+	"shell.items": "Itens",
+	"shell.sections": "Seções"
 }

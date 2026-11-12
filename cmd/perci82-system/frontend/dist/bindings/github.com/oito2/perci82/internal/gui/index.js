@@ -11,11 +11,11 @@ export {
 
 export {
     LanguageState,
-    MenuCategory,
     MenuItem,
     MultiSelectItemInfo,
     PostinstallActionInfo,
     PostinstallProfileInfo,
+    Section,
     SelfUpdateInfo,
     ThemeOption
 } from "./models.js";

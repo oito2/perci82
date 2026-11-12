@@ -1,6 +1,9 @@
 {
 	"settings.tray": "Show Perci82 Dev in the system tray",
 	"settings.trayHelp": "When on: closing the main window hides it in the tray instead of quitting Perci82 Dev (use \"Quit\" in the icon's menu to quit for good), and Perci82 Dev starts hidden in the tray with the graphical session. The icon needs an environment with StatusNotifierItem support — it works natively on KDE, XFCE and COSMIC; on GNOME it only shows with the \"AppIndicator and KStatusNotifierItem Support\" extension installed.",
+	"settings.traySection": "System tray",
 	"settings.workspace": "Workspace path",
-	"settings.workspace.pick": "Select Folder"
+	"settings.workspace.pick": "Select Folder",
+	"shell.containers": "Containers",
+	"shell.openApp": "Open Application"
 }

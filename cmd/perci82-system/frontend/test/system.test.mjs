@@ -162,3 +162,20 @@ test("theme: the stylesheet with the oito2 schemes is loaded, and daisyUI's them
   assert.ok(html.indexOf("daisyui.css") < html.indexOf("css/oito2.css"), "oito2.css comes after daisyui.css");
   assert.ok(fs.existsSync(path.join(commonDir, "css", "oito2.css")));
 });
+
+test("shell: System's sections show no side list", async () => {
+  const sections = [
+    { id: "overview", label: "Visão Geral", icon: "house", items: [{ title: "Visão Geral", actionId: "dashboard", desc: "" }] },
+    { id: "fonts", label: "Fontes", icon: "type", items: [{ title: "Gerenciar Fontes", actionId: "fonts", tab: "Itens", desc: "" }] },
+  ];
+  const { element } = load({ GetSections: sections });
+  await tick();
+  await tick();
+  const tabs = element("section-tabs").children;
+  assert.equal(tabs.length, 2);
+  tabs[1].listeners.click.forEach((fn) => fn());
+  assert.equal(element("side-list").children.length, 0);
+  assert.equal(element("screen-title").textContent, "Gerenciar Fontes");
+  assert.equal(element("tab-desc-label").textContent, "Itens");
+  assert.equal(tabs[1].getAttribute("aria-selected"), "true");
+});

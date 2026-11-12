@@ -21,11 +21,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Perci82 System saves its theme apart from Perci82 Dev's (`system_gui_theme`), so the two apps can use different themes.
 - Actions that need administrator rights never run in both apps at once: while one app runs such an action, the other refuses with a message naming that app.
 - Building from source requires Go 1.27.4 or later.
+- New window layout in both apps: sections as tabs at the top (Perci82 System: Visão Geral, Pós-instalação, Atualizar, Fontes, Templates, Flatpaks, Configurações; Perci82 Dev: Visão Geral, Ambiente, Docker, Repositórios, Contextos de IA, Skills & MCPs, Configurações), a side list for the screens of a Perci82 Dev section (the Git accounts are grouped under "Contas" in Repositórios), and the screen's own tabs below its title. Section, screen and tab names follow the chosen language. The window is at least 1180 × 640 px.
+- AI contexts no longer keep `vendor/` out of the agents' reach (`.claude/settings.json`, `.aiexclude`, `.geminiignore`): applying or updating a context removes that rule from projects that have it.
 - Themes come from the oito2 design system: Configurações → Tema offers "Definido pelo sistema", which follows the desktop's light or dark preference, accent color and high contrast (and changes with them while the app is open), and the 13 oito2 presets (Everforest, Rosé Pine, Nord, Dracula/Alucard, Catppuccin). A daisyUI theme saved by Perci 1.9 shows as "Definido pelo sistema" until another theme is chosen.
 
 ### Removed
 
 - The sidebar mascot's app icon choice (Ícone do Aplicativo): each app has a single icon.
 - The daisyUI themes of Perci 1.9 (light, dark, cupcake, synthwave, retro, valentine, halloween, garden).
-- The sidebar logo choice (Logo da Sidebar) in Configurações; a logo chosen in Perci 1.9 is still shown.
+- The sidebar, its breadcrumb and the mascot logo, replaced by the section tabs; the sidebar logo choice (Logo da Sidebar) in Configurações went first, and a logo saved by Perci 1.9 is kept in `config.yaml` but no longer shown.
 - Self-update and uninstall from the apps are not available yet; their buttons report that.

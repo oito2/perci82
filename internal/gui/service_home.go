@@ -45,8 +45,8 @@ var errSelfManagementUnavailable = errors.New("a atualização e a desinstalaç�
 // builds of this version; tests switch it on.
 var selfManagementEnabled = false
 
-// homeCore holds the "Home" bindings both applications share: theme
-// list, version, self-update and sidebar logo. SystemHomeService and
+// homeCore holds the "Home" bindings both applications share: theme and
+// language lists, version and self-update. SystemHomeService and
 // DevHomeService embed it, so its exported methods are bound for both.
 type homeCore struct {
 	serviceBase
@@ -65,19 +65,20 @@ type DevHomeService struct {
 	onLanguageChanged func(locale string)
 }
 
-// GetCategories returns Perci82 System's sidebar categories and items.
-func (h *SystemHomeService) GetCategories() []MenuCategory {
-	return systemCategories()
+// GetSections returns Perci82 System's sections, labeled in its language.
+func (h *SystemHomeService) GetSections() []Section {
+	return systemSections(h.GetLanguage().Locale)
 }
 
-// GetCategories returns Perci82 Dev's sidebar categories and items, with
-// one item per registered Git account (an unreadable config lists none).
-func (h *DevHomeService) GetCategories() []MenuCategory {
+// GetSections returns Perci82 Dev's sections, labeled in its language,
+// with one "Repositórios" item per registered Git account (an unreadable
+// config lists none).
+func (h *DevHomeService) GetSections() []Section {
 	var accounts []config.GitAccount
 	if cfg, err := config.Load(); err == nil {
 		accounts = cfg.GitAccounts
 	}
-	return devCategories(accounts)
+	return devSections(h.GetLanguage().Locale, accounts)
 }
 
 // GetTheme returns Perci82 System's theme choice (~/.perci/config.yaml,
@@ -355,16 +356,6 @@ func (h *DevHomeService) SetWorkspacePath(path string) error {
 		cfg.WorkspacePath = path
 		return nil
 	})
-}
-
-// GetSidebarLogo returns the sidebar mascot variant ("blue"/"pink") an
-// earlier Perci version saved, the default when unset or unreadable.
-func (h *homeCore) GetSidebarLogo() string {
-	cfg, err := config.Load()
-	if err != nil {
-		return config.DefaultSidebarLogo
-	}
-	return cfg.SidebarLogoOrDefault()
 }
 
 // PickUninstallBackupPath opens the native "Salvar Como" dialog for the

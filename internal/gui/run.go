@@ -225,11 +225,12 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 	})
 
 	mainWindow = wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:     p.Name,
-		Width:     1100,
-		Height:    720,
-		MinWidth:  800,
-		MinHeight: 560,
+		Title: p.Name,
+		// The shell needs 1180px for its tables beside the side list.
+		Width:     1180,
+		Height:    760,
+		MinWidth:  1180,
+		MinHeight: 640,
 		Hidden:    startHidden,
 		Linux: application.LinuxWindow{
 			Icon: p.WindowIcon,

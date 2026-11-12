@@ -159,9 +159,6 @@ func TestHomeSettings_RoundTripAndFallback(t *testing.T) {
 	if err := dev.SetTheme(first); !errors.As(err, &foreign) {
 		t.Errorf("Dev's SetTheme under Perci82 System: err = %v, want *config.ForeignKeyError", err)
 	}
-	if got := dev.GetSidebarLogo(); got != config.DefaultSidebarLogo {
-		t.Errorf("sidebar logo = %q, want the default %q", got, config.DefaultSidebarLogo)
-	}
 }
 
 // Each application saves its language under its own key; an unknown value
@@ -377,8 +374,8 @@ func TestGetters_ListTheirCatalogues(t *testing.T) {
 	if len(linux.GetFontsInfo()) == 0 || len(devTools.GetAIContextItems(t.TempDir())) == 0 {
 		t.Error("fonts / AI contexts: empty lists")
 	}
-	if home.GetAppVersion() == "" || len(home.GetCategories()) == 0 || len((&SystemHomeService{}).GetCategories()) == 0 {
-		t.Error("empty app version or sidebar categories")
+	if home.GetAppVersion() == "" || len(home.GetSections()) == 0 || len((&SystemHomeService{}).GetSections()) == 0 {
+		t.Error("empty app version or sections")
 	}
 	// Single-app screens and the rest: just answer.
 	_ = devSetup.GetAndroidStudioInfo()

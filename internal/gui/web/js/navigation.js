@@ -13,194 +13,175 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Sidebar accordion + collapsed rail flyout, and selectItem (which screen shows for each menu item).
+// The window shell: the section tab bar, the side list of the active
+// section's items, the screen title, and selectItem (which screen shows
+// for each item).
 //
 // Classic script (not a module): shares one global scope with the other
 // scripts under js/.
 "use strict";
 
-// --- accordion (expanded) + rail flyout (collapsed) ------------------------
-// Each category has 2 representations in the DOM, one visible at a time
-// (CSS, based on #sidebar[data-collapsed]): the normal one (accordion,
-// inline items) and the rail one (just the category icon, items in a
-// flyout dropdown beside it).
-function catInitials(label) {
-  return label.split(" ").map(function (w) { return w[0]; }).join("").slice(0, 2).toUpperCase();
-}
+const sectionTabsEl = document.getElementById("section-tabs");
+const sideListEl = document.getElementById("side-list");
+const screenTitleEl = document.getElementById("screen-title");
 
-// Rail icon per category — a category missing
-// here falls back to its initials.
-const CATEGORY_ICONS = {
-  Home: "house",
-  Linux: "terminal",
-  Desenvolvimento: "code",
-  Docker: "container",
-  "Repositórios": "gitBranch",
-  "Dev Tools": "wrench",
-};
-
-// menuKey identifies a menu item across menu reloads: its actionId plus,
+// menuKey identifies an item across catalog reloads: its actionId plus,
 // for an account item, the account ID.
 function menuKey(item) {
   return item.actionId + "|" + (item.accountId || "");
 }
 
-// Builds the <ul class="menu"> of one category's items — reused both by
-// the accordion and the rail dropdown, so the two views always stay in
-// sync (same content, same click).
-function buildItemsMenu(cat, catIdx, fullClass) {
-  const ul = document.createElement("ul");
-  ul.className = fullClass;
-  cat.items.forEach(function (item, itemIdx) {
-    const li = document.createElement("li");
-    li.className = "w-full";
-    const a = document.createElement("a");
-    a.className = "w-full";
-    a.href = "#"; // focusable and activated by Enter, like any link
-    a.textContent = item.title;
-    a.dataset.cat = catIdx;
-    a.dataset.item = itemIdx;
-    a.dataset.key = menuKey(item);
-    a.addEventListener("click", function (ev) {
-      ev.preventDefault();
-      selectItem(cat, item, catIdx, itemIdx);
-    });
-    li.appendChild(a);
-    ul.appendChild(li);
-  });
-  return ul;
+// The sections the window shows now (App.GetSections()) and the index of
+// the active one.
+let menuSections = [];
+let currentSectionIdx = 0;
+
+// sectionIcon returns the SVG of a lucide icon, or "" when the vendored
+// set lacks it.
+function sectionIcon(name) {
+  try {
+    return name ? LUCIDE.svg(name, { size: 24 }) : "";
+  } catch (err) {
+    return "";
+  }
 }
 
-// The catalog the sidebar shows now (App.GetCategories()).
-let menuCats = [];
-
-// loadMenu (re)builds the sidebar from App.GetCategories() — on start and
-// whenever the catalog changes (a Git account added, renamed or removed).
-// A rebuild keeps the categories that were open and the active item.
-function loadMenu() {
-  return App.GetCategories().then(function (cats) {
-    const wasOpen = {};
-    document.querySelectorAll("#accordion .accordion-view > input[type=checkbox]").forEach(function (cb) {
-      wasOpen[cb.getAttribute("aria-label")] = cb.checked;
-    });
-    const firstBuild = menuCats.length === 0;
-    menuCats = cats;
-    accordionEl.innerHTML = "";
-    buildMenu(cats, function (cat, catIdx) {
-      return firstBuild ? catIdx === 0 : !!wasOpen[cat.label];
-    });
-    markActiveMenuItem();
-    return cats;
+// renderSectionTabs (re)builds the top tab bar from menuSections.
+function renderSectionTabs() {
+  sectionTabsEl.innerHTML = "";
+  menuSections.forEach(function (section, idx) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "o2-tab";
+    btn.setAttribute("role", "tab");
+    btn.dataset.section = section.id;
+    btn.innerHTML = sectionIcon(section.icon);
+    const label = document.createElement("span");
+    label.textContent = section.label;
+    btn.appendChild(label);
+    btn.addEventListener("click", function () { selectSection(idx); });
+    sectionTabsEl.appendChild(btn);
   });
 }
 
-// buildMenu appends one accordion entry and one rail entry per category to
-// #accordion; isOpen(cat, catIdx) says which accordion entries start open.
-function buildMenu(cats, isOpen) {
-  cats.forEach(function (cat, catIdx) {
-    // --- normal view: accordion, checkbox (not radio) so every
-    // category can be closed, not just swapped for another. No border
-    // between categories — just daisyUI's collapse-arrow, no
-    // border-b/border-base-300.
-    const accWrap = document.createElement("div");
-    accWrap.className = "accordion-view collapse collapse-arrow";
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.setAttribute("aria-label", cat.label);
-    if (isOpen(cat, catIdx)) checkbox.checked = true;
-    checkbox.addEventListener("change", function () {
-      if (!checkbox.checked) return;
-      document.querySelectorAll("#accordion .accordion-view > input[type=checkbox]").forEach(function (other) {
-        if (other !== checkbox) other.checked = false;
-      });
-    });
-
-    const accTitle = document.createElement("div");
-    accTitle.className = "collapse-title font-medium";
-    accTitle.textContent = cat.label;
-
-    const accContent = document.createElement("div");
-    accContent.className = "collapse-content";
-    accContent.appendChild(buildItemsMenu(cat, catIdx, "menu menu-md w-full p-0"));
-
-    accWrap.appendChild(checkbox);
-    accWrap.appendChild(accTitle);
-    accWrap.appendChild(accContent);
-
-    // --- rail view: icon + flyout with the items (custom CSS, not
-    // daisyUI's `dropdown` component).
-    const railWrap = document.createElement("div");
-    railWrap.className = "rail-view justify-center p-2";
-
-    const railItem = document.createElement("div");
-    railItem.className = "rail-item";
-    railItem.tabIndex = 0;
-    railItem.setAttribute("aria-label", cat.label);
-
-    const railTrigger = document.createElement("div");
-    railTrigger.title = cat.label;
-    railTrigger.className = "cat-badge cursor-pointer";
-    railTrigger.setAttribute("aria-hidden", "true"); // railItem carries the label
-    // An icon missing from the vendored set renders nothing (or throws):
-    // the initials stand in for it.
-    const icon = CATEGORY_ICONS[cat.label];
-    let svg = "";
-    try {
-      svg = icon ? LUCIDE.svg(icon, { size: 22 }) : "";
-    } catch (err) {
-      svg = "";
+// renderSideList (re)builds the side list of the active section: one
+// entry per item, with a group heading where an item's group differs from
+// the previous one's. A section with a single item hides the list.
+function renderSideList() {
+  const section = menuSections[currentSectionIdx];
+  sideListEl.innerHTML = "";
+  if (!section || section.items.length < 2) {
+    sideListEl.classList.add("hidden");
+    return;
+  }
+  sideListEl.classList.remove("hidden");
+  let group = "";
+  section.items.forEach(function (item, itemIdx) {
+    if (item.group && item.group !== group) {
+      const heading = document.createElement("div");
+      heading.className = "o2-side-group";
+      heading.textContent = item.group;
+      sideListEl.appendChild(heading);
     }
-    if (svg) railTrigger.innerHTML = svg;
-    else railTrigger.textContent = catInitials(cat.label);
-
-    const railMenu = buildItemsMenu(cat, catIdx, "rail-flyout menu menu-md bg-base-200 rounded-box w-56 p-2 shadow border border-base-300");
-
-    railItem.appendChild(railTrigger);
-    railItem.appendChild(railMenu);
-    railWrap.appendChild(railItem);
-
-    accordionEl.appendChild(accWrap);
-    accordionEl.appendChild(railWrap);
+    group = item.group || "";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "o2-side-item";
+    btn.textContent = item.title;
+    btn.title = item.title;
+    btn.dataset.key = menuKey(item);
+    btn.addEventListener("click", function () {
+      selectItem(section, item, currentSectionIdx, itemIdx);
+    });
+    sideListEl.appendChild(btn);
   });
 }
 
-// The compact window's first screen is built once the saved language is
-// shown (i18nReady), so its texts come out translated.
+// loadMenu (re)builds the tab bar and side list from App.GetSections() —
+// on start, on a language switch and whenever the catalog changes (a Git
+// account added, renamed or removed). A rebuild keeps the active section
+// and item, and relabels the screen title and first inner tab.
+function loadMenu() {
+  return App.GetSections().then(function (sections) {
+    const activeID = menuSections[currentSectionIdx] && menuSections[currentSectionIdx].id;
+    menuSections = sections || [];
+    const idx = menuSections.findIndex(function (s) { return s.id === activeID; });
+    currentSectionIdx = idx >= 0 ? idx : 0;
+    renderSectionTabs();
+    renderSideList();
+    const current = window.__selectedItem && findMenuItem(menuKey(window.__selectedItem));
+    if (current) {
+      window.__selectedItem = current.item;
+      showItemLabels(current.item);
+    }
+    markActiveMenuItem();
+    return menuSections;
+  });
+}
+
+// findMenuItem returns { section, item, sectionIdx, itemIdx } of the item
+// whose menuKey is key, or null.
+function findMenuItem(key) {
+  for (let sectionIdx = 0; sectionIdx < menuSections.length; sectionIdx++) {
+    const section = menuSections[sectionIdx];
+    for (let itemIdx = 0; itemIdx < section.items.length; itemIdx++) {
+      if (menuKey(section.items[itemIdx]) === key) {
+        return { section: section, item: section.items[itemIdx], sectionIdx: sectionIdx, itemIdx: itemIdx };
+      }
+    }
+  }
+  return null;
+}
+
+// selectSection shows the section at idx, on its first item.
+function selectSection(idx) {
+  const section = menuSections[idx];
+  if (!section || !section.items.length) return;
+  selectItem(section, section.items[0], idx, 0);
+}
+
+// The main window opens on the first section once the catalog and the
+// saved language are loaded; the compact window shows its own tab.
 Promise.all([loadMenu(), i18nReady]).then(function (r) {
   if (compactAction) {
     activateCompactMode(r[0]);
+    return;
   }
+  selectSection(0);
 });
 
-// markActiveMenuItem highlights the sidebar entries of the selected item.
+// A language switch relabels the tabs, the side list and the titles; the
+// first locale shown at startup needs no reload (GetSections already
+// labels in the saved language).
+let menuLocale = null;
+onLocaleChange(function (locale) {
+  if (menuLocale !== null && locale !== menuLocale) loadMenu();
+  menuLocale = locale;
+});
+
+// markActiveMenuItem marks the active section tab and side list entry.
 function markActiveMenuItem() {
   const key = window.__selectedItem ? menuKey(window.__selectedItem) : "";
-  document.querySelectorAll("#accordion a[data-key]").forEach(function (el) {
-    const active = el.dataset.key === key;
-    el.classList.toggle("menu-active", active);
-    if (active) el.setAttribute("aria-current", "page");
+  Array.prototype.forEach.call(sectionTabsEl.children, function (el, idx) {
+    el.setAttribute("aria-selected", idx === currentSectionIdx ? "true" : "false");
+  });
+  sideListEl.querySelectorAll("button[data-key]").forEach(function (el) {
+    if (el.dataset.key === key) el.setAttribute("aria-current", "page");
     else el.removeAttribute("aria-current");
   });
 }
 
-// selectMenuItem shows the item whose menuKey is key, as a sidebar click
-// would. Returns false when the current catalog has no such item.
+// selectMenuItem shows the item whose menuKey is key, as a click would.
+// Returns false when the current catalog has no such item.
 function selectMenuItem(key) {
-  for (let catIdx = 0; catIdx < menuCats.length; catIdx++) {
-    const cat = menuCats[catIdx];
-    for (let itemIdx = 0; itemIdx < cat.items.length; itemIdx++) {
-      if (menuKey(cat.items[itemIdx]) === key) {
-        selectItem(cat, cat.items[itemIdx], catIdx, itemIdx);
-        return true;
-      }
-    }
-  }
-  return false;
+  const found = findMenuItem(key);
+  if (!found) return false;
+  selectItem(found.section, found.item, found.sectionIdx, found.itemIdx);
+  return true;
 }
 
-// screenFor returns the screen a menu item shows: its SCREENS entry, else
-// the first SCREEN_FAMILIES entry that has its actionId, else null.
+// screenFor returns the screen an item shows: its SCREENS entry, else the
+// first SCREEN_FAMILIES entry that has its actionId, else null.
 function screenFor(item) {
   const id = item.actionId;
   if (SCREENS[id]) return SCREENS[id];
@@ -210,9 +191,9 @@ function screenFor(item) {
   return null;
 }
 
-// screenContainers lists every screen container plus the extra tab labels
-// only some screens show — all hidden before the selected screen shows its
-// own.
+// screenContainers lists every screen container plus the extra inner tab
+// labels only some screens show — all hidden before the selected screen
+// shows its own.
 function screenContainers() {
   const els = [];
   Object.keys(SCREENS).forEach(function (k) {
@@ -223,17 +204,23 @@ function screenContainers() {
   return els;
 }
 
-function selectItem(cat, item, catIdx, itemIdx) {
-  breadcrumb.innerHTML = "<li>" + escHTML(cat.label) + "</li><li>" + escHTML(item.title) + "</li>";
-  tabDescLabel.textContent = item.tab || document.title;
+// showItemLabels writes the item's title and first inner tab label.
+function showItemLabels(item) {
+  screenTitleEl.textContent = item.title;
+  tabDescLabel.textContent = item.tab || item.title;
+}
+
+function selectItem(section, item, sectionIdx, itemIdx) {
+  const sectionChanged = sectionIdx !== currentSectionIdx;
+  currentSectionIdx = sectionIdx;
+  if (sectionChanged) renderSideList();
+  showItemLabels(item);
   window.__selectedItem = item;
 
   screenContainers().forEach(function (el) { el.classList.add("hidden"); });
-  // "Execução" is visible by default (almost every screen goes through
-  // it) — only "Home :: Configurações" hides it (noTerminal), since none of
-  // its actions are async/streamed (Tema/Flatpak apply
-  // immediately, Workspace persists on its own when "Criar Workspace"
-  // is clicked).
+  // The first inner tab and "Execução" are visible by default; a screen
+  // whose actions all apply at once (noTerminal) shows no inner tabs.
+  tabLabelDesc.classList.remove("hidden");
   tabLabelTerminal.classList.remove("hidden");
 
   const screen = screenFor(item);
@@ -244,8 +231,8 @@ function selectItem(cat, item, catIdx, itemIdx) {
   screen.el.classList.remove("hidden");
   (screen.alsoShow || []).forEach(function (el) { el.classList.remove("hidden"); });
   if (screen.noTerminal) {
+    tabLabelDesc.classList.add("hidden");
     tabLabelTerminal.classList.add("hidden");
-    selectTab("desc");
   }
   screen.render(item);
   selectTab("desc");

@@ -48,50 +48,8 @@ export class LanguageState {
 }
 
 /**
- * MenuCategory is one of the top-level sidebar sections.
- */
-export class MenuCategory {
-    /**
-     * Creates a new MenuCategory instance.
-     * @param {Partial<MenuCategory>} [$$source = {}] - The source object to create the MenuCategory.
-     */
-    constructor($$source = {}) {
-        if (!("label" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["label"] = "";
-        }
-        if (!("items" in $$source)) {
-            /**
-             * @member
-             * @type {MenuItem[]}
-             */
-            this["items"] = [];
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MenuCategory instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {MenuCategory}
-     */
-    static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType1;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("items" in $$parsedSource) {
-            $$parsedSource["items"] = $$createField1_0($$parsedSource["items"]);
-        }
-        return new MenuCategory(/** @type {Partial<MenuCategory>} */($$parsedSource));
-    }
-}
-
-/**
- * MenuItem is one entry inside a category's accordion panel — rendered
- * with the daisyUI `menu` component.
+ * MenuItem is one screen of a section: an entry of the section's side
+ * list, or the section's only screen.
  */
 export class MenuItem {
     /**
@@ -101,6 +59,7 @@ export class MenuItem {
     constructor($$source = {}) {
         if (!("title" in $$source)) {
             /**
+             * Title is the screen title, also the label of its side list entry.
              * @member
              * @type {string}
              */
@@ -116,9 +75,8 @@ export class MenuItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * ActionID identifies which bound method the "Executar" button calls for
-             * this item — empty means "no real screen yet": the button stays
-             * disabled.
+             * ActionID identifies the screen (SCREENS/SCREEN_FAMILIES in the
+             * frontend) and which bound method its "Executar" button calls.
              * @member
              * @type {string | undefined}
              */
@@ -145,9 +103,7 @@ export class MenuItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Tab is the "📝 <Tab>" tab's text (#tab-desc-label) when this item is
-             * selected — empty uses the generic "Perci" label (the app's own name,
-             * used by Home :: Visão Geral).
+             * Tab is the label of the screen's first inner tab; empty uses Title.
              * @member
              * @type {string | undefined}
              */
@@ -155,7 +111,16 @@ export class MenuItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * AccountID is the Git account an item of the "Repositórios" category
+             * Group is the heading shown above this entry in the side list when it
+             * differs from the previous entry's; empty for no heading.
+             * @member
+             * @type {string | undefined}
+             */
+            this["group"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * AccountID is the Git account an item of the "Repositórios" section
              * opens (ActionID "git-account").
              * @member
              * @type {string | undefined}
@@ -172,7 +137,7 @@ export class MenuItem {
      * @returns {MenuItem}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType2;
+        const $$createField4_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("notes" in $$parsedSource) {
             $$parsedSource["notes"] = $$createField4_0($$parsedSource["notes"]);
@@ -342,12 +307,72 @@ export class PostinstallProfileInfo {
      * @returns {PostinstallProfileInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType4;
+        const $$createField2_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actions" in $$parsedSource) {
             $$parsedSource["actions"] = $$createField2_0($$parsedSource["actions"]);
         }
         return new PostinstallProfileInfo(/** @type {Partial<PostinstallProfileInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * Section is one tab of the window's top tab bar. A section with more
+ * than one item shows them in a side list.
+ */
+export class Section {
+    /**
+     * Creates a new Section instance.
+     * @param {Partial<Section>} [$$source = {}] - The source object to create the Section.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * ID identifies the section across catalog reloads and languages.
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("label" in $$source)) {
+            /**
+             * Label is the tab's text.
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
+        if (!("icon" in $$source)) {
+            /**
+             * Icon is the name of the tab's lucide icon.
+             * @member
+             * @type {string}
+             */
+            this["icon"] = "";
+        }
+        if (!("items" in $$source)) {
+            /**
+             * @member
+             * @type {MenuItem[]}
+             */
+            this["items"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Section instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Section}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("items" in $$parsedSource) {
+            $$parsedSource["items"] = $$createField3_0($$parsedSource["items"]);
+        }
+        return new Section(/** @type {Partial<Section>} */($$parsedSource));
     }
 }
 
@@ -463,8 +488,8 @@ export class ThemeOption {
 }
 
 // Private type creation functions
-const $$createType0 = MenuItem.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = PostinstallActionInfo.createFrom;
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = PostinstallActionInfo.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = MenuItem.createFrom;
 const $$createType4 = $Create.Array($$createType3);

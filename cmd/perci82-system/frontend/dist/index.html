@@ -25,11 +25,6 @@
   step — vendored, like xterm/lucide. Not loaded from a
   CDN, so no third-party JavaScript runs with access to every Wails
   binding.
-
-  The sidebar collapse is plain custom CSS (`#sidebar[data-collapsed]` in
-  the <style> below) instead of daisyUI's `is-drawer-open:`/
-  `is-drawer-close:` variants, which aren't included in the pre-compiled
-  CSS files.
 -->
 <!--
   Content-Security-Policy: only same-origin resources, and no inline
@@ -48,76 +43,23 @@
   comes after daisyui.css so its rules win over daisyUI's built-in theme.
 -->
 <link rel="stylesheet" href="./css/oito2.css" />
+<!-- shell.css: section tabs, side list, screen title, inner tabs and form
+     sections, shared by both applications. -->
+<link rel="stylesheet" href="./css/shell.css" />
 <script src="./vendor/tailwindcss/browser.js"></script>
 <link rel="stylesheet" href="./vendor/xterm/xterm.css" />
 
 <style>
-  /* Sidebar collapse, in plain CSS. Two views per category: the normal
-     one (accordion-view, inline items) and the rail one (rail-view, just
-     the icon + a flyout with the items) — only one of them is visible at
-     a time, based on data-collapsed. */
-  #sidebar { width: 18rem; transition: width .15s ease; overflow: visible; }
-  #sidebar[data-collapsed="true"] { width: 4.5rem; }
-  #sidebar[data-collapsed="true"] .sidebar-label { display: none; }
-
-  #sidebar .rail-view { display: none; }
-  #sidebar[data-collapsed="true"] .accordion-view { display: none; }
-  #sidebar[data-collapsed="true"] .rail-view { display: flex; }
-
-  /* #accordion normally scrolls (an expanded category can have many
-     items); in rail mode that would clip the flyout coming out of the
-     icon, so it becomes visible while collapsed (only 4 categories, no
-     need to scroll in that mode). */
-  #accordion { overflow-y: auto; }
-  #sidebar[data-collapsed="true"] #accordion { overflow: visible; }
-
-  /* daisyUI's `.drawer-side` has `overflow: hidden auto`, which clips
-     anything that spills outside the collapsed sidebar's ~4.5rem band,
-     including the rail flyout below. Overridden so the flyout is
-     painted. */
-  .drawer-side { overflow: visible; }
-
-  /* Rail flyout: custom implementation, not daisyUI's `dropdown`
-     component — plain focus-within, without depending on the
-     ready-made component. */
-  .rail-item { position: relative; }
-  .rail-flyout {
-    position: absolute; left: 100%; top: 0; margin-left: .5rem;
-    opacity: 0; visibility: hidden; pointer-events: none;
-    transition: opacity .1s ease;
-    z-index: 100;
-  }
-  /* Click-only open, by design — no :hover on purpose. */
-  .rail-item:focus-within .rail-flyout {
-    opacity: 1; visibility: visible; pointer-events: auto;
-  }
-
-  .cat-badge {
-    display: inline-flex; width: 2rem; height: 2rem; border-radius: 9999px;
-    align-items: center; justify-content: center; font-size: .7rem; font-weight: 700;
-    flex-shrink: 0;
-  }
-  /* Rail icons have no background; hovering (or opening the flyout)
-     makes the stroke heavier — the icon's "bold". */
-  .cat-badge svg { stroke-width: 2; transition: stroke-width .1s ease; }
-  .rail-item:hover .cat-badge svg,
-  .rail-item:focus-within .cat-badge svg { stroke-width: 2.75; }
-
-  /* The sidebar logo shrinks to fit the collapsed rail (4.5rem wide,
-     minus 1rem padding on each side and the 1px border). */
-  #sidebar[data-collapsed="true"] #sidebar-logo-img { width: 2.25rem; height: 2.25rem; }
-
-  /* Locked height (h-screen/h-full) through the whole chain (body →
-     .drawer-content → aside#sidebar), so #accordion (which has
-     overflow-y:auto) scrolls on its own, contained, instead of pushing
-     <body> to scroll. Same for <main>/tabs, so the terminal doesn't spill
-     outside the content area. */
+  /* Locked height (h-full) through the whole chain (body → #app-shell →
+     main), so the side list and each tab panel scroll on their own,
+     contained, instead of pushing <body> to scroll, and the terminal
+     doesn't spill outside the content area. */
   html, body { height: 100%; overflow: hidden; }
   body { background: var(--color-base-100, #1e1e2e); }
 
   #terminal { height: 100%; }
 
-  /* Tabs (Definições/Execução): each panel is explicitly shown/hidden
+  /* Inner tabs (Itens/Execução…): each panel is explicitly shown/hidden
      by the checked radio, since daisyUI's `.tab-content` has no
      `display:none` rule for an inactive tab. */
   #panel-desc, #panel-terminal, #panel-mp-mounted, #panel-transfer-import,
@@ -181,38 +123,28 @@
 </head>
 <body class="h-screen">
 
-<div class="drawer lg:drawer-open h-full">
-  <input id="mobile-drawer-toggle" type="checkbox" class="drawer-toggle" />
+<div id="app-shell" class="flex flex-col h-full">
+  <!-- Section tab bar, built by navigation.js from App.GetSections(). -->
+  <nav id="section-tabs" class="o2-tabs" role="tablist" data-i18n-aria-label="shell.sections" aria-label="Seções"></nav>
 
-  <div class="drawer-content flex flex-col h-full min-h-0">
-    <!-- top: menu button (only shows on narrow screens, lg:hidden) + collapse
-         sidebar. Hidden in compact mode (see id="mobile-topbar" in
-         activateCompactMode), whose 735px window is narrower than the lg
-         breakpoint. -->
-    <div id="mobile-topbar" class="flex items-center gap-2 p-3 border-b border-base-300 lg:hidden flex-none">
-      <label for="mobile-drawer-toggle" class="btn btn-square btn-ghost btn-sm" aria-label="Abrir menu">☰</label>
-      <span class="font-semibold">Perci82 System</span>
-    </div>
+  <div class="flex flex-1 min-h-0">
+    <!-- Side list of the active section's items; hidden for a section with
+         a single item. -->
+    <nav id="side-list" class="o2-side hidden" data-i18n-aria-label="shell.items" aria-label="Itens"></nav>
 
-    <main class="flex-1 min-h-0 p-6 flex flex-col">
-      <div id="normal-header-row" class="flex items-center gap-3 mb-4 flex-none">
-        <button id="btn-collapse-sidebar" class="btn btn-ghost btn-xs hidden lg:inline-flex" title="Recolher/expandir menu" aria-label="Recolher/expandir menu">⇔</button>
-        <div class="breadcrumbs text-sm opacity-70">
-          <ul id="breadcrumb"><li>Perci82 System</li></ul>
-        </div>
-      </div>
+    <main class="o2-content flex-1 min-w-0 min-h-0 flex flex-col">
+      <h2 id="screen-title" class="o2-title">Perci82 System</h2>
 
-      <div class="tabs tabs-lift flex-1 min-h-0">
-        <label class="tab flex-none">
+      <div id="inner-tabs" class="tabs tabs-border o2-itabs flex-1 min-h-0">
+        <label id="tab-label-desc" class="tab flex-none">
           <input type="radio" name="content-tabs" id="tab-radio-desc" checked />
-          <span class="mr-1">📝</span><span id="tab-desc-label">Perci82 System</span>
+          <span id="tab-desc-label">Perci82 System</span>
         </label>
-        <div id="panel-desc" class="tab-content bg-base-100 border-base-300 p-6 overflow-y-auto">
+        <div id="panel-desc" class="tab-content o2-panel overflow-y-auto">
           <!-- "dashboard" mode (Home :: Visão Geral): a system summary plus the
                "Atualizar" and "Desinstalar" screens embedded right
-               here. This is also the screen's initial state, before any sidebar
-               selection — shown by default (no class="hidden") instead of inside
-               selectItem's dispatch. -->
+               here. Shown by default (no class="hidden"), so the first section
+               needs no flash of empty content while the sections load. -->
           <div id="dashboard-container">
             <div class="stats stats-vertical sm:stats-horizontal shadow mb-8 w-full bg-base-200">
               <div class="stat">
@@ -294,28 +226,34 @@
                none of this screen's actions are async/streamed, so the
                "Execução" tab stays hidden here (see selectItem). -->
           <div id="selfconfig-container" class="hidden">
-            <div class="mb-8">
-              <h3 class="font-semibold mb-3" data-i18n="settings.theme">Tema</h3>
-              <div id="cfg-theme-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-xl"></div>
-            </div>
-
             <!-- Idioma applies (and persists) immediately on select, and
                  switches the open windows without a restart. -->
-            <div class="max-w-md mb-8">
-              <label class="form-control">
-                <div class="label"><span class="label-text" data-i18n="settings.language">Idioma</span></div>
-                <select id="cfg-language" class="select select-bordered"></select>
-              </label>
+            <div class="o2-sec">
+              <h3 data-i18n="settings.general">Geral</h3>
+              <div class="o2-grid2">
+                <label class="form-control">
+                  <div class="label"><span class="label-text" data-i18n="settings.language">Idioma</span></div>
+                  <select id="cfg-language" class="select select-bordered w-full"></select>
+                </label>
+              </div>
             </div>
 
-            <div class="max-w-md mb-8">
-              <label class="form-control">
-                <div class="label"><span class="label-text" data-i18n="settings.flatpakScope">Escopo de instalação Flatpak</span></div>
-                <select id="sc-flatpak" class="select select-bordered">
-                  <option value="system" data-i18n="settings.flatpakScope.system">system (global)</option>
-                  <option value="user" data-i18n="settings.flatpakScope.user">user (usuário)</option>
-                </select>
-              </label>
+            <div class="o2-sec">
+              <h3 data-i18n="settings.theme">Tema</h3>
+              <div id="cfg-theme-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
+            </div>
+
+            <div class="o2-sec">
+              <h3>Flatpak</h3>
+              <div class="o2-grid2">
+                <label class="form-control">
+                  <div class="label"><span class="label-text" data-i18n="settings.flatpakScope">Escopo de instalação</span></div>
+                  <select id="sc-flatpak" class="select select-bordered w-full">
+                    <option value="system" data-i18n="settings.flatpakScope.system">system (global)</option>
+                    <option value="user" data-i18n="settings.flatpakScope.user">user (usuário)</option>
+                  </select>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -357,27 +295,15 @@
 
         <label id="tab-label-terminal" class="tab flex-none">
           <input type="radio" name="content-tabs" id="tab-radio-terminal" />
-          <span class="mr-1">▶</span> Execução
+          <span data-i18n="shell.execution">Execução</span>
         </label>
-        <div id="panel-terminal" class="tab-content bg-base-100 border-base-300 p-6 flex flex-col">
+        <div id="panel-terminal" class="tab-content o2-panel flex flex-col">
           <div id="term-title" role="status" aria-live="polite" class="text-sm opacity-70 mb-2 flex-none">Executando: —</div>
           <progress id="term-progress" class="progress w-full mb-3 flex-none" value="0" max="100"></progress>
           <div id="terminal" class="flex-1 min-h-0"></div>
         </div>
       </div>
     </main>
-  </div>
-
-  <div class="drawer-side">
-    <label for="mobile-drawer-toggle" class="drawer-overlay"></label>
-    <aside id="sidebar" class="bg-base-200 h-full flex flex-col border-r border-base-300">
-      <div class="p-4 flex flex-col items-center gap-2 border-b border-base-300">
-        <img id="sidebar-logo-img" src="./assets/perci-blue.png" alt="Perci82 System — trocar o formato do logo" role="button" tabindex="0" class="w-28 h-28 rounded-full object-cover cursor-pointer" />
-        <span class="font-bold text-lg sidebar-label">Perci82 System</span>
-      </div>
-
-      <div id="accordion" class="flex-1 py-2"></div>
-    </aside>
   </div>
 </div>
 

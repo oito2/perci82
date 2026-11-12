@@ -1,7 +1,11 @@
 {
+	"settings.general": "General",
 	"settings.language": "Language",
 	"settings.languageSaveFailed": "Couldn't save the language: {error}",
 	"settings.system": "System default",
 	"settings.theme": "Theme",
-	"settings.themeSaveFailed": "Couldn't save the theme: {error}"
+	"settings.themeSaveFailed": "Couldn't save the theme: {error}",
+	"shell.execution": "Run",
+	"shell.items": "Items",
+	"shell.sections": "Sections"
 }

@@ -294,10 +294,10 @@ func TestMergeDenyRules_RemovesRulesPerciNoLongerGenerates(t *testing.T) {
 }
 
 func TestWithoutTrackedSource_KeepsVersionedSourceReadable(t *testing.T) {
-	ignore := "dist/\nbuild/\nvendor/\nenv/\nnode_modules/\n.env\n*.pem\n"
-	tracked := []string{"cmd/app/frontend/dist/index.html", "cmd/app/frontend/dist/vendor/lucide/icons.js", "node_modules/x/index.js", ".env", "certs/a.pem"}
+	ignore := "dist/\nbuild/\nenv/\nnode_modules/\n.env\n*.pem\n"
+	tracked := []string{"cmd/app/frontend/dist/index.html", "node_modules/x/index.js", ".env", "certs/a.pem"}
 	rules := denyRules(withoutTrackedSource(ignore, tracked))
-	for _, gone := range []string{"Read(dist/**)", "Read(vendor/**)"} {
+	for _, gone := range []string{"Read(dist/**)"} {
 		if slices.Contains(rules, gone) {
 			t.Errorf("%s hides tracked files: %v", gone, rules)
 		}
@@ -348,7 +348,7 @@ func TestClaudeDenyRules_ReadsTheGitListing(t *testing.T) {
 		t.Fatal(err)
 	}
 	rules := denyRules(patterns)
-	if slices.Contains(rules, "Read(dist/**)") || !slices.Contains(rules, "Read(build/**)") || !slices.Contains(rules, "Read(vendor/**)") {
+	if slices.Contains(rules, "Read(dist/**)") || !slices.Contains(rules, "Read(build/**)") || slices.Contains(rules, "Read(vendor/**)") {
 		t.Errorf("rules = %v", rules)
 	}
 }

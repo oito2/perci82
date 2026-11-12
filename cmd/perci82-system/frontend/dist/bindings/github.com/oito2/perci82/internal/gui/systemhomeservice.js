@@ -33,16 +33,6 @@ export function GetAppVersion() {
 }
 
 /**
- * GetCategories returns Perci82 System's sidebar categories and items.
- * @returns {$CancellablePromise<$models.MenuCategory[]>}
- */
-export function GetCategories() {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetCategories").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
-    }));
-}
-
-/**
  * GetFlatpakScope returns the persisted Flatpak install scope, "user" or
  * "system" (also for an unset scope or an unreadable config).
  * @returns {$CancellablePromise<string>}
@@ -58,7 +48,7 @@ export function GetFlatpakScope() {
  */
 export function GetLanguage() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetLanguage").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
+        return $$createType0($result);
     }));
 }
 
@@ -69,6 +59,16 @@ export function GetLanguage() {
  */
 export function GetLanguageOptions() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetLanguageOptions").then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType2($result);
+    }));
+}
+
+/**
+ * GetSections returns Perci82 System's sections, labeled in its language.
+ * @returns {$CancellablePromise<$models.Section[]>}
+ */
+export function GetSections() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSections").then(/** @type {($result: any) => any} */(($result) => {
         return $$createType4($result);
     }));
 }
@@ -87,15 +87,6 @@ export function GetSelfUpdateInfo() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSelfUpdateInfo").then(/** @type {($result: any) => any} */(($result) => {
         return $$createType5($result);
     }));
-}
-
-/**
- * GetSidebarLogo returns the sidebar mascot variant ("blue"/"pink") an
- * earlier Perci version saved, the default when unset or unreadable.
- * @returns {$CancellablePromise<string>}
- */
-export function GetSidebarLogo() {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSidebarLogo");
 }
 
 /**
@@ -172,7 +163,7 @@ export function SetFlatpakScope(scope) {
  */
 export function SetLanguage(choice) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.SetLanguage", choice).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
+        return $$createType0($result);
     }));
 }
 
@@ -187,10 +178,10 @@ export function SetTheme(choice) {
 }
 
 // Private type creation functions
-const $$createType0 = $models.MenuCategory.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.LanguageState.createFrom;
-const $$createType3 = i18n$0.Option.createFrom;
+const $$createType0 = $models.LanguageState.createFrom;
+const $$createType1 = i18n$0.Option.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.Section.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = $models.SelfUpdateInfo.createFrom;
 const $$createType6 = theme$0.SystemScheme.createFrom;

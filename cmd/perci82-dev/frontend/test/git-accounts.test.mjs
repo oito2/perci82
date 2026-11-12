@@ -27,17 +27,17 @@ const account = {
   hostTrusted: true, keysUrl: "https://github.com/settings/keys",
 };
 
-const cats = [
-  { label: "Home", items: [{ title: "Visão Geral", actionId: "dashboard" }] },
-  { label: "Repositórios", items: [
+const sections = [
+  { id: "overview", label: "Visão Geral", icon: "house", items: [{ title: "Visão Geral", actionId: "dashboard" }] },
+  { id: "repositories", label: "Repositórios", icon: "gitBranch", items: [
     { title: "Configurar Conta", actionId: "git-accounts" },
-    { title: "OITO2", actionId: "git-account", accountId: "oito2" },
+    { title: "OITO2", actionId: "git-account", accountId: "oito2", group: "Contas" },
   ] },
 ];
 
 function load(fixtures = {}) {
   return loadScripts(scriptOrder(), {
-    fixtures: { GetCategories: cats, GetGitAccount: account, ListGitAccounts: [account], ...fixtures },
+    fixtures: { GetSections: sections, GetGitAccount: account, ListGitAccounts: [account], ...fixtures },
   });
 }
 
@@ -77,13 +77,13 @@ test("Configurar Conta: saving reloads the menu and shows the account's details"
   const { ctx, element, calls } = load({ SaveGitAccount: account });
   await tick();
   ctx.gaShowForm(null);
-  const before = calls.filter((c) => c.name === "GetCategories").length;
+  const before = calls.filter((c) => c.name === "GetSections").length;
   element("btn-ga-save").disabled = false;
   click(element("btn-ga-save"));
   await tick();
   await tick();
   assert.ok(calls.some((c) => c.name === "SaveGitAccount"));
-  assert.equal(calls.filter((c) => c.name === "GetCategories").length, before + 1);
+  assert.equal(calls.filter((c) => c.name === "GetSections").length, before + 1);
   assert.equal(element("ga-detail-title").textContent, "OITO2");
   assert.equal(element("ga-pubkey").textContent, account.publicKey);
   assert.equal(element("btn-ga-test").disabled, false);
@@ -109,14 +109,15 @@ test("Configurar Conta: removing asks first, then reloads the menu", async () =>
   click(element("btn-confirm-ok"));
   await tick();
   assert.ok(calls.some((c) => c.name === "RemoveGitAccount" && c.args[0] === "oito2"));
-  assert.equal(calls.filter((c) => c.name === "GetCategories").length, 2);
+  assert.equal(calls.filter((c) => c.name === "GetSections").length, 2);
 });
 
 test("menu: an account item is reached by its key and stays active across a reload", async () => {
   const { ctx, element } = load();
   await tick();
   assert.equal(ctx.selectMenuItem("git-account|oito2"), true);
-  assert.equal(element("breadcrumb").innerHTML, "<li>Repositórios</li><li>OITO2</li>");
+  assert.equal(element("screen-title").textContent, "OITO2");
+  assert.equal(element("section-tabs").children[1].getAttribute("aria-selected"), "true");
   assert.equal(ctx.selectMenuItem("git-account|missing"), false);
   await ctx.loadMenu();
   assert.equal(ctx.__selectedItem.accountId, "oito2");

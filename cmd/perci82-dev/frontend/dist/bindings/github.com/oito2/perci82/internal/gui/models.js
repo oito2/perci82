@@ -1407,50 +1407,8 @@ export class ManagedItemInfo {
 }
 
 /**
- * MenuCategory is one of the top-level sidebar sections.
- */
-export class MenuCategory {
-    /**
-     * Creates a new MenuCategory instance.
-     * @param {Partial<MenuCategory>} [$$source = {}] - The source object to create the MenuCategory.
-     */
-    constructor($$source = {}) {
-        if (!("label" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["label"] = "";
-        }
-        if (!("items" in $$source)) {
-            /**
-             * @member
-             * @type {MenuItem[]}
-             */
-            this["items"] = [];
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MenuCategory instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {MenuCategory}
-     */
-    static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType6;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("items" in $$parsedSource) {
-            $$parsedSource["items"] = $$createField1_0($$parsedSource["items"]);
-        }
-        return new MenuCategory(/** @type {Partial<MenuCategory>} */($$parsedSource));
-    }
-}
-
-/**
- * MenuItem is one entry inside a category's accordion panel — rendered
- * with the daisyUI `menu` component.
+ * MenuItem is one screen of a section: an entry of the section's side
+ * list, or the section's only screen.
  */
 export class MenuItem {
     /**
@@ -1460,6 +1418,7 @@ export class MenuItem {
     constructor($$source = {}) {
         if (!("title" in $$source)) {
             /**
+             * Title is the screen title, also the label of its side list entry.
              * @member
              * @type {string}
              */
@@ -1475,9 +1434,8 @@ export class MenuItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * ActionID identifies which bound method the "Executar" button calls for
-             * this item — empty means "no real screen yet": the button stays
-             * disabled.
+             * ActionID identifies the screen (SCREENS/SCREEN_FAMILIES in the
+             * frontend) and which bound method its "Executar" button calls.
              * @member
              * @type {string | undefined}
              */
@@ -1504,9 +1462,7 @@ export class MenuItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Tab is the "📝 <Tab>" tab's text (#tab-desc-label) when this item is
-             * selected — empty uses the generic "Perci" label (the app's own name,
-             * used by Home :: Visão Geral).
+             * Tab is the label of the screen's first inner tab; empty uses Title.
              * @member
              * @type {string | undefined}
              */
@@ -1514,7 +1470,16 @@ export class MenuItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * AccountID is the Git account an item of the "Repositórios" category
+             * Group is the heading shown above this entry in the side list when it
+             * differs from the previous entry's; empty for no heading.
+             * @member
+             * @type {string | undefined}
+             */
+            this["group"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * AccountID is the Git account an item of the "Repositórios" section
              * opens (ActionID "git-account").
              * @member
              * @type {string | undefined}
@@ -1769,8 +1734,8 @@ export class MoodlePluginsScreen {
      * @returns {MoodlePluginsScreen}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType8;
-        const $$createField1_0 = $$createType10;
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("apps" in $$parsedSource) {
             $$parsedSource["apps"] = $$createField0_0($$parsedSource["apps"]);
@@ -1891,7 +1856,7 @@ export class RemoteRepoList {
      * @returns {RemoteRepoList}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType12;
+        const $$createField0_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("repos" in $$parsedSource) {
             $$parsedSource["repos"] = $$createField0_0($$parsedSource["repos"]);
@@ -1935,7 +1900,7 @@ export class RepoExportItems {
      * @returns {RepoExportItems}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType14;
+        const $$createField0_0 = $$createType12;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("accounts" in $$parsedSource) {
@@ -2083,8 +2048,8 @@ export class RepoFilesView {
      * @returns {RepoFilesView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType16;
-        const $$createField1_0 = $$createType18;
+        const $$createField0_0 = $$createType14;
+        const $$createField1_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField0_0($$parsedSource["rows"]);
@@ -2093,6 +2058,66 @@ export class RepoFilesView {
             $$parsedSource["licenses"] = $$createField1_0($$parsedSource["licenses"]);
         }
         return new RepoFilesView(/** @type {Partial<RepoFilesView>} */($$parsedSource));
+    }
+}
+
+/**
+ * Section is one tab of the window's top tab bar. A section with more
+ * than one item shows them in a side list.
+ */
+export class Section {
+    /**
+     * Creates a new Section instance.
+     * @param {Partial<Section>} [$$source = {}] - The source object to create the Section.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * ID identifies the section across catalog reloads and languages.
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("label" in $$source)) {
+            /**
+             * Label is the tab's text.
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
+        if (!("icon" in $$source)) {
+            /**
+             * Icon is the name of the tab's lucide icon.
+             * @member
+             * @type {string}
+             */
+            this["icon"] = "";
+        }
+        if (!("items" in $$source)) {
+            /**
+             * @member
+             * @type {MenuItem[]}
+             */
+            this["items"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Section instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Section}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType18;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("items" in $$parsedSource) {
+            $$parsedSource["items"] = $$createField3_0($$parsedSource["items"]);
+        }
+        return new Section(/** @type {Partial<Section>} */($$parsedSource));
     }
 }
 
@@ -2540,19 +2565,19 @@ const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = ai$0.ImportContext.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = MenuItem.createFrom;
+const $$createType5 = MoodleAppOption.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = MoodleAppOption.createFrom;
+const $$createType7 = MoodlePluginRow.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = MoodlePluginRow.createFrom;
+const $$createType9 = gitaccount$0.RemoteRepo.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = gitaccount$0.RemoteRepo.createFrom;
+const $$createType11 = gitaccount$0.TransferAccount.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = gitaccount$0.TransferAccount.createFrom;
+const $$createType13 = repofiles$0.Row.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = repofiles$0.Row.createFrom;
+const $$createType15 = repofiles$0.License.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = repofiles$0.License.createFrom;
+const $$createType17 = MenuItem.createFrom;
 const $$createType18 = $Create.Array($$createType17);
 const $$createType19 = TransferApp.createFrom;
 const $$createType20 = $Create.Array($$createType19);

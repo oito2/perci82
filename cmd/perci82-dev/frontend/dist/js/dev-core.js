@@ -116,36 +116,32 @@ const btnScCreateWorkspace = document.getElementById("btn-sc-create-workspace");
 const scTrayEnabled = document.getElementById("sc-tray-enabled");
 
 // --- compact window (system tray: a single window with tabs) -----------
-// Opened with ?compact=<tab>. Sidebar/breadcrumb are hidden and the
-// compact header (image + "Perci" + "Abrir Aplicativo") and the
-// Contêineres/Atualizar Sistema tab bar are shown instead;
-// the rest of the screen (Definições/Execução tabs, containers,
-// render*Screen) is shared with the main window — the tabs just pick, via
-// selectItem, WHICH item to show. The "compact-switch-tab" event (see
-// Events.On below) switches the tab of an already open window.
-const drawerSideEl = document.querySelector(".drawer-side");
-const mobileTopbar = document.getElementById("mobile-topbar");
-const normalHeaderRow = document.getElementById("normal-header-row");
+// Opened with ?compact=<tab>. The section tabs, side list and screen title
+// are hidden and the compact header ("Perci82 Dev" + "Abrir Aplicativo")
+// and its tab bar are shown instead; the rest of the screen (inner tabs,
+// containers, render*Screen) is shared with the main window — the compact
+// tabs just pick, via selectItem, WHICH item to show. The
+// "compact-switch-tab" event (see Events.On below) switches the tab of an
+// already open window.
 const compactHeader = document.getElementById("compact-header");
-const compactHeaderIcon = document.getElementById("compact-header-icon");
 const btnCompactOpenApp = document.getElementById("btn-compact-open-app");
 const compactTabsEl = document.getElementById("compact-tabs");
 const compactTabRadios = {
   "docker-manage": document.getElementById("compact-tab-docker-manage"),
 };
-let compactCats = null; // catalog (App.GetCategories()) cached to switch tabs without reloading
+let compactSections = null; // catalog (App.GetSections()) cached to switch tabs without reloading
 
 if (compactAction) {
-  drawerSideEl.classList.add("hidden");
-  mobileTopbar.classList.add("hidden");
-  normalHeaderRow.classList.add("hidden");
+  document.getElementById("section-tabs").classList.add("hidden");
+  document.getElementById("side-list").classList.add("hidden");
+  document.getElementById("screen-title").classList.add("hidden");
   compactHeader.classList.remove("hidden");
   compactHeader.classList.add("flex");
   compactTabsEl.classList.remove("hidden");
-  // #dashboard-container is the initial state, visible by default (no
-  // class="hidden" in the HTML) — hidden right here, even before
-  // App.GetCategories() resolves, so the full dashboard doesn't flash
-  // in a compact window that's about to show something else.
+  // #dashboard-container is visible by default (no class="hidden" in the
+  // HTML) — hidden right here, even before App.GetSections() resolves, so
+  // the full dashboard doesn't flash in a compact window that's about to
+  // show something else.
   document.getElementById("dashboard-container").classList.add("hidden");
 }
 
@@ -153,17 +149,16 @@ btnCompactOpenApp.addEventListener("click", function () {
   App.FocusMainWindow();
 });
 
-// Finds, in the catalog already loaded by App.GetCategories(), the item
-// that corresponds to a tab — always by actionId (the compact window's
-// 2 tabs use the same actionId key as the item: "docker-manage",
-// "system-update").
-function findCompactTarget(cats, tab) {
-  for (var catIdx = 0; catIdx < cats.length; catIdx++) {
-    var cat = cats[catIdx];
-    for (var itemIdx = 0; itemIdx < cat.items.length; itemIdx++) {
-      var item = cat.items[itemIdx];
+// Finds, in the catalog already loaded by App.GetSections(), the item
+// that corresponds to a tab — by actionId (the compact window's tab uses
+// the item's actionId as its key: "docker-manage").
+function findCompactTarget(sections, tab) {
+  for (let sectionIdx = 0; sectionIdx < sections.length; sectionIdx++) {
+    const section = sections[sectionIdx];
+    for (let itemIdx = 0; itemIdx < section.items.length; itemIdx++) {
+      const item = section.items[itemIdx];
       if (item.actionId === tab) {
-        return { cat: cat, item: item, catIdx: catIdx, itemIdx: itemIdx };
+        return { section: section, item: item, sectionIdx: sectionIdx, itemIdx: itemIdx };
       }
     }
   }
@@ -171,17 +166,17 @@ function findCompactTarget(cats, tab) {
 }
 
 // Switches the compact window's active tab — checks the right radio and
-// calls the existing selectItem to build the content, both on initial
-// load (?compact=<tab>) and when the user clicks a tab, and when the
+// calls selectItem to build the content, both on initial load
+// (?compact=<tab>) and when the user clicks a tab, and when the
 // "compact-switch-tab" event arrives (window already open, another tray
 // item clicked).
 function switchCompactTab(tab) {
-  if (!compactCats) return;
-  const target = findCompactTarget(compactCats, tab);
+  if (!compactSections) return;
+  const target = findCompactTarget(compactSections, tab);
   if (!target) return;
   const radio = compactTabRadios[tab];
   if (radio) radio.checked = true;
-  selectItem(target.cat, target.item, target.catIdx, target.itemIdx);
+  selectItem(target.section, target.item, target.sectionIdx, target.itemIdx);
 }
 
 Object.keys(compactTabRadios).forEach(function (tab) {
@@ -194,14 +189,9 @@ Events.On("compact-switch-tab", function (ev) {
   switchCompactTab(ev.data);
 });
 
-// Activates the requested compact window — called after
-// App.GetCategories() resolves (selectItem depends on the loaded
-// catalog, the same dependency a normal sidebar click already has).
-function activateCompactMode(cats) {
-  compactCats = cats;
+// Activates the requested compact window — called after App.GetSections()
+// resolves (selectItem depends on the loaded catalog).
+function activateCompactMode(sections) {
+  compactSections = sections;
   switchCompactTab(compactAction);
 }
-
-App.GetSidebarLogo().then(function (name) {
-  compactHeaderIcon.src = "./assets/perci-" + name + ".png";
-});

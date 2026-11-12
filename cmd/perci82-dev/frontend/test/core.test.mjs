@@ -20,6 +20,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FakeElement, evalIn, loadScripts, scriptOrder } from "./harness.mjs";
 
+const click = (el) => el.listeners.click.forEach((fn) => fn({ preventDefault() {} }));
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -352,25 +353,58 @@ test("form field helpers escape id, label and hint", () => {
 });
 
 // FE-12
-test("accordion checkboxes are labelled and the active menu item has aria-current", async () => {
-  const cats = [
-    { label: "Home", items: [{ title: "Visão Geral", actionId: "dashboard", desc: "" }, { title: "Configurações", actionId: "self-config", desc: "" }] },
+test("shell: section tabs, side list with groups, title and the active entries", async () => {
+  const sections = [
+    { id: "overview", label: "Visão Geral", icon: "house", items: [{ title: "Visão Geral", actionId: "dashboard", desc: "" }] },
+    { id: "repositories", label: "Repositórios", icon: "gitBranch", items: [
+      { title: "Configurar Conta", actionId: "git-accounts", tab: "Contas", desc: "" },
+      { title: "OITO2", actionId: "git-account", accountId: "oito2", tab: "OITO2", group: "Contas", desc: "" },
+      { title: "Labs", actionId: "git-account", accountId: "labs", tab: "Labs", group: "Contas", desc: "" },
+    ] },
   ];
-  const { ctx, element, query } = load({ GetCategories: cats });
+  const { ctx, element } = load({ GetSections: sections });
   await tick();
-  const checkbox = element("accordion").children[0].children[0];
-  assert.equal(checkbox.getAttribute("aria-label"), "Home");
+  await tick();
+  const tabs = element("section-tabs").children;
+  assert.deepEqual(tabs.map((t) => t.children[0].textContent), ["Visão Geral", "Repositórios"]);
+  assert.equal(tabs[0].getAttribute("aria-selected"), "true", "the main window opens on the first section");
+  assert.equal(element("screen-title").textContent, "Visão Geral");
 
-  const anchors = cats[0].items.map((item) => {
-    const a = new FakeElement("a");
-    a.dataset.key = ctx.menuKey(item);
-    return a;
+  click(tabs[1]);
+  const side = element("side-list");
+  assert.deepEqual(side.children.map((c) => c.className + ":" + c.textContent),
+    ["o2-side-item:Configurar Conta", "o2-side-group:Contas", "o2-side-item:OITO2", "o2-side-item:Labs"]);
+  assert.equal(tabs[1].getAttribute("aria-selected"), "true");
+  assert.equal(tabs[0].getAttribute("aria-selected"), "false");
+  assert.equal(element("screen-title").textContent, "Configurar Conta");
+  assert.equal(element("tab-desc-label").textContent, "Contas");
+  assert.equal(side.children[0].getAttribute("aria-current"), "page");
+
+  click(side.children[3]);
+  assert.equal(element("screen-title").textContent, "Labs");
+  assert.equal(side.children[3].getAttribute("aria-current"), "page");
+  assert.equal(side.children[0].getAttribute("aria-current"), null);
+});
+
+test("shell: a language switch reloads the sections and relabels the open screen", async () => {
+  let locale = "pt-BR";
+  const label = { "pt-BR": "Configurações", en: "Settings" };
+  const { ctx, element, calls, emit } = load({
+    GetLanguage: { choice: "system", locale: "pt-BR" },
+    GetSections: () => [{ id: "settings", label: label[locale], icon: "house", items: [{ title: label[locale], actionId: "self-config", desc: "" }] }],
   });
-  query("#accordion a[data-key]", anchors);
-  ctx.selectItem(cats[0], cats[0].items[1], 0, 1);
-  assert.equal(anchors[1].getAttribute("aria-current"), "page");
-  assert.equal(anchors[0].getAttribute("aria-current"), null);
-  ctx.selectItem(cats[0], cats[0].items[0], 0, 0);
-  assert.equal(anchors[1].getAttribute("aria-current"), null);
-  assert.equal(anchors[0].getAttribute("aria-current"), "page");
+  await tick();
+  await tick();
+  const before = calls.filter((c) => c.name === "GetSections").length;
+  assert.equal(before, 1, "startup loads the sections once");
+  assert.equal(element("screen-title").textContent, "Configurações");
+
+  locale = "en";
+  emit("language-changed", { choice: "en", locale: "en" });
+  await tick();
+  await tick();
+  assert.equal(calls.filter((c) => c.name === "GetSections").length, before + 1);
+  assert.equal(element("section-tabs").children[0].children[0].textContent, "Settings");
+  assert.equal(element("screen-title").textContent, "Settings");
+  assert.equal(ctx.__selectedItem.title, "Settings");
 });

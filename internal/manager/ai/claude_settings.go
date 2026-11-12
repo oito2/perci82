@@ -62,9 +62,8 @@ func denyRules(ignoreFile string) []string {
 
 // sourceAmbiguous lists the ignore patterns that name build output or
 // dependencies in most projects but may hold versioned source in others
-// (e.g. a frontend committed under dist/, vendored assets under a nested
-// vendor/).
-var sourceAmbiguous = []string{"dist/", "build/", "out/", "vendor/", "env/", ".next/"}
+// (e.g. a frontend committed under dist/).
+var sourceAmbiguous = []string{"dist/", "build/", "out/", "env/", ".next/"}
 
 // gitTrackedFiles lists the files git tracks in dir, as slash-separated
 // paths relative to the repository root. It returns nil when git is

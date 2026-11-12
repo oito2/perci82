@@ -1,6 +1,9 @@
 {
 	"settings.tray": "Mostrar o Perci82 Dev na bandeja do sistema",
 	"settings.trayHelp": "Ao ligar: fechar a janela principal passa a escondê-la na bandeja em vez de encerrar o Perci82 Dev (use \"Sair\" no menu do ícone pra encerrar de vez), e o Perci82 Dev passa a iniciar oculto na bandeja junto com a sessão gráfica. O ícone requer um ambiente com suporte a StatusNotifierItem — funciona nativamente em KDE, XFCE e COSMIC; no GNOME só aparece com a extensão \"AppIndicator and KStatusNotifierItem Support\" instalada.",
+	"settings.traySection": "Bandeja do sistema",
 	"settings.workspace": "Caminho do Workspace",
-	"settings.workspace.pick": "Selecionar Pasta"
+	"settings.workspace.pick": "Selecionar Pasta",
+	"shell.containers": "Contêineres",
+	"shell.openApp": "Abrir Aplicativo"
 }

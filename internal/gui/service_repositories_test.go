@@ -24,6 +24,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/manager/gitaccount"
 )
 
@@ -131,9 +132,9 @@ func TestGitAccounts_CreateEditRemove(t *testing.T) {
 	if !strings.Contains(gc, `[includeIf "gitdir:`+folder+`/"]`) {
 		t.Errorf("~/.gitconfig has no includeIf for %s:\n%s", folder, gc)
 	}
-	cats := (&DevHomeService{}).GetCategories()
-	if repos := cats[3]; repos.Label != "Repositórios" || len(repos.Items) != 3 || repos.Items[2].AccountID != "oito2" {
-		t.Errorf("Repositórios category: %+v", cats[3])
+	sections := (&DevHomeService{}).GetSections()
+	if repos := sections[3]; repos.ID != "repositories" || len(repos.Items) != 3 || repos.Items[2].AccountID != "oito2" {
+		t.Errorf("repositories section: %+v", sections[3])
 	}
 
 	// Edit: renamed, moved to another folder, same key; the ID stays.
@@ -265,51 +266,78 @@ func TestGitAccounts_SelfHostedServerKeys(t *testing.T) {
 	}
 }
 
-func TestDevCategories_RepositoriesAfterDocker(t *testing.T) {
-	cats := devCategories([]config.GitAccount{{ID: "a", Name: "A"}, {ID: "b", Name: "B"}})
-	if len(cats) != len(devStaticCategories)+1 {
-		t.Fatalf("got %d categories, want %d", len(cats), len(devStaticCategories)+1)
+// Perci82 Dev's sections follow the approved navigation; the
+// "repositories" section lists Configurar Conta, Gerenciar Repositórios,
+// then one item per account under the "Contas" group.
+func TestDevSections_Layout(t *testing.T) {
+	sections := devSections(i18n.PtBR, []config.GitAccount{{ID: "a", Name: "A"}, {ID: "b", Name: "B"}})
+	var ids, labels []string
+	for _, s := range sections {
+		ids = append(ids, s.ID)
+		labels = append(labels, s.Label)
 	}
-	var labels []string
-	for _, c := range cats {
-		labels = append(labels, c.Label)
+	if got := strings.Join(ids, ","); got != "overview,environment,docker,repositories,ai-contexts,skills-mcps,settings" {
+		t.Errorf("section IDs: %s", got)
 	}
-	if got := strings.Join(labels, ","); got != "Home,Desenvolvimento,Docker,Repositórios,Dev Tools" {
-		t.Errorf("categories: %s", got)
+	if got := strings.Join(labels, ","); got != "Visão Geral,Ambiente,Docker,Repositórios,Contextos de IA,Skills & MCPs,Configurações" {
+		t.Errorf("section labels: %s", got)
 	}
-	items := cats[3].Items
+	items := sections[3].Items
 	if len(items) != 4 || items[0].ActionID != "git-accounts" || items[1].ActionID != "git-transfer" ||
-		items[2].ActionID != "git-account" || items[2].AccountID != "a" || items[3].Title != "B" {
-		t.Errorf("Repositórios items: %+v", items)
+		items[2].ActionID != "git-account" || items[2].AccountID != "a" || items[3].Title != "B" ||
+		items[1].Group != "" || items[2].Group != "Contas" || items[3].Group != "Contas" {
+		t.Errorf("repositories items: %+v", items)
 	}
-	if got := devCategories(nil)[3].Items; len(got) != 2 {
+	if got := devSections(i18n.PtBR, nil)[3].Items; len(got) != 2 {
 		t.Errorf("without accounts: %+v", got)
+	}
+	if got := devSections(i18n.En, nil)[3]; got.Label != "Repositories" || got.Items[0].Title != "Set Up Account" || got.Items[0].Tab != "Accounts" {
+		t.Errorf("English repositories section: %+v", got)
 	}
 }
 
-// Each application's menu holds only its own screens: Home is the only
-// category in both, and no other action ID shows up in both menus.
-func TestCategories_SplitBetweenApps(t *testing.T) {
-	var labels []string
+// Every section has an icon and items, every item a title, and no
+// message key is left untranslated in either language.
+func TestSections_Translated(t *testing.T) {
+	for _, locale := range i18n.Locales() {
+		all := append(systemSections(locale), devSections(locale, nil)...)
+		for _, s := range all {
+			if s.Icon == "" || len(s.Items) == 0 || strings.HasPrefix(s.Label, "nav.") {
+				t.Errorf("%s section %+v", locale, s)
+			}
+			for _, it := range s.Items {
+				if it.Title == "" || strings.HasPrefix(it.Title, "nav.") || strings.HasPrefix(it.Tab, "nav.") || strings.HasPrefix(it.Group, "nav.") {
+					t.Errorf("%s item %+v", locale, it)
+				}
+			}
+		}
+	}
+}
+
+// Each application shows only its own screens: Visão Geral and
+// Configurações are the only items in both, and System has the seven
+// approved sections.
+func TestSections_SplitBetweenApps(t *testing.T) {
+	var ids []string
 	system := map[string]bool{}
-	for _, c := range systemCategories() {
-		labels = append(labels, c.Label)
-		for _, it := range c.Items {
+	for _, s := range systemSections(i18n.PtBR) {
+		ids = append(ids, s.ID)
+		for _, it := range s.Items {
 			system[it.ActionID] = true
 		}
 	}
-	if got := strings.Join(labels, ","); got != "Home,Linux" {
-		t.Errorf("System categories: %s", got)
+	if got := strings.Join(ids, ","); got != "overview,postinstall,update,fonts,templates,flatpaks,settings" {
+		t.Errorf("System sections: %s", got)
 	}
 	for _, want := range []string{"dashboard", "self-config", "system-update", "postinstall", "fonts", "templates", "flatpak-apps"} {
 		if !system[want] {
-			t.Errorf("System menu has no %q item", want)
+			t.Errorf("System has no %q item", want)
 		}
 	}
-	for _, c := range devCategories(nil) {
-		for _, it := range c.Items {
-			if system[it.ActionID] && c.Label != "Home" {
-				t.Errorf("%q is in both menus", it.ActionID)
+	for _, s := range devSections(i18n.PtBR, nil) {
+		for _, it := range s.Items {
+			if system[it.ActionID] && it.ActionID != "dashboard" && it.ActionID != "self-config" {
+				t.Errorf("%q is in both applications", it.ActionID)
 			}
 		}
 	}

@@ -13,8 +13,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Home :: Visão Geral (dashboard, Atualizar) and Home :: Configurações
-// (theme, language, sidebar logo), shared by both applications. Each application
+// Visão Geral (dashboard, Atualizar) and Configurações (theme,
+// language), shared by both applications. Each application
 // defines renderAppDashboardStats() and renderAppSelfConfig() for its own
 // parts of these screens, and the Desinstalar button's handler.
 //
@@ -80,13 +80,6 @@ btnSuUpdate.addEventListener("click", function () {
     announce: "Iniciando atualização do " + document.title + "...",
   });
 });
-
-// The dashboard is the main window's initial screen; the tray's compact
-// window never shows it.
-if (!compactAction) {
-  renderDashboardStats();
-  loadSelfUpdateStatus();
-}
 
 // --- "Home :: Configurar" (self-config) ---------------------------------
 // Tema — "Definido pelo sistema" or one of the oito2 presets; a click
@@ -157,10 +150,10 @@ function renderSelfConfigScreen() {
   renderAppSelfConfig();
 }
 
-// Re-runs the whole Visão Geral screen — called when "Visão Geral" is
-// clicked again in the sidebar (the buttons' click listeners were already
-// attached once, outside selectItem's dispatch, since this screen isn't
-// dynamically recreated like the others).
+// Re-runs the whole Visão Geral screen — on every selection of the
+// section (the buttons' click listeners were attached once, outside
+// selectItem's dispatch, since this screen isn't recreated like the
+// others).
 function renderDashboardScreen() {
   renderDashboardStats();
   loadSelfUpdateStatus();

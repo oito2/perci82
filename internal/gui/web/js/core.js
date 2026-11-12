@@ -13,7 +13,9 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Shared state and plumbing: the screen registries, shared DOM references, theme, sidebar logo/collapse, tabs, the xterm terminal and the Execução run lifecycle (log-line/step/action-done events).
+// Shared state and plumbing: the screen registries, shared DOM references,
+// theme, inner tabs, the xterm terminal and the Execução run lifecycle
+// (log-line/step/action-done events).
 //
 // Classic script (not a module): shares one global scope with the other
 // scripts under js/.
@@ -29,12 +31,10 @@ window.addEventListener("unhandledrejection", function (ev) {
 });
 
 
-const breadcrumb = document.getElementById("breadcrumb");
 const tabDescLabel = document.getElementById("tab-desc-label");
-const accordionEl = document.getElementById("accordion");
+const tabLabelDesc = document.getElementById("tab-label-desc");
 const tabRadioDesc = document.getElementById("tab-radio-desc");
 const tabRadioTerminal = document.getElementById("tab-radio-terminal");
-const sidebar = document.getElementById("sidebar");
 
 // --- screen registries ------------------------------------------------------
 // Each application's scripts fill these in: SCREENS maps a menu item's
@@ -73,10 +73,6 @@ function schemeFor(choice) {
 function applyTheme(choice) {
   themeChoice = choice;
   document.documentElement.setAttribute("data-oito2-scheme", schemeFor(choice));
-  // If the logo "easter egg" (below) already has an active mask, its
-  // color depends on the theme — reapply it right away, without
-  // waiting for a new click.
-  if (sidebarLogoMaskIndex >= 0) logoImgEl.style.backgroundColor = sidebarLogoMaskColor();
 }
 
 Promise.all([App.GetThemeOptions(), App.GetSystemScheme(), App.GetTheme()]).then(function (r) {
@@ -93,65 +89,7 @@ Events.On("system-scheme-changed", function (ev) {
   applyTheme(themeChoice);
 });
 
-// --- sidebar logo --------------------------------------------------------
-// Applies the saved sidebar logo on load; the clickable grid is built by
-// renderSelfConfigScreen.
-App.GetSidebarLogo().then(function (name) {
-  sidebarLogoImg.src = "./assets/perci-" + name + ".png";
-});
-
-// --- sidebar logo easter egg: each click on the image applies a
-// different daisyUI mask, cycling through a fixed list of shapes. Both
-// mascot variants (perci-blue.png/perci-pink.png) have a transparent
-// background, so coloring the <img> itself (background-color) shows that
-// color clipped exactly to the mask's shape: the theme's primary color
-// (`var(--color-primary)`). Purely client-side, no persistence — resets (back
-// to the original circle) every time Perci reopens. Uses
-// `document.getElementById` (not the `sidebarLogoImg` const declared
-// further below) because this snippet runs before that const exists;
-// `logoImgEl` has its own name so it doesn't collide with that const. ---
-const SIDEBAR_LOGO_MASKS = [
-  "mask-squircle", "mask-heart", "mask-hexagon", "mask-hexagon-2",
-  "mask-decagon", "mask-pentagon", "mask-diamond", "mask-star",
-  "mask-star-2", "mask-triangle", "mask-circle",
-];
-let sidebarLogoMaskIndex = -1; // -1 = still the original circle, no mask
-const logoImgEl = document.getElementById("sidebar-logo-img");
-
-function sidebarLogoMaskColor() {
-  return "var(--color-primary)";
-}
-
-function applySidebarLogoMask() {
-  logoImgEl.classList.remove("rounded-full", "mask", ...SIDEBAR_LOGO_MASKS);
-  if (sidebarLogoMaskIndex < 0) {
-    logoImgEl.classList.add("rounded-full");
-    logoImgEl.style.backgroundColor = "";
-    return;
-  }
-  logoImgEl.classList.add("mask", SIDEBAR_LOGO_MASKS[sidebarLogoMaskIndex]);
-  logoImgEl.style.backgroundColor = sidebarLogoMaskColor();
-}
-
-// Keyboard: the logo is focusable and Enter/Space act as a click.
-logoImgEl.addEventListener("keydown", function (ev) {
-  if (ev.key === "Enter" || ev.key === " ") {
-    ev.preventDefault();
-    logoImgEl.click();
-  }
-});
-logoImgEl.addEventListener("click", function () {
-  sidebarLogoMaskIndex = (sidebarLogoMaskIndex + 1) % SIDEBAR_LOGO_MASKS.length;
-  applySidebarLogoMask();
-});
-
-// --- collapse sidebar -------------------------------------------------------
-document.getElementById("btn-collapse-sidebar").addEventListener("click", function () {
-  const collapsed = sidebar.getAttribute("data-collapsed") === "true";
-  sidebar.setAttribute("data-collapsed", collapsed ? "false" : "true");
-});
-
-// --- tabs (Definições / Execução) — each tab-content's visibility is
+// --- inner tabs (first tab / Execução) — each tab-content's visibility is
 // handled via CSS by the matching radio's :checked; the code only checks
 // the right radio. --
 function selectTab(which) {
@@ -204,7 +142,6 @@ const su2RemoveConfig = document.getElementById("su2-remove-config");
 const btnSu2Uninstall = document.getElementById("btn-su2-uninstall");
 const selfconfigContainer = document.getElementById("selfconfig-container");
 const cfgThemeGrid = document.getElementById("cfg-theme-grid");
-const sidebarLogoImg = document.getElementById("sidebar-logo-img");
 // Buttons built from MULTISELECT_SCREENS[actionId].extras for the screen
 // currently shown (renderMultiselectScreen).
 let multiselectExtraButtons = [];
@@ -279,7 +216,7 @@ function failRun(err) {
 
 // finishRun closes the run lifecycle: terminal status, then every button
 // startExecution disabled is released (whatever screen is showing now —
-// the sidebar isn't locked during a run, and those buttons are shared by
+// the navigation isn't locked during a run, and those buttons are shared by
 // several screens), then the screen showing now refreshes its own state
 // (ACTION_DONE_HANDLERS). The screen the run started from re-renders
 // anyway the next time it's selected.

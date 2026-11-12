@@ -1,0 +1,119 @@
+/*
+ * Copyright (C) 2026  oito2
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/*
+ * The window shell both applications share: the section tab bar at the
+ * top (icon + label, underlined when active), the optional side list of
+ * a section's items (with group headings), the screen title, the inner
+ * tabs of a screen and the form sections (small title over a rule, two
+ * columns). Colors come from the daisyUI variables oito2.css maps.
+ */
+
+/* Section tab bar. */
+.o2-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 16px 0;
+  border-bottom: 1px solid var(--color-base-300);
+  background: var(--color-base-100);
+  flex: none;
+}
+.o2-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: color-mix(in oklab, var(--color-base-content) 80%, transparent);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  user-select: none;
+}
+.o2-tab svg { width: 24px; height: 24px; }
+.o2-tab:hover { color: var(--color-base-content); }
+.o2-tab[aria-selected="true"] {
+  color: var(--color-base-content);
+  font-weight: 600;
+  border-bottom-color: var(--color-primary);
+}
+.o2-tab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; border-radius: 4px; }
+
+/* Side list of the active section's items. */
+.o2-side {
+  width: 220px;
+  flex: none;
+  overflow-y: auto;
+  padding: 12px 8px;
+  border-right: 1px solid var(--color-base-300);
+  background: var(--color-base-200);
+}
+.o2-side-group {
+  padding: 12px 10px 4px;
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+}
+.o2-side-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.o2-side-item:hover { background: color-mix(in oklab, var(--color-base-content) 6%, transparent); }
+.o2-side-item[aria-current="page"] {
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.o2-side-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+
+/* Content area: the screen title, then the screen's inner tabs. */
+.o2-content { padding: 22px 32px 16px; }
+.o2-title { font-size: 18px; font-weight: 600; margin: 0 0 12px; flex: none; }
+
+/* Inner tabs: underlined labels; each panel without a frame of its own. */
+.o2-itabs { gap: 0 18px; }
+.o2-itabs > .tab { padding-inline: 2px; }
+.o2-panel { border: none; background: none; padding: 18px 0 0; }
+
+/* Form sections: a small title over a rule, then the fields, optionally
+   in two columns. */
+.o2-sec { margin: 0 0 22px; }
+.o2-sec > h3 {
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-base-300);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.o2-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 32px; }
