@@ -22,17 +22,18 @@ import (
 	"os"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
 // Restore imports a SQL backup file into the MariaDB container.
 func Restore(ctx context.Context, exe *executor.Executor, stdout io.Writer, container, user, pass, srcFile string) error {
 	return withDBSession(ctx, exe, container, pass, func(envPath string) error {
-		ui.Info(stdout, "Restaurando... Isso pode levar alguns minutos.")
+		ui.Info(stdout, i18n.Tr("db.run.restoring", nil))
 
 		f, err := os.Open(srcFile)
 		if err != nil {
-			return fmt.Errorf("falha ao abrir arquivo de backup: %w", err)
+			return fmt.Errorf("open the backup file: %w", err)
 		}
 		defer func() { _ = f.Close() }()
 
@@ -41,10 +42,10 @@ func Restore(ctx context.Context, exe *executor.Executor, stdout io.Writer, cont
 			"docker", "exec", "-i", "--env-file", envPath, container,
 			"mariadb", "-u", user,
 		); err != nil {
-			return fmt.Errorf("falha no restore: %w", err)
+			return fmt.Errorf("restore: %w", err)
 		}
 
-		ui.Success(stdout, "Restore concluído com sucesso.")
+		ui.Success(stdout, i18n.Tr("db.run.restored", nil))
 		return nil
 	})
 }

@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -60,10 +61,10 @@ func megaIgnoreFor(dest string) string {
 func megaIgnoreRule(file, dest string) (string, error) {
 	rel, err := filepath.Rel(filepath.Dir(file), dest)
 	if err != nil || !filepath.IsLocal(rel) {
-		return "", fmt.Errorf("%s não fica dentro da pasta de %s", dest, file)
+		return "", fmt.Errorf("%s is not inside the folder of %s", dest, file)
 	}
 	if strings.ContainsAny(rel, `*?[]\`) {
-		return "", fmt.Errorf("o caminho %s tem caracteres especiais e não pode ser excluído da sincronização do MEGA", rel)
+		return "", errors.New(i18n.Tr("docker.megaSpecialChars", i18n.Args{"path": rel}))
 	}
 	return "-dpG:" + filepath.ToSlash(rel), nil
 }
@@ -100,7 +101,7 @@ func addMegaIgnoreRule(file, rule string) (added bool, err error) {
 // file not named .megaignore is refused.
 func removeMegaIgnoreRule(file, rule string) error {
 	if filepath.Base(file) != megaIgnoreName {
-		return fmt.Errorf("%s não é um arquivo %s", file, megaIgnoreName)
+		return fmt.Errorf("%s is not a %s file", file, megaIgnoreName)
 	}
 	info, err := os.Stat(file)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -136,15 +137,15 @@ func excludeFromMega(stdout io.Writer, dest string) (file, rule string, err erro
 	}
 	rule, err = megaIgnoreRule(file, dest)
 	if err != nil {
-		return "", "", fmt.Errorf("o destino fica numa pasta sincronizada pelo MEGA (%s) e não pode ser excluído dela: %w", file, err)
+		return "", "", fmt.Errorf("%s: %w", i18n.Tr("docker.megaCantExclude", i18n.Args{"file": file}), err)
 	}
 	added, err := addMegaIgnoreRule(file, rule)
 	if err != nil {
-		return "", "", fmt.Errorf("o destino fica numa pasta sincronizada pelo MEGA e a exclusão não pôde ser gravada em %s: %w", file, err)
+		return "", "", fmt.Errorf("%s: %w", i18n.Tr("docker.megaWriteFailed", i18n.Args{"file": file}), err)
 	}
 	if !added {
 		return "", "", nil
 	}
-	ui.Info(stdout, "Destino excluído da sincronização do MEGA: "+rule+" em "+file)
+	ui.Info(stdout, i18n.Tr("docker.run.megaExcluded", i18n.Args{"rule": rule, "file": file}))
 	return file, rule, nil
 }

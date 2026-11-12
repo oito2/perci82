@@ -15,14 +15,16 @@
 
 package appstack
 
-// Moodle plugin mounts: a plugin development folder is bind-mounted on the
-// host over an empty folder inside a Moodle app's code (for example
-// html/<app>/local/<name>). The mount is a systemd mount unit ordered
+// Development folder mounts: a development folder is bind-mounted on the
+// host over an empty folder inside an app's project root — for a Moodle
+// app, a plugin folder (for example html/<app>/local/<name>); for the other
+// app types, a folder the user names. The mount is a systemd mount unit ordered
 // before docker.service, so it is back after a reboot before any container
 // starts. Containers see host mounts that already exist under their own
-// bind mounts when they start, so a running Moodle container (and Nginx)
+// bind mounts when they start, so a running app container (and Nginx)
 // picks a new mount up on its next restart. Inside the container the
-// plugin is a real folder, so PHP's __DIR__ stays inside the Moodle tree.
+// mounted folder is a real folder, so PHP's __DIR__ stays inside the
+// project tree.
 
 import (
 	"context"
@@ -42,6 +44,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -82,16 +85,16 @@ func MoodlePluginTypes(workspace, folder string) (map[string]string, error) {
 	path := filepath.Join(AppHTMLDir(workspace, folder), "lib", "components.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("não foi possível ler os tipos de plugin do Moodle %s (%s): %w", folder, path, err)
+		return nil, fmt.Errorf("%s: %w", i18n.Tr("devfolder.noPluginTypes", i18n.Args{"app": folder, "path": path}), err)
 	}
 	var parsed struct {
 		PluginTypes map[string]string `json:"plugintypes"`
 	}
 	if err := json.Unmarshal(data, &parsed); err != nil {
-		return nil, fmt.Errorf("components.json inválido em %s: %w", path, err)
+		return nil, fmt.Errorf("invalid components.json in %s: %w", path, err)
 	}
 	if len(parsed.PluginTypes) == 0 {
-		return nil, fmt.Errorf("nenhum tipo de plugin em %s", path)
+		return nil, fmt.Errorf("no plugin types in %s", path)
 	}
 	return parsed.PluginTypes, nil
 }
@@ -113,6 +116,8 @@ func DevPluginComponent(dev string) (ptype, name string) {
 
 // MoodlePluginPlan is a validated mount: Dest is the folder inside the
 // app's html folder (RelPath relative to it) where DevPath will appear.
+// Component is the Moodle plugin's component, empty for a mount into
+// another app type.
 type MoodlePluginPlan struct {
 	App       string
 	Component string
@@ -134,10 +139,10 @@ func PlanMoodlePlugin(cfg *config.Config, dev, folder, ptype, name string) (Mood
 	}
 	app, found := FindAppByFolder(cfg.Docker.Apps, folder)
 	if !found || app.Type != config.AppTypeMoodle {
-		return MoodlePluginPlan{}, fmt.Errorf("%q não é um contêiner Moodle do Perci", folder)
+		return MoodlePluginPlan{}, errors.New(i18n.Tr("devfolder.notMoodle", i18n.Args{"app": folder}))
 	}
 	if !pluginNamePattern.MatchString(name) {
-		return MoodlePluginPlan{}, fmt.Errorf("nome do plugin inválido: use letras minúsculas, números e _, começando por letra")
+		return MoodlePluginPlan{}, i18n.NewError("devfolder.badPluginName")
 	}
 	types, err := MoodlePluginTypes(workspace, folder)
 	if err != nil {
@@ -145,12 +150,102 @@ func PlanMoodlePlugin(cfg *config.Config, dev, folder, ptype, name string) (Mood
 	}
 	typeDir, ok := types[ptype]
 	if !ok {
-		return MoodlePluginPlan{}, fmt.Errorf("tipo de plugin %q não existe no Moodle %s", ptype, folder)
+		return MoodlePluginPlan{}, errors.New(i18n.Tr("devfolder.noPluginType", i18n.Args{"type": ptype, "app": folder}))
 	}
 	if declType, declName := DevPluginComponent(dev); declType != "" && (declType != ptype || declName != name) {
-		return MoodlePluginPlan{}, fmt.Errorf("o version.php da pasta de desenvolvimento declara %s_%s", declType, declName)
+		return MoodlePluginPlan{}, errors.New(i18n.Tr("devfolder.declares", i18n.Args{"component": declType + "_" + declName}))
 	}
 
+	relPath := filepath.Join(typeDir, name)
+	if typeDir == "" || filepath.IsAbs(typeDir) || !filepath.IsLocal(relPath) {
+		return MoodlePluginPlan{}, errors.New(i18n.Tr("devfolder.typeOutside", i18n.Args{"type": ptype}))
+	}
+	return planMount(cfg, workspace, dev, folder, relPath, ptype+"_"+name)
+}
+
+// DevFolderTarget is where a development folder is mounted inside an app:
+// a Moodle plugin (PluginType and PluginName) for a Moodle app, or a
+// folder relative to the app's project root (RelPath) for the other app
+// types.
+type DevFolderTarget struct {
+	PluginType string
+	PluginName string
+	RelPath    string
+}
+
+// targetOf returns the DevFolderTarget a recorded mount was made with.
+func targetOf(m config.MoodlePluginMount) DevFolderTarget {
+	if m.Component != "" {
+		ptype, name, _ := strings.Cut(m.Component, "_")
+		return DevFolderTarget{PluginType: ptype, PluginName: name}
+	}
+	return DevFolderTarget{RelPath: m.RelPath}
+}
+
+// PlanDevFolder validates mounting dev into the app in folder at t: a
+// Moodle app takes a plugin (PlanMoodlePlugin), any other app a folder
+// relative to its project root. In a PHP + Node app that folder must be
+// inside api/ or app/, the two halves its container sees.
+func PlanDevFolder(cfg *config.Config, dev, folder string, t DevFolderTarget) (MoodlePluginPlan, error) {
+	app, found := FindAppByFolder(cfg.Docker.Apps, folder)
+	if !found {
+		return MoodlePluginPlan{}, errors.New(i18n.Tr("devfolder.noApp", i18n.Args{"app": folder}))
+	}
+	if app.Type == config.AppTypeMoodle {
+		return PlanMoodlePlugin(cfg, dev, folder, t.PluginType, t.PluginName)
+	}
+	workspace, err := resolveWorkspace(cfg)
+	if err != nil {
+		return MoodlePluginPlan{}, err
+	}
+	if strings.TrimSpace(t.RelPath) == "" {
+		return MoodlePluginPlan{}, i18n.NewError("devfolder.noDest")
+	}
+	relPath := filepath.Clean(strings.TrimSpace(t.RelPath))
+	if !filepath.IsLocal(relPath) || relPath == "." {
+		return MoodlePluginPlan{}, errors.New(i18n.Tr("devfolder.destOutside", i18n.Args{"app": folder}))
+	}
+	if _, ok := containerPath(app.Type, relPath); !ok {
+		return MoodlePluginPlan{}, i18n.NewError("devfolder.comboHalf")
+	}
+	return planMount(cfg, workspace, dev, folder, relPath, "")
+}
+
+// containerPath returns where relPath, relative to the project root of an
+// app of appType on the host, appears inside the app's container: under
+// /var/www/html for the PHP types, under /app for Node, and under either
+// for PHP + Node (whose api/ and app/ halves are mounted apart). ok is
+// false for a PHP + Node path outside both halves.
+func containerPath(appType, relPath string) (string, bool) {
+	rel := filepath.ToSlash(relPath)
+	switch appType {
+	case config.AppTypeNode:
+		return "/app/" + rel, true
+	case config.AppTypePHPNode:
+		if rest, ok := strings.CutPrefix(rel, "api/"); ok && rest != "" {
+			return "/var/www/html/" + rest, true
+		}
+		if rest, ok := strings.CutPrefix(rel, "app/"); ok && rest != "" {
+			return "/app/" + rest, true
+		}
+		return "", false
+	default:
+		return "/var/www/html/" + rel, true
+	}
+}
+
+// nginxServes reports whether Nginx serves the files of an app of appType
+// (every type but Node, which Nginx only proxies), so a mount into it must
+// reach Nginx too.
+func nginxServes(appType string) bool {
+	return appType != config.AppTypeNode
+}
+
+// planMount validates mounting dev at relPath inside the project root of
+// the app in folder: dev must be an existing folder outside the app's
+// code, the destination must stay inside the project root and not exist
+// yet or be an empty folder, and no other record may use it.
+func planMount(cfg *config.Config, workspace, dev, folder, relPath, component string) (MoodlePluginPlan, error) {
 	devPath, err := resolveExistingDir(dev)
 	if err != nil {
 		return MoodlePluginPlan{}, err
@@ -159,33 +254,46 @@ func PlanMoodlePlugin(cfg *config.Config, dev, folder, ptype, name string) (Mood
 	if err != nil {
 		return MoodlePluginPlan{}, err
 	}
-	relPath := filepath.Join(typeDir, name)
-	if typeDir == "" || filepath.IsAbs(typeDir) || !filepath.IsLocal(relPath) {
-		return MoodlePluginPlan{}, fmt.Errorf("o tipo de plugin %q aponta para fora do Moodle", ptype)
-	}
 	dest := filepath.Join(html, relPath)
 	if !resolvedWithin(html, dest) {
-		return MoodlePluginPlan{}, fmt.Errorf("o destino %s fica fora do Moodle %s", dest, folder)
+		return MoodlePluginPlan{}, errors.New(i18n.Tr("devfolder.destOutsideAt", i18n.Args{"dest": dest, "app": folder}))
 	}
 	if within(html, devPath) || within(devPath, html) {
-		return MoodlePluginPlan{}, fmt.Errorf("a pasta de desenvolvimento não pode ficar dentro do Moodle %s nem conter o Moodle", folder)
+		return MoodlePluginPlan{}, errors.New(i18n.Tr("devfolder.devInsideApp", i18n.Args{"app": folder}))
 	}
 	for _, p := range []string{devPath, dest} {
 		if strings.ContainsFunc(p, func(r rune) bool { return r <= ' ' || r == 0x7f || r == '\\' }) {
-			return MoodlePluginPlan{}, fmt.Errorf("caminho com espaço, barra invertida ou caractere de controle não é suportado: %q", p)
+			return MoodlePluginPlan{}, errors.New(i18n.Tr("devfolder.badPath", i18n.Args{"path": p}))
 		}
 	}
 	for _, m := range cfg.MoodlePlugins {
 		if m.App == folder && filepath.Clean(m.RelPath) == relPath {
-			return MoodlePluginPlan{}, fmt.Errorf("%s_%s já está montado no Moodle %s", ptype, name, folder)
+			return MoodlePluginPlan{}, errors.New(i18n.Tr("devfolder.taken", i18n.Args{"dest": filepath.Join(folder, relPath)}))
 		}
 	}
 	if err := requireEmptyOrMissing(dest); err != nil {
 		return MoodlePluginPlan{}, err
 	}
 	return MoodlePluginPlan{
-		App: folder, Component: ptype + "_" + name, DevPath: devPath, Dest: dest, RelPath: relPath, HTML: html,
+		App: folder, Component: component, DevPath: devPath, Dest: dest, RelPath: relPath, HTML: html,
 	}, nil
+}
+
+// label is how messages name the mount: the plugin's component, or the
+// destination inside the app.
+func (p MoodlePluginPlan) label() string {
+	if p.Component != "" {
+		return p.Component
+	}
+	return filepath.Join(p.App, p.RelPath)
+}
+
+// mountLabel is MoodlePluginPlan.label for a recorded mount.
+func mountLabel(m config.MoodlePluginMount) string {
+	if m.Component != "" {
+		return m.Component
+	}
+	return filepath.Join(m.App, m.RelPath)
 }
 
 // requireEmptyOrMissing refuses a destination that already has content
@@ -199,33 +307,39 @@ func requireEmptyOrMissing(dest string) error {
 		return err
 	}
 	if !info.IsDir() {
-		return fmt.Errorf("já existe um arquivo ou link em %s", dest)
+		return errors.New(i18n.Tr("devfolder.fileAtDest", i18n.Args{"dest": dest}))
 	}
 	entries, err := os.ReadDir(dest)
 	if err != nil {
 		return err
 	}
 	if len(entries) > 0 {
-		return fmt.Errorf("já existe conteúdo em %s — mova ou apague essa pasta antes de montar o plugin", dest)
+		return errors.New(i18n.Tr("devfolder.destNotEmpty", i18n.Args{"dest": dest}))
 	}
 	return nil
 }
 
-// AddMoodlePlugin creates the empty destination folder, records the mount,
+// AddMoodlePlugin mounts dev as the plugin ptype_name of the Moodle app in
+// folder (AddDevFolder).
+func AddMoodlePlugin(ctx context.Context, exe *executor.Executor, stdout io.Writer, dev, folder, ptype, name string) error {
+	return AddDevFolder(ctx, exe, stdout, dev, folder, DevFolderTarget{PluginType: ptype, PluginName: name})
+}
+
+// AddDevFolder creates the empty destination folder, records the mount,
 // then installs and starts the mount unit (one password prompt). When the
 // unit cannot be installed or started, the privileged batch removes it
 // again and the record and the new folder are dropped. Containers pick the
 // mount up on their next restart. A destination inside a MEGA-synced folder
 // is first excluded in that sync's .megaignore; the mount is refused when
 // the exclusion cannot be written.
-func AddMoodlePlugin(ctx context.Context, exe *executor.Executor, stdout io.Writer, dev, folder, ptype, name string) error {
+func AddDevFolder(ctx context.Context, exe *executor.Executor, stdout io.Writer, dev, folder string, t DevFolderTarget) error {
 	stackMu.Lock()
 	defer stackMu.Unlock()
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
-	plan, err := PlanMoodlePlugin(cfg, dev, folder, ptype, name)
+	plan, err := PlanDevFolder(cfg, dev, folder, t)
 	if err != nil {
 		return err
 	}
@@ -238,11 +352,11 @@ func AddMoodlePlugin(ctx context.Context, exe *executor.Executor, stdout io.Writ
 		// A mount the rollback could not stop keeps its unit, so the record
 		// is kept too: Remover can still undo it.
 		if len(kept) > 0 {
-			return fmt.Errorf("%w — a montagem continua ativa e o registro foi mantido; use Remover para desfazê-la", err)
+			return fmt.Errorf("%w — %s", err, i18n.Tr("devfolder.keptActive", nil))
 		}
 		return err
 	}
-	ui.Success(stdout, fmt.Sprintf("%s montado em %s. Para aplicar, use \"Reiniciar contêiner\" na aba Plugins montados.", plan.Component, plan.Dest))
+	ui.Success(stdout, i18n.Tr("devfolder.run.mounted", i18n.Args{"name": plan.label(), "dest": plan.Dest}))
 	return nil
 }
 
@@ -284,13 +398,13 @@ func prepareMount(stdout io.Writer, plan MoodlePluginPlan) (preparedMount, error
 	}
 	if err := os.MkdirAll(plan.Dest, 0o755); err != nil {
 		p.drop()
-		return preparedMount{}, fmt.Errorf("criar %s: %w", plan.Dest, err)
+		return preparedMount{}, fmt.Errorf("create %s: %w", plan.Dest, err)
 	}
 	// Checked again right before the privileged step: the folders created
-	// above must not have led outside the Moodle through a link.
+	// above must not have led outside the app through a link.
 	if !resolvedWithin(plan.HTML, plan.Dest) {
 		p.drop()
-		return preparedMount{}, fmt.Errorf("o destino %s fica fora do Moodle %s", plan.Dest, plan.App)
+		return preparedMount{}, errors.New(i18n.Tr("devfolder.destOutsideAt", i18n.Args{"dest": plan.Dest, "app": plan.App}))
 	}
 	return p, nil
 }
@@ -326,13 +440,13 @@ func installPrepared(ctx context.Context, exe *executor.Executor, stdout io.Writ
 			defer func() { _ = os.Remove(tmp) }()
 		}
 		if err != nil {
-			return dropFailed(prepared, fmt.Errorf("preparar a unidade de montagem: %w", err))
+			return dropFailed(prepared, fmt.Errorf("prepare the mount unit: %w", err))
 		}
 		steps = append(steps, unitSteps...)
 	}
-	ui.Info(stdout, "Solicitando autenticação de administrador para montar o plugin...")
+	ui.Info(stdout, i18n.Tr("devfolder.run.authMount", nil))
 	if err := exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, steps); err != nil {
-		return dropFailed(prepared, fmt.Errorf("montar o plugin: %w", err))
+		return dropFailed(prepared, fmt.Errorf("mount: %w", err))
 	}
 	return prepared, nil
 }
@@ -378,7 +492,7 @@ func withoutMoodlePlugin(mounts []config.MoodlePluginMount, app, relPath string)
 // guardedRemoveScript removes the unit file $2 unless the folder $3 is
 // still a mount point: a unit that failed to stop is kept, so the mount is
 // not left active with nothing recording how to stop it.
-const guardedRemoveScript = `if mountpoint -q -- "$3"; then printf '%s\n' "$3 continua montado — a unidade foi mantida." >&2; exit 1; fi; rm -f -- "$2"`
+const guardedRemoveScript = `if mountpoint -q -- "$3"; then printf '%s\n' "$3 is still mounted — the unit was kept." >&2; exit 1; fi; rm -f -- "$2"`
 
 // enableOrRollbackScript enables and starts the unit $1; when that fails it
 // stops and removes it again (unit file $2, mount folder $3), so a failed
@@ -391,7 +505,7 @@ const enableOrRollbackScript = `systemctl enable --now -- "$1" && exit 0; system
 func unmountSteps(unit, dest string) []executor.PrivilegedStep {
 	unitFile := filepath.Join(systemdUnitDir, unit)
 	return []executor.PrivilegedStep{
-		{Announce: "Desmontando " + dest + "...", Soft: true, WarnMessage: "A unidade " + unit + " já estava parada ou não existia.", Name: "systemctl", Args: []string{"disable", "--now", "--", unit}},
+		{Announce: i18n.Tr("devfolder.run.unmounting", i18n.Args{"dest": dest}), Soft: true, WarnMessage: i18n.Tr("devfolder.run.unitGone", i18n.Args{"unit": unit}), Name: "systemctl", Args: []string{"disable", "--now", "--", unit}},
 		{Name: "sh", Args: []string{"-c", guardedRemoveScript, "sh", unit, unitFile, dest}},
 		{Name: "systemctl", Args: []string{"daemon-reload"}},
 	}
@@ -423,15 +537,16 @@ func mountUnitSteps(plan MoodlePluginPlan) (steps []executor.PrivilegedStep, tmp
 	if err != nil {
 		return nil, tmp, err
 	}
-	steps[0].Announce = "Instalando a unidade de montagem " + unit + "..."
+	steps[0].Announce = i18n.Tr("devfolder.run.installUnit", i18n.Args{"unit": unit})
 	steps = append(steps,
 		executor.PrivilegedStep{Name: "systemctl", Args: []string{"daemon-reload"}},
-		executor.PrivilegedStep{Announce: "Montando " + plan.Dest + "...", Name: "sh", Args: []string{"-c", enableOrRollbackScript, "sh", unit, unitFile, plan.Dest}},
+		executor.PrivilegedStep{Announce: i18n.Tr("devfolder.run.mounting", i18n.Args{"dest": plan.Dest}), Name: "sh", Args: []string{"-c", enableOrRollbackScript, "sh", unit, unitFile, plan.Dest}},
 	)
 	return steps, tmp, nil
 }
 
-// mountUnitHeader is the first line of every mount unit perci installs.
+// mountUnitHeader is the first line of every mount unit perci installs; it
+// marks the units RemoveDevFolder may remove, so it never changes.
 const mountUnitHeader = "# Generated by perci.gnl: Dev Tools > Plugins Moodle."
 
 // unitPath escapes a path for use as a systemd unit setting value, where
@@ -443,7 +558,7 @@ func unitPath(p string) string { return strings.ReplaceAll(p, "%", "%%") }
 func mountUnitContent(plan MoodlePluginPlan) string {
 	return mountUnitHeader + "\n" +
 		"[Unit]\n" +
-		"Description=perci: " + plan.Component + " no Moodle " + plan.App + "\n" +
+		"Description=perci: " + plan.label() + " in " + plan.App + "\n" +
 		"RequiresMountsFor=" + unitPath(plan.DevPath) + "\n" +
 		"Before=docker.service\n" +
 		"\n" +
@@ -535,23 +650,23 @@ func pluginUnits(m config.MoodlePluginMount, dest string) []pluginUnit {
 	return units
 }
 
-// RemoveMoodlePlugin stops and removes the mount unit of a recorded mount
+// RemoveDevFolder stops and removes the mount unit of a recorded mount
 // (one password prompt), removes the destination folder only when it is
 // left empty and unmounted, drops the record and restarts the containers
-// so they stop seeing the plugin. A .megaignore rule perci added for the
+// so they stop seeing the folder. A .megaignore rule perci added for the
 // mount is removed after the folder is unmounted. A unit whose mount could
 // not be stopped is kept, and the record with it. The development folder is
 // never touched.
-func RemoveMoodlePlugin(ctx context.Context, exe *executor.Executor, stdout io.Writer, folder, relPath string) error {
+func RemoveDevFolder(ctx context.Context, exe *executor.Executor, stdout io.Writer, folder, relPath string) error {
 	stackMu.Lock()
 	defer stackMu.Unlock()
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 	m, found := findMoodlePlugin(cfg.MoodlePlugins, folder, relPath)
 	if !found {
-		return fmt.Errorf("nenhum plugin montado em %s/%s", folder, relPath)
+		return errors.New(i18n.Tr("devfolder.notMounted", i18n.Args{"dest": filepath.Join(folder, relPath)}))
 	}
 	workspace, err := resolveWorkspace(cfg)
 	if err != nil {
@@ -564,33 +679,33 @@ func RemoveMoodlePlugin(ctx context.Context, exe *executor.Executor, stdout io.W
 	// The recorded path comes from config.yaml: it is checked before it
 	// reaches the privileged step.
 	if !filepath.IsLocal(m.RelPath) {
-		return fmt.Errorf("o registro do plugin aponta para fora do Moodle: %s", m.RelPath)
+		return fmt.Errorf("the mount record points outside the app: %s", m.RelPath)
 	}
 	dest := filepath.Join(html, m.RelPath)
 	if !resolvedWithin(html, dest) {
-		return fmt.Errorf("o destino %s fica fora do Moodle %s", dest, folder)
+		return errors.New(i18n.Tr("devfolder.destOutsideAt", i18n.Args{"dest": dest, "app": folder}))
 	}
 
-	ui.Info(stdout, "Solicitando autenticação de administrador para desmontar o plugin...")
+	ui.Info(stdout, i18n.Tr("devfolder.run.authUnmount", nil))
 	var steps []executor.PrivilegedStep
 	for _, u := range pluginUnits(m, dest) {
 		steps = append(steps, unmountSteps(u.name, u.where)...)
 	}
 	if err := exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, steps); err != nil {
-		return fmt.Errorf("desmontar o plugin: %w", err)
+		return fmt.Errorf("unmount: %w", err)
 	}
 
 	if !exe.DryRun {
 		if sameDir(m.DevPath, dest) {
-			return fmt.Errorf("%s continua montado; nada foi apagado", dest)
+			return errors.New(i18n.Tr("devfolder.stillMounted", i18n.Args{"dest": dest}))
 		}
 		if err := os.Remove(dest); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			ui.Warning(stdout, "A pasta "+dest+" não foi apagada (não está vazia): "+err.Error())
+			ui.Warning(stdout, i18n.Tr("devfolder.run.destKept", i18n.Args{"dest": dest, "error": err.Error()}))
 		}
 	}
 	if m.MegaIgnoreRule != "" {
 		if err := removeMegaIgnoreRule(m.MegaIgnore, m.MegaIgnoreRule); err != nil {
-			ui.Warning(stdout, "A regra "+m.MegaIgnoreRule+" não foi removida de "+m.MegaIgnore+": "+err.Error())
+			ui.Warning(stdout, i18n.Tr("devfolder.run.megaRuleKept", i18n.Args{"rule": m.MegaIgnoreRule, "path": m.MegaIgnore, "error": err.Error()}))
 		}
 	}
 	if err := config.Update(func(c *config.Config) error {
@@ -599,44 +714,51 @@ func RemoveMoodlePlugin(ctx context.Context, exe *executor.Executor, stdout io.W
 	}); err != nil {
 		return err
 	}
-	ui.Success(stdout, m.Component+" desmontado do Moodle "+folder+".")
-	return restartForPlugins(ctx, exe, stdout, folder)
+	ui.Success(stdout, i18n.Tr("devfolder.run.unmounted", i18n.Args{"name": mountLabel(m), "app": folder}))
+	// An app no longer registered may still have a container serving the
+	// folder through Nginx.
+	app, found := FindAppByFolder(cfg.Docker.Apps, folder)
+	return restartForPlugins(ctx, exe, stdout, folder, !found || nginxServes(app.Type))
 }
 
-// ApplyMoodlePlugins restarts the Moodle app container (when running) and
-// Nginx (when running), so both see the current plugin mounts.
-func ApplyMoodlePlugins(ctx context.Context, exe *executor.Executor, stdout io.Writer, folder string) error {
+// ApplyDevFolders restarts the app container (when running) and, for an
+// app Nginx serves, Nginx (when running), so they see the current mounts.
+func ApplyDevFolders(ctx context.Context, exe *executor.Executor, stdout io.Writer, folder string) error {
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
-	if app, found := FindAppByFolder(cfg.Docker.Apps, folder); !found || app.Type != config.AppTypeMoodle {
-		return fmt.Errorf("%q não é um contêiner Moodle do Perci", folder)
+	app, found := FindAppByFolder(cfg.Docker.Apps, folder)
+	if !found {
+		return errors.New(i18n.Tr("devfolder.noApp", i18n.Args{"app": folder}))
 	}
-	return restartForPlugins(ctx, exe, stdout, folder)
+	return restartForPlugins(ctx, exe, stdout, folder, nginxServes(app.Type))
 }
 
-func restartForPlugins(ctx context.Context, exe *executor.Executor, stdout io.Writer, folder string) error {
+// restartForPlugins restarts the app container in folder when it runs, and
+// Nginx when withNginx and it runs.
+func restartForPlugins(ctx context.Context, exe *executor.Executor, stdout io.Writer, folder string, withNginx bool) error {
 	if ContainerStatus(ctx, exe, folder) == "running" {
-		ui.Info(stdout, "Reiniciando o contêiner "+folder+"...")
+		ui.Info(stdout, i18n.Tr("devfolder.run.restarting", i18n.Args{"name": folder}))
 		if err := RestartContainer(ctx, exe, stdout, folder); err != nil {
 			return err
 		}
 	} else {
-		ui.Info(stdout, "O contêiner "+folder+" não está rodando: os plugins serão aplicados quando ele iniciar.")
+		ui.Info(stdout, i18n.Tr("devfolder.run.notRunning", i18n.Args{"name": folder}))
 	}
-	if nginxContainerRunning(ctx, exe) {
-		ui.Info(stdout, "Reiniciando o contêiner Nginx...")
+	if withNginx && nginxContainerRunning(ctx, exe) {
+		ui.Info(stdout, i18n.Tr("devfolder.run.restartingNginx", nil))
 		if err := RestartContainer(ctx, exe, stdout, NginxContainerName); err != nil {
 			return err
 		}
 	}
-	ui.Success(stdout, "Contêineres reiniciados.")
+	ui.Success(stdout, i18n.Tr("devfolder.run.restarted", nil))
 	return nil
 }
 
-// MoodlePluginState is a recorded mount with its current status and, when
-// dev/version.php declares a different component, that component.
+// MoodlePluginState is a recorded mount with its current status and, for a
+// Moodle plugin whose dev/version.php declares a different component, that
+// component.
 type MoodlePluginState struct {
 	config.MoodlePluginMount
 	Status     string
@@ -655,9 +777,13 @@ func MoodlePluginStatuses(ctx context.Context, exe *executor.Executor, cfg *conf
 	}
 	workspace, wsErr := resolveWorkspace(cfg)
 	nginxUp := nginxContainerRunning(ctx, exe)
+	appTypes := map[string]string{}
+	for _, a := range cfg.Docker.Apps {
+		appTypes[a.Folder] = a.Type
+	}
 
 	// Per app: the container status and, for a running one, the ids of the
-	// plugin folders as the container sees them.
+	// mounted folders as the container sees them.
 	appStatus := map[string]string{}
 	appPaths := map[string][]string{}
 	nginxPaths := []string{}
@@ -665,8 +791,8 @@ func MoodlePluginStatuses(ctx context.Context, exe *executor.Executor, cfg *conf
 		if _, seen := appStatus[m.App]; !seen {
 			appStatus[m.App] = ContainerStatus(ctx, exe, m.App)
 		}
-		if appStatus[m.App] == "running" {
-			appPaths[m.App] = append(appPaths[m.App], "/var/www/html/"+m.RelPath)
+		if p, ok := containerPath(appTypes[m.App], m.RelPath); ok && appStatus[m.App] == "running" {
+			appPaths[m.App] = append(appPaths[m.App], p)
 		}
 		nginxPaths = append(nginxPaths, appHTMLMount+"/"+m.App+"/"+m.RelPath)
 	}
@@ -682,10 +808,11 @@ func MoodlePluginStatuses(ctx context.Context, exe *executor.Executor, cfg *conf
 	states := make([]MoodlePluginState, 0, len(cfg.MoodlePlugins))
 	for _, m := range cfg.MoodlePlugins {
 		st := MoodlePluginState{MoodlePluginMount: m}
-		if t, n := DevPluginComponent(m.DevPath); t != "" && t+"_"+n != m.Component {
+		if t, n := DevPluginComponent(m.DevPath); m.Component != "" && t != "" && t+"_"+n != m.Component {
 			st.DeclaredAs = t + "_" + n
 		}
-		st.Status = pluginStatus(workspace, wsErr, m, appStatus[m.App], appIDs[m.App], nginxUp, nginxIDs)
+		appType := appTypes[m.App]
+		st.Status = pluginStatus(workspace, wsErr, m, appType, appStatus[m.App], appIDs[m.App], nginxUp && nginxServes(appType), nginxIDs)
 		states = append(states, st)
 	}
 	sort.SliceStable(states, func(i, j int) bool {
@@ -697,10 +824,11 @@ func MoodlePluginStatuses(ctx context.Context, exe *executor.Executor, cfg *conf
 	return states
 }
 
-// pluginStatus classifies one mount from the host's view of it, the status
-// of its app container, and the folder ids the app container and Nginx
-// reported.
-func pluginStatus(workspace string, wsErr error, m config.MoodlePluginMount, appStatus string, appIDs map[string]string, nginxUp bool, nginxIDs map[string]string) string {
+// pluginStatus classifies one mount into an app of appType from the host's
+// view of it, the status of its app container, and the folder ids the app
+// container and Nginx reported; nginxUp is false when Nginx doesn't run or
+// doesn't serve the app.
+func pluginStatus(workspace string, wsErr error, m config.MoodlePluginMount, appType, appStatus string, appIDs map[string]string, nginxUp bool, nginxIDs map[string]string) string {
 	devID, ok := dirID(m.DevPath)
 	if wsErr != nil || !ok {
 		return PluginInactive
@@ -716,7 +844,7 @@ func pluginStatus(workspace string, wsErr error, m config.MoodlePluginMount, app
 	default:
 		return PluginStopped
 	}
-	if appIDs["/var/www/html/"+m.RelPath] != devID {
+	if p, ok := containerPath(appType, m.RelPath); !ok || appIDs[p] != devID {
 		return PluginPending
 	}
 	if nginxUp && nginxIDs[appHTMLMount+"/"+m.App+"/"+m.RelPath] != devID {
@@ -773,15 +901,15 @@ func sameDir(a, b string) bool {
 // an error when it is not an existing folder.
 func resolveExistingDir(dir string) (string, error) {
 	if !filepath.IsAbs(dir) {
-		return "", fmt.Errorf("caminho inválido: %q", dir)
+		return "", errors.New(i18n.Tr("devfolder.badDir", i18n.Args{"path": dir}))
 	}
 	resolved, err := filepath.EvalSymlinks(dir)
 	if err != nil {
-		return "", fmt.Errorf("pasta não encontrada: %s", dir)
+		return "", errors.New(i18n.Tr("devfolder.dirNotFound", i18n.Args{"path": dir}))
 	}
 	info, err := os.Stat(resolved)
 	if err != nil || !info.IsDir() {
-		return "", fmt.Errorf("não é uma pasta: %s", dir)
+		return "", errors.New(i18n.Tr("devfolder.notADir", i18n.Args{"path": dir}))
 	}
 	return resolved, nil
 }

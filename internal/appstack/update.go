@@ -17,7 +17,6 @@ package appstack
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -55,14 +55,14 @@ func (p ImageUpdatePlan) Empty() bool {
 func AllImagesTarget() (ImageUpdateTarget, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return ImageUpdateTarget{}, fmt.Errorf("carregar config: %w", err)
+		return ImageUpdateTarget{}, fmt.Errorf("load config: %w", err)
 	}
 	t := ImageUpdateTarget{Nginx: cfg.Docker.NginxCreated, MariaDB: cfg.Docker.MariaDB.DBUser != ""}
 	for _, app := range cfg.Docker.Apps {
 		t.Apps = append(t.Apps, app.Folder)
 	}
 	if !t.Nginx && !t.MariaDB && len(t.Apps) == 0 {
-		return ImageUpdateTarget{}, errors.New("nenhum contêiner Docker registrado")
+		return ImageUpdateTarget{}, i18n.NewError("docker.noContainers")
 	}
 	return t, nil
 }
@@ -77,7 +77,7 @@ func AppImageTarget(folder string) (ImageUpdateTarget, error) {
 	}
 	cfg, err := config.Load()
 	if err != nil {
-		return ImageUpdateTarget{}, fmt.Errorf("carregar config: %w", err)
+		return ImageUpdateTarget{}, fmt.Errorf("load config: %w", err)
 	}
 	name := appImageBuild(app).name
 	var t ImageUpdateTarget
@@ -110,13 +110,13 @@ func appImageBuild(app config.AppContainer) imageBuild {
 func PrepareImageUpdate(ctx context.Context, exe *executor.Executor, stdout io.Writer, t ImageUpdateTarget) (ImageUpdatePlan, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return ImageUpdatePlan{}, fmt.Errorf("carregar config: %w", err)
+		return ImageUpdatePlan{}, fmt.Errorf("load config: %w", err)
 	}
 	var plan ImageUpdatePlan
 
 	if t.Nginx {
 		if !cfg.Docker.NginxCreated {
-			return ImageUpdatePlan{}, errors.New("nenhum Contêiner Nginx configurado")
+			return ImageUpdatePlan{}, i18n.NewError("docker.noNginx")
 		}
 		if _, err := pullImage(ctx, exe, stdout, NginxImage); err != nil {
 			return ImageUpdatePlan{}, err
@@ -125,7 +125,7 @@ func PrepareImageUpdate(ctx context.Context, exe *executor.Executor, stdout io.W
 	}
 	if t.MariaDB {
 		if cfg.Docker.MariaDB.DBUser == "" {
-			return ImageUpdatePlan{}, errors.New("nenhum Contêiner MariaDB configurado")
+			return ImageUpdatePlan{}, i18n.NewError("docker.noMariaDB")
 		}
 		if _, err := pullImage(ctx, exe, stdout, MariaDBImage); err != nil {
 			return ImageUpdatePlan{}, err
@@ -174,10 +174,10 @@ func refreshImage(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 	label, err := exe.Output(ctx, executor.Options{}, "docker", "image", "inspect",
 		"-f", `{{index .Config.Labels "`+imageLabel+`"}}`, "--", b.name)
 	if !changed && err == nil && strings.TrimSpace(label) == b.hash() {
-		ui.Info(stdout, "A imagem "+b.name+" já está atualizada.")
+		ui.Info(stdout, i18n.Tr("docker.run.imageUpToDate", i18n.Args{"image": b.name}))
 		return nil
 	}
-	ui.Info(stdout, "Reconstruindo a imagem "+b.name+" (pode levar alguns minutos)...")
+	ui.Info(stdout, i18n.Tr("docker.run.imageRebuild", i18n.Args{"image": b.name}))
 	return buildImage(ctx, exe, stdout, b)
 }
 
@@ -185,16 +185,16 @@ func refreshImage(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 // changed (a newer build of the same tag was downloaded).
 func pullImage(ctx context.Context, exe *executor.Executor, stdout io.Writer, ref string) (changed bool, err error) {
 	before := imageID(ctx, exe, ref)
-	ui.Info(stdout, "Baixando a versão mais recente de "+ref+"...")
+	ui.Info(stdout, i18n.Tr("docker.run.imagePull", i18n.Args{"image": ref}))
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "docker", "pull", "--quiet", "--", ref); err != nil {
-		return false, fmt.Errorf("baixar imagem %s: %w", ref, err)
+		return false, fmt.Errorf("pull image %s: %w", ref, err)
 	}
 	after := imageID(ctx, exe, ref)
 	if after != before {
-		ui.Info(stdout, ref+": nova versão baixada.")
+		ui.Info(stdout, i18n.Tr("docker.run.imagePulled", i18n.Args{"image": ref}))
 		return true, nil
 	}
-	ui.Info(stdout, ref+": já estava na versão mais recente.")
+	ui.Info(stdout, i18n.Tr("docker.run.imageCurrent", i18n.Args{"image": ref}))
 	return false, nil
 }
 
@@ -213,7 +213,7 @@ func imageID(ctx context.Context, exe *executor.Executor, ref string) string {
 func containerOutdated(ctx context.Context, exe *executor.Executor, stdout io.Writer, container, image string) bool {
 	out, err := exe.Output(ctx, executor.Options{}, "docker", "inspect", "-f", "{{.Image}}", "--", container)
 	if err != nil {
-		ui.Warning(stdout, "O contêiner "+container+" não existe — use Recriar para criá-lo.")
+		ui.Warning(stdout, i18n.Tr("docker.run.containerMissing", i18n.Args{"name": container}))
 		return false
 	}
 	return strings.TrimSpace(out) != imageID(ctx, exe, image)
@@ -240,35 +240,35 @@ func ApplyImageUpdate(ctx context.Context, exe *executor.Executor, stdout io.Wri
 
 	if plan.MariaDB {
 		remember(MariaDBContainerName)
-		ui.Info(stdout, "Recriando o contêiner MariaDB...")
+		ui.Info(stdout, i18n.Tr("transfer.run.recreateMariaDB", nil))
 		if err := RecreateMariaDB(ctx, exe, stdout); err != nil {
-			return fmt.Errorf("recriar mariadb: %w", err)
+			return fmt.Errorf("recreate mariadb: %w", err)
 		}
 	}
 
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 	apps := cfg.Docker.Apps
 	for _, folder := range plan.Apps {
 		remember(folder)
-		ui.Info(stdout, "Recriando o contêiner "+folder+"...")
+		ui.Info(stdout, i18n.Tr("transfer.run.recreateApp", i18n.Args{"app": folder}))
 		if apps, err = recreateAppContainer(ctx, exe, stdout, folder); err != nil {
-			return fmt.Errorf("recriar app %s: %w", folder, err)
+			return fmt.Errorf("recreate app %s: %w", folder, err)
 		}
 	}
 
 	if plan.Nginx {
 		remember(NginxContainerName)
-		ui.Info(stdout, "Recriando o contêiner Nginx...")
+		ui.Info(stdout, i18n.Tr("transfer.run.recreateNginx", nil))
 		if _, err := recreateNginx(ctx, exe, nil, stdout, false); err != nil {
-			return fmt.Errorf("recriar nginx: %w", err)
+			return fmt.Errorf("recreate nginx: %w", err)
 		}
 	}
 	if plan.Nginx || len(plan.Apps) > 0 {
 		if err := ReloadNginxConfig(ctx, exe, stdout, apps); err != nil {
-			return fmt.Errorf("recarregar nginx: %w", err)
+			return fmt.Errorf("reload nginx: %w", err)
 		}
 	}
 
@@ -286,11 +286,11 @@ func ApplyImageUpdate(ctx context.Context, exe *executor.Executor, stdout io.Wri
 func MariaDBBackupDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("obter diretório home: %w", err)
+		return "", fmt.Errorf("get home folder: %w", err)
 	}
 	dir := filepath.Join(home, ".perci", "appstack", "backups")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", fmt.Errorf("criar %s: %w", dir, err)
+		return "", fmt.Errorf("create %s: %w", dir, err)
 	}
 	return dir, nil
 }

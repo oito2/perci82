@@ -30,6 +30,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -70,7 +71,7 @@ func GenPassword() string {
 // line break: it travels in KEY=VALUE environment files and assignments.
 func validateDBPassword(pass string) error {
 	if pass == "" || strings.ContainsAny(pass, "\r\n") {
-		return fmt.Errorf("senha do banco inválida: não pode ser vazia nem conter quebra de linha")
+		return i18n.NewError("docker.badDBPassword")
 	}
 	return nil
 }
@@ -78,7 +79,7 @@ func validateDBPassword(pass string) error {
 // validateDBCredentials checks the format of a MariaDB user and password.
 func validateDBCredentials(dbUser, dbPass string) error {
 	if !ValidDBIdentifier.MatchString(dbUser) {
-		return fmt.Errorf("usuário do banco inválido: use apenas letras, números e underscore (1-32 caracteres)")
+		return i18n.NewError("docker.badDBUser")
 	}
 	return validateDBPassword(dbPass)
 }
@@ -92,7 +93,7 @@ func MariaDBExists(ctx context.Context, exe *executor.Executor) bool {
 // RemoveMariaDB force-removes the mariadb container, running or stopped.
 // The caller is responsible for confirming with the user first.
 func RemoveMariaDB(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-	return removeContainer(ctx, exe, stdout, MariaDBContainerName, "contêiner mariadb")
+	return removeContainer(ctx, exe, stdout, MariaDBContainerName, "mariadb container")
 }
 
 // MariaDBDataDir returns the MariaDB data directory:
@@ -107,7 +108,7 @@ func MariaDBDataDir(workspace string) string {
 func MariaDBInitDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("obter diretório home: %w", err)
+		return "", fmt.Errorf("get home folder: %w", err)
 	}
 	return filepath.Join(home, ".perci", "appstack", "mariadb", "init"), nil
 }
@@ -123,12 +124,12 @@ func writeGrantSQL(dbUser string) (string, error) {
 		return "", err
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("criar %s: %w", dir, err)
+		return "", fmt.Errorf("create %s: %w", dir, err)
 	}
 	sql := fmt.Sprintf("GRANT ALL PRIVILEGES ON *.* TO `%s`@'%%' WITH GRANT OPTION;\nFLUSH PRIVILEGES;\n", dbUser)
 	path := filepath.Join(dir, "01-permissions.sql")
 	if err := os.WriteFile(path, []byte(sql), 0o644); err != nil {
-		return "", fmt.Errorf("escrever %s: %w", path, err)
+		return "", fmt.Errorf("write %s: %w", path, err)
 	}
 	return dir, nil
 }
@@ -173,7 +174,7 @@ func mariadbEnv(dbUser, dbPass, dbRootPass string) []string {
 // caller.
 func CreateMariaDB(ctx context.Context, exe *executor.Executor, stdout io.Writer, dbUser, dbPass string) error {
 	if !isDockerInstalled(ctx, exe) {
-		return fmt.Errorf("docker não instalado")
+		return i18n.NewError("docker.notInstalled")
 	}
 	if err := validateDBCredentials(dbUser, dbPass); err != nil {
 		return err
@@ -181,7 +182,7 @@ func CreateMariaDB(ctx context.Context, exe *executor.Executor, stdout io.Writer
 
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 
 	workspace, err := resolveWorkspace(cfg)
@@ -212,12 +213,12 @@ func CreateMariaDB(ctx context.Context, exe *executor.Executor, stdout io.Writer
 		c.Docker.MariaDB.DBRootPass = dbRootPass
 		return nil
 	}); err != nil {
-		return fmt.Errorf("salvar a senha root do MariaDB: %w", err)
+		return fmt.Errorf("save the MariaDB root password: %w", err)
 	}
 
 	dataDir := MariaDBDataDir(workspace)
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		return fmt.Errorf("criar diretório de dados: %w", err)
+		return fmt.Errorf("create the data folder: %w", err)
 	}
 
 	initDir, err := writeGrantSQL(dbUser)
@@ -228,11 +229,11 @@ func CreateMariaDB(ctx context.Context, exe *executor.Executor, stdout io.Writer
 		return err
 	}
 
-	ui.Info(stdout, "Criando contêiner mariadb...")
+	ui.Info(stdout, i18n.Tr("docker.run.creating", i18n.Args{"name": "mariadb"}))
 	env := mariadbEnv(dbUser, dbPass, dbRootPass)
 	args := mariadbRunArgs(dataDir, initDir, env)
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout, Env: env}, "docker", args...); err != nil {
-		return fmt.Errorf("criar contêiner mariadb: %w", err)
+		return fmt.Errorf("create the mariadb container: %w", err)
 	}
 
 	if err := config.Update(func(cfg *config.Config) error {
@@ -243,7 +244,7 @@ func CreateMariaDB(ctx context.Context, exe *executor.Executor, stdout io.Writer
 		cfg.Docker.MariaDB.DataPass = dbPass
 		return nil
 	}); err != nil {
-		return fmt.Errorf("contêiner mariadb criado, mas falha ao salvar configurações: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("docker.createdNotSaved", i18n.Args{"name": "mariadb"}), err)
 	}
 
 	return nil
@@ -256,10 +257,10 @@ func CreateMariaDB(ctx context.Context, exe *executor.Executor, stdout io.Writer
 func RecreateMariaDB(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 	if cfg.Docker.MariaDB.DBUser == "" {
-		return fmt.Errorf("nenhum Contêiner MariaDB configurado ainda")
+		return i18n.NewError("docker.noMariaDB")
 	}
 	// Checked before anything is removed: a refusal must leave the running
 	// database untouched.
@@ -297,7 +298,7 @@ func DeleteMariaDB(ctx context.Context, exe *executor.Executor, stdout io.Writer
 		}
 		return nil
 	}); err != nil {
-		return fmt.Errorf("mariadb removido, mas falha ao salvar configurações: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("docker.removedNotSaved", i18n.Args{"name": "mariadb"}), err)
 	}
 	return nil
 }
@@ -312,7 +313,7 @@ func CheckMariaDBCredentials(stdout io.Writer, dbUser, dbPass string) error {
 	}
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 	workspace, err := resolveWorkspace(cfg)
 	if err != nil {
@@ -333,14 +334,11 @@ func checkMariaDBCredentials(stdout io.Writer, cfg *config.Config, workspace, db
 	m := cfg.Docker.MariaDB
 	knownUser, knownPass := firstNonEmpty(m.DataUser, m.DBUser), firstNonEmpty(m.DataPass, m.DBPass)
 	if knownUser == "" {
-		ui.Warning(stdout, "O banco em "+MariaDBDataDir(workspace)+" já existe e o Perci não sabe com quais credenciais ele foi criado — "+
-			"se forem diferentes de "+dbUser+", o MariaDB manterá as antigas.")
+		ui.Warning(stdout, i18n.Tr("docker.run.dbUnknownCredentials", i18n.Args{"path": MariaDBDataDir(workspace), "user": dbUser}))
 		return nil
 	}
 	if knownUser != dbUser || knownPass != dbPass {
-		return fmt.Errorf("o banco em %s já foi criado com o usuário %q e outra senha, e o MariaDB ignora novas credenciais em dados existentes. "+
-			"Mantenha as credenciais atuais, altere-as dentro do banco (ALTER USER) antes, ou remova essa pasta para recomeçar do zero",
-			MariaDBDataDir(workspace), knownUser)
+		return errors.New(i18n.Tr("docker.dbOtherCredentials", i18n.Args{"path": MariaDBDataDir(workspace), "user": knownUser}))
 	}
 	return nil
 }
@@ -363,7 +361,7 @@ func resolveWorkspace(cfg *config.Config) (string, error) {
 		return "", err
 	}
 	if strings.ContainsAny(ws, ",\"") {
-		return "", fmt.Errorf("o caminho do workspace não pode conter vírgula nem aspas: %s", ws)
+		return "", errors.New(i18n.Tr("docker.badWorkspacePath", i18n.Args{"path": ws}))
 	}
 	return ws, nil
 }

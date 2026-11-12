@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -31,16 +32,16 @@ import (
 // it completes, so a failed dump leaves an existing dest untouched.
 func Backup(ctx context.Context, exe *executor.Executor, stdout io.Writer, container, user, pass, dest string) error {
 	return withDBSession(ctx, exe, container, pass, func(envPath string) error {
-		ui.Info(stdout, "Executando dump para: "+dest)
+		ui.Info(stdout, i18n.Tr("db.run.dumping", i18n.Args{"path": dest}))
 
 		tmp, err := os.CreateTemp(filepath.Dir(dest), ".perci-backup-*.sql")
 		if err != nil {
-			return fmt.Errorf("falha ao criar arquivo de backup: %w", err)
+			return fmt.Errorf("create the backup file: %w", err)
 		}
 		defer func() { _ = os.Remove(tmp.Name()) }() // no-op once renamed
 		if err := tmp.Chmod(0o600); err != nil {
 			_ = tmp.Close()
-			return fmt.Errorf("falha ao proteger o arquivo de backup: %w", err)
+			return fmt.Errorf("protect the backup file: %w", err)
 		}
 
 		if err := exe.Run(ctx,
@@ -52,20 +53,20 @@ func Backup(ctx context.Context, exe *executor.Executor, stdout io.Writer, conta
 			"--single-transaction", "--skip-lock-tables", "--routines", "--events",
 		); err != nil {
 			_ = tmp.Close()
-			return fmt.Errorf("falha no dump: %w", err)
+			return fmt.Errorf("dump: %w", err)
 		}
 		if err := tmp.Sync(); err != nil {
 			_ = tmp.Close()
-			return fmt.Errorf("falha ao gravar o arquivo de backup: %w", err)
+			return fmt.Errorf("write the backup file: %w", err)
 		}
 		if err := tmp.Close(); err != nil {
-			return fmt.Errorf("falha ao fechar arquivo de backup: %w", err)
+			return fmt.Errorf("close the backup file: %w", err)
 		}
 		if err := os.Rename(tmp.Name(), dest); err != nil {
-			return fmt.Errorf("falha ao salvar o backup em %s: %w", dest, err)
+			return fmt.Errorf("save the backup in %s: %w", dest, err)
 		}
 
-		ui.Success(stdout, "Backup concluído: "+dest)
+		ui.Success(stdout, i18n.Tr("db.run.backedUp", i18n.Args{"path": dest}))
 		return nil
 	})
 }

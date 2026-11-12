@@ -88,7 +88,7 @@ func parseContainerStatuses(out string) map[string]string {
 // RemoveApp/RemoveNginx/RemoveMariaDB.
 func removeContainer(ctx context.Context, exe *executor.Executor, stdout io.Writer, name, label string) error {
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "docker", "rm", "-f", "--", name); err != nil {
-		return fmt.Errorf("remover %s: %w", label, err)
+		return fmt.Errorf("remove %s: %w", label, err)
 	}
 	return nil
 }
@@ -101,7 +101,7 @@ func StartContainer(ctx context.Context, exe *executor.Executor, stdout io.Write
 		return err
 	}
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "docker", "start", "--", name); err != nil {
-		return fmt.Errorf("iniciar %s: %w", name, err)
+		return fmt.Errorf("start %s: %w", name, err)
 	}
 	return nil
 }
@@ -111,7 +111,7 @@ func StopContainer(ctx context.Context, exe *executor.Executor, stdout io.Writer
 		return err
 	}
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "docker", "stop", "--", name); err != nil {
-		return fmt.Errorf("parar %s: %w", name, err)
+		return fmt.Errorf("stop %s: %w", name, err)
 	}
 	return nil
 }
@@ -121,7 +121,7 @@ func RestartContainer(ctx context.Context, exe *executor.Executor, stdout io.Wri
 		return err
 	}
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "docker", "restart", "--", name); err != nil {
-		return fmt.Errorf("reiniciar %s: %w", name, err)
+		return fmt.Errorf("restart %s: %w", name, err)
 	}
 	return nil
 }

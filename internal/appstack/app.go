@@ -17,6 +17,7 @@ package appstack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -140,7 +142,7 @@ func bindMount(source, target string, readonly bool) []string {
 func mountableError(paths ...string) error {
 	for _, p := range paths {
 		if strings.ContainsAny(p, ",\"\r\n") {
-			return fmt.Errorf("o caminho %q não pode ser montado no contêiner: remova vírgulas, aspas e quebras de linha do nome da pasta", p)
+			return errors.New(i18n.Tr("docker.badMountPath", i18n.Args{"path": p}))
 		}
 	}
 	return nil
@@ -268,46 +270,46 @@ var reservedFolders = map[string]bool{NginxContainerName: true, MariaDBContainer
 // config, so callers can refuse bad input before removing anything.
 func ValidateApp(app config.AppContainer) error {
 	if !ValidAppFolder.MatchString(app.Folder) {
-		return fmt.Errorf("nome de pasta inválido: use apenas letras, números, hífen e underscore (1-64 caracteres)")
+		return i18n.NewError("docker.badFolder")
 	}
 	if !ValidAppURL.MatchString(app.URL) {
-		return fmt.Errorf("URL inválida: use um único rótulo seguido de .localhost (ex: meuapp.localhost)")
+		return i18n.NewError("docker.badURL")
 	}
 	if !ValidAppType(app.Type) {
-		return fmt.Errorf("tipo de aplicativo desconhecido: %s", app.Type)
+		return fmt.Errorf("unknown app type: %s", app.Type)
 	}
 	needsNodeFields := app.Type == config.AppTypeNode || app.Type == config.AppTypePHPNode
 	if needsNodeFields {
 		if !ValidNodeVersion(app.NodeVersion) {
-			return fmt.Errorf("versão Node não suportada: %s", app.NodeVersion)
+			return errors.New(i18n.Tr("docker.badNodeVersion", i18n.Args{"version": app.NodeVersion}))
 		}
 		if app.DevCommand == "" {
-			return fmt.Errorf("comando de start não pode ficar vazio")
+			return i18n.NewError("docker.noDevCommand")
 		}
 		if !ValidDevPort(app.DevPort) {
-			return fmt.Errorf("porta do dev server inválida: %d", app.DevPort)
+			return errors.New(i18n.Tr("docker.badDevPort", i18n.Args{"port": app.DevPort}))
 		}
 	}
 	if app.Type == config.AppTypeNode && app.DBAccess {
-		return fmt.Errorf("acesso a banco não é suportado para aplicativos Node")
+		return i18n.NewError("docker.nodeNoDB")
 	}
 	if app.Type != config.AppTypeNode && !ValidPHPVersion(app.PHPVersion) {
-		return fmt.Errorf("versão PHP não suportada: %s", app.PHPVersion)
+		return errors.New(i18n.Tr("docker.badPHPVersion", i18n.Args{"version": app.PHPVersion}))
 	}
 	if app.Type != config.AppTypeNode && app.PHPMemoryLimit != "" && !ValidPHPMemoryLimit.MatchString(app.PHPMemoryLimit) {
-		return fmt.Errorf("limite de memória PHP inválido: %s", app.PHPMemoryLimit)
+		return errors.New(i18n.Tr("docker.badMemoryLimit", i18n.Args{"value": app.PHPMemoryLimit}))
 	}
 	if app.Type == config.AppTypeMoodle {
 		if !ValidMoodleVersion(app.MoodleVersion) {
-			return fmt.Errorf("versão do Moodle não suportada: %s", app.MoodleVersion)
+			return errors.New(i18n.Tr("docker.badMoodleVersion", i18n.Args{"version": app.MoodleVersion}))
 		}
 		if !ValidPHPVersionForMoodleVersion(app.MoodleVersion, app.PHPVersion) {
-			return fmt.Errorf("PHP %s não é compatível com Moodle %s", app.PHPVersion, app.MoodleVersion)
+			return errors.New(i18n.Tr("docker.phpMoodleMismatch", i18n.Args{"php": app.PHPVersion, "moodle": app.MoodleVersion}))
 		}
 	}
 
 	if reservedFolders[strings.ToLower(app.Folder)] {
-		return fmt.Errorf("o nome de pasta %q é reservado para a infraestrutura do Perci — escolha outro", app.Folder)
+		return errors.New(i18n.Tr("docker.reservedFolder", i18n.Args{"folder": app.Folder}))
 	}
 	return nil
 }
@@ -321,7 +323,7 @@ func ValidateAppInStack(app config.AppContainer) error {
 	}
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 	return checkURLUnique(app, cfg.Docker.Apps)
 }
@@ -332,7 +334,7 @@ func ValidateAppInStack(app config.AppContainer) error {
 func checkURLUnique(app config.AppContainer, apps []config.AppContainer) error {
 	for _, other := range apps {
 		if other.Folder != app.Folder && strings.EqualFold(other.URL, app.URL) {
-			return fmt.Errorf("a URL %s já é usada pelo aplicativo %q", app.URL, other.Folder)
+			return errors.New(i18n.Tr("docker.urlTaken", i18n.Args{"url": app.URL, "app": other.Folder}))
 		}
 	}
 	return nil
@@ -355,12 +357,12 @@ func prepareApp(ctx context.Context, exe *executor.Executor, stdout io.Writer, a
 		return appPrep{}, err
 	}
 	if !isDockerInstalled(ctx, exe) {
-		return appPrep{}, fmt.Errorf("docker não instalado")
+		return appPrep{}, i18n.NewError("docker.notInstalled")
 	}
 
 	cfg, err := config.Load()
 	if err != nil {
-		return appPrep{}, fmt.Errorf("carregar config: %w", err)
+		return appPrep{}, fmt.Errorf("load config: %w", err)
 	}
 	if err := checkURLUnique(app, cfg.Docker.Apps); err != nil {
 		return appPrep{}, err
@@ -374,7 +376,7 @@ func prepareApp(ctx context.Context, exe *executor.Executor, stdout io.Writer, a
 	prep := appPrep{workspace: workspace}
 	if app.DBAccess {
 		if cfg.Docker.MariaDB.DBUser == "" {
-			return appPrep{}, fmt.Errorf(`nenhum Contêiner MariaDB configurado ainda — crie um em "Gerenciar Docker :: Criar Contêiner MariaDB" antes de habilitar acesso a banco`)
+			return appPrep{}, i18n.NewError("docker.noMariaDBForApp")
 		}
 		prep.dbEnv = dbAccessEnv(cfg.Docker.MariaDB)
 	}
@@ -393,7 +395,7 @@ func prepareApp(ctx context.Context, exe *executor.Executor, stdout io.Writer, a
 	}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return appPrep{}, fmt.Errorf("criar %s: %w", dir, err)
+			return appPrep{}, fmt.Errorf("create %s: %w", dir, err)
 		}
 	}
 	if app.Type == config.AppTypeMoodle {
@@ -425,10 +427,10 @@ const moodleDataMode = 0o750
 // produces a warning.
 func ensureMoodleDataDir(stdout io.Writer, dir string) error {
 	if err := os.MkdirAll(dir, moodleDataMode); err != nil {
-		return fmt.Errorf("criar %s: %w", dir, err)
+		return fmt.Errorf("create %s: %w", dir, err)
 	}
 	if err := os.Chmod(dir, moodleDataMode); err != nil {
-		ui.Warning(stdout, "Não foi possível restringir as permissões de "+dir+": "+err.Error())
+		ui.Warning(stdout, i18n.Tr("docker.run.chmodFailed", i18n.Args{"path": dir, "error": err.Error()}))
 	}
 	return nil
 }
@@ -470,7 +472,7 @@ func CreateApp(ctx context.Context, exe *executor.Executor, stdout io.Writer, ap
 func startAppContainer(ctx context.Context, exe *executor.Executor, stdout io.Writer, app config.AppContainer, prep appPrep) ([]config.AppContainer, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return nil, fmt.Errorf("carregar config: %w", err)
+		return nil, fmt.Errorf("load config: %w", err)
 	}
 	if err := checkURLUnique(app, cfg.Docker.Apps); err != nil {
 		return nil, err
@@ -479,7 +481,7 @@ func startAppContainer(ctx context.Context, exe *executor.Executor, stdout io.Wr
 	workspace := prep.workspace
 	projectDir := AppHTMLDir(workspace, app.Folder)
 	runOpts := executor.Options{Stdout: stdout, Stderr: stdout, Env: prep.dbEnv}
-	ui.Info(stdout, "Criando contêiner "+app.Folder+"...")
+	ui.Info(stdout, i18n.Tr("docker.run.creating", i18n.Args{"name": app.Folder}))
 
 	switch app.Type {
 	case config.AppTypeNode:
@@ -488,7 +490,7 @@ func startAppContainer(ctx context.Context, exe *executor.Executor, stdout io.Wr
 		}
 		args := nodeAppRunArgs(app.Folder, NodeImageName(app.NodeVersion), projectDir, app.DevCommand)
 		if err := exe.Run(ctx, runOpts, "docker", args...); err != nil {
-			return nil, fmt.Errorf("criar contêiner %s: %w", app.Folder, err)
+			return nil, fmt.Errorf("create container %s: %w", app.Folder, err)
 		}
 		removeAppWrappers(app.Folder)
 		writeNodeAppWrappers(app.Folder, projectDir, "", stdout)
@@ -507,7 +509,7 @@ func startAppContainer(ctx context.Context, exe *executor.Executor, stdout io.Wr
 
 		args := comboAppRunArgs(app.Folder, ComboImageName(app.PHPVersion, app.NodeVersion), apiDir, comboAppDir, logDir, phpConfPath, app.DevCommand, app.WorkerCommand, prep.dbEnv)
 		if err := exe.Run(ctx, runOpts, "docker", args...); err != nil {
-			return nil, fmt.Errorf("criar contêiner %s: %w", app.Folder, err)
+			return nil, fmt.Errorf("create container %s: %w", app.Folder, err)
 		}
 		removeAppWrappers(app.Folder)
 		writeAppWrappers(app.Folder, apiDir, stdout)
@@ -529,7 +531,7 @@ func startAppContainer(ctx context.Context, exe *executor.Executor, stdout io.Wr
 
 		args := appRunArgs(app.Folder, ImageName(app.PHPVersion), projectDir, dataDir, logDir, phpConfPath, prep.dbEnv)
 		if err := exe.Run(ctx, runOpts, "docker", args...); err != nil {
-			return nil, fmt.Errorf("criar contêiner %s: %w", app.Folder, err)
+			return nil, fmt.Errorf("create container %s: %w", app.Folder, err)
 		}
 		removeAppWrappers(app.Folder)
 		writeAppWrappers(app.Folder, projectDir, stdout)
@@ -541,7 +543,7 @@ func startAppContainer(ctx context.Context, exe *executor.Executor, stdout io.Wr
 		apps = cfg.Docker.Apps
 		return nil
 	}); err != nil {
-		return nil, fmt.Errorf("contêiner %s criado, mas falha ao salvar configurações (pode ficar órfão da lista): %w", app.Folder, err)
+		return nil, fmt.Errorf("%s: %w", i18n.Tr("docker.createdNotSaved", i18n.Args{"name": app.Folder}), err)
 	}
 
 	return apps, nil
@@ -584,11 +586,11 @@ func UpdateApp(ctx context.Context, exe *executor.Executor, stdout io.Writer, ap
 func registeredApp(folder string) (config.AppContainer, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return config.AppContainer{}, fmt.Errorf("carregar config: %w", err)
+		return config.AppContainer{}, fmt.Errorf("load config: %w", err)
 	}
 	app, found := FindAppByFolder(cfg.Docker.Apps, folder)
 	if !found {
-		return config.AppContainer{}, fmt.Errorf("contêiner aplicativo %q não está registrado em cfg.Docker.Apps", folder)
+		return config.AppContainer{}, errors.New(i18n.Tr("docker.appNotRegistered", i18n.Args{"app": folder}))
 	}
 	// Validated before the running container is removed, so a bad entry
 	// (hand-edited config, an import) does not leave the app down.
@@ -651,10 +653,10 @@ func requireStackContainer(name string) error {
 func requireRegisteredApp(name string) error {
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 	if _, ok := FindAppByFolder(cfg.Docker.Apps, name); !ok {
-		return fmt.Errorf("%q não é um contêiner do Perci", name)
+		return errors.New(i18n.Tr("docker.notPerci", i18n.Args{"name": name}))
 	}
 	return nil
 }
@@ -681,7 +683,7 @@ func DeleteApp(ctx context.Context, exe *executor.Executor, stdout io.Writer, fo
 		apps = cfg.Docker.Apps
 		return nil
 	}); err != nil {
-		return fmt.Errorf("contêiner %s removido, mas falha ao salvar configurações: %w", folder, err)
+		return fmt.Errorf("%s: %w", i18n.Tr("docker.removedNotSaved", i18n.Args{"name": folder}), err)
 	}
 	removeAppWrappers(folder)
 	return ReloadNginxConfig(ctx, exe, stdout, apps)

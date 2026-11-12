@@ -13,27 +13,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Dev Tools :: Plugins Moodle.
+// Docker :: Pastas de Desenvolvimento: a development folder mounted into
+// an app container — a plugin of a Moodle app, or a folder the user names
+// inside the project root of the other app types.
 //
 // Classic script (not a module): shares one global scope with the other
 // scripts under js/.
 "use strict";
 
-// ===========================================================================
-// "Dev Tools :: Plugins Moodle".
-// ===========================================================================
-
 let mpDev = "";
 
-const MP_NO_FOLDER = "Nenhuma pasta selecionada";
+// mpApps holds the apps of the last GetDevFolders, by folder.
+let mpApps = {};
 
-// MP_STATUS maps each mount status to its badge label, color and tooltip.
+// MP_STATUS maps each mount status to the message keys of its badge label
+// and tooltip, and its color.
 const MP_STATUS = {
-  applied: ["Aplicado", "badge-success", "O contêiner do Moodle e o Nginx já enxergam o plugin."],
-  pending: ["Reinício pendente", "badge-warning", "Montado no host. Use \"Reiniciar contêiner\" nesta linha para aplicar."],
-  stopped: ["Contêiner parado", "badge-ghost", "Montado no host. Será aplicado quando o contêiner iniciar."],
-  inactive: ["Montagem inativa", "badge-error", "A montagem no host não está ativa. Remova e crie de novo."],
-  missing: ["Contêiner não encontrado", "badge-error", "O contêiner deste Moodle não existe mais."],
+  applied: ["devfolders.status.applied", "badge-success", "devfolders.status.appliedHint"],
+  pending: ["devfolders.status.pending", "badge-warning", "devfolders.status.pendingHint"],
+  stopped: ["devfolders.status.stopped", "badge-ghost", "devfolders.status.stoppedHint"],
+  inactive: ["devfolders.status.inactive", "badge-error", "devfolders.status.inactiveHint"],
+  missing: ["devfolders.status.missing", "badge-error", "devfolders.status.missingHint"],
 };
 
 // setMpStatus shows text in the status alert with the daisyUI alert kind
@@ -66,6 +66,28 @@ function fillMpSelect(select, options, placeholder) {
   if (options.some(function (o) { return o.value === previous; })) select.value = previous;
 }
 
+// mpIsMoodle reports whether the selected app is a Moodle app (plugin type
+// and name) rather than one taking a destination folder.
+function mpIsMoodle() {
+  const app = mpApps[mpApp.value];
+  return !!app && app.type === "moodle";
+}
+
+// showMpFields shows the plugin fields for a Moodle app and the destination
+// field for the others, with the hint of where the destination is relative
+// to.
+function showMpFields() {
+  const app = mpApps[mpApp.value];
+  const moodle = mpIsMoodle();
+  mpMoodleFields.classList.toggle("hidden", !app || !moodle);
+  mpDestField.classList.toggle("hidden", !app || moodle);
+  if (app && !moodle) {
+    mpDestHint.textContent = app.type === "php_node"
+      ? t("devfolders.destHintCombo", { root: app.root })
+      : t("devfolders.destHint", { root: app.root });
+  }
+}
+
 // setMpLocked locks the type/name fields to the values read from the
 // development folder's version.php, or unlocks them.
 function setMpLocked(check) {
@@ -76,7 +98,7 @@ function setMpLocked(check) {
     }
     mpType.value = check.type;
     mpName.value = check.name;
-    mpLocked.textContent = "Tipo e nome lidos do version.php da pasta de desenvolvimento: " + check.type + "_" + check.name + ".";
+    mpLocked.textContent = t("devfolders.locked", { component: check.type + "_" + check.name });
   }
   mpType.disabled = locked;
   mpName.disabled = locked;
@@ -94,10 +116,10 @@ function checkMpForm() {
     setMpStatus("", "");
     return;
   }
-  App.InspectMoodlePlugin(mpDev, mpApp.value, mpType.value, mpName.value.trim()).then(latestOnly("moodleplugins-check", function (check) {
+  App.InspectDevFolder(mpDev, mpApp.value, mpType.value, mpName.value.trim(), mpDest.value.trim()).then(latestOnly("moodleplugins-check", function (check) {
     setMpLocked(check);
     if (check.ok) {
-      setMpStatus("Será montado em: " + check.destLabel, "info");
+      setMpStatus(t("devfolders.willMount", { dest: check.destLabel }), "info");
       btnMpCreate.disabled = running;
       return;
     }
@@ -105,25 +127,25 @@ function checkMpForm() {
   })).catch(function (err) { setMpStatus(String(err), "error"); });
 }
 
-// loadMpTypes fills "Tipo do plugin" with the types the selected Moodle
-// accepts.
+// loadMpTypes shows the fields of the selected app and, for a Moodle app,
+// fills "Tipo do plugin" with the types it accepts.
 function loadMpTypes() {
-  if (!mpApp.value) {
-    fillMpSelect(mpType, [], "Selecione o Moodle");
+  showMpFields();
+  if (!mpIsMoodle()) {
     checkMpForm();
     return;
   }
   App.GetMoodlePluginTypes(mpApp.value).then(latestOnly("moodleplugins-types", function (types) {
-    fillMpSelect(mpType, (types || []).map(function (t) { return { value: t, label: t }; }), "Selecione o tipo");
+    fillMpSelect(mpType, (types || []).map(function (ty) { return { value: ty, label: ty }; }), t("devfolders.chooseType"));
     checkMpForm();
   })).catch(function (err) {
-    fillMpSelect(mpType, [], "Tipos indisponíveis");
+    fillMpSelect(mpType, [], t("devfolders.noTypes"));
     setMpStatus(String(err), "error");
   });
 }
 
 btnMpPickDev.addEventListener("click", function () {
-  App.PickMoodlePluginDevFolder().then(function (path) {
+  App.PickDevFolder().then(function (path) {
     if (!path) return; // user cancelled the dialog
     mpDev = path;
     mpDevPath.textContent = path;
@@ -134,35 +156,39 @@ btnMpPickDev.addEventListener("click", function () {
 mpApp.addEventListener("change", loadMpTypes);
 mpType.addEventListener("change", checkMpForm);
 
-// Typing in "Nome" asks the backend only once the typing pauses.
+// Typing in "Nome" or "Destino" asks the backend only once the typing
+// pauses.
 const MP_CHECK_DEBOUNCE_MS = 250;
 let mpCheckTimer = null;
-mpName.addEventListener("input", function () {
+function checkMpFormLater() {
   btnMpCreate.disabled = true;
   clearTimeout(mpCheckTimer);
   mpCheckTimer = setTimeout(checkMpForm, MP_CHECK_DEBOUNCE_MS);
-});
+}
+mpName.addEventListener("input", checkMpFormLater);
+mpDest.addEventListener("input", checkMpFormLater);
 
 btnMpCreate.addEventListener("click", function () {
   if (running || !mpDev) return;
-  beginRun("Montar plugin Moodle", function () {
-    return App.AddMoodlePlugin(mpDev, mpApp.value, mpType.value, mpName.value.trim());
+  beginRun(t("devfolders.run.mount"), function () {
+    return App.AddDevFolder(mpDev, mpApp.value, mpType.value, mpName.value.trim(), mpDest.value.trim());
   }, { buttons: [btnMpCreate] });
 });
 
-// buildMpRow returns the table row for one mounted plugin.
+// buildMpRow returns the table row for one mounted folder.
 function buildMpRow(row) {
   const tr = document.createElement("tr");
+  const name = row.component || row.destLabel;
 
-  const tdPlugin = document.createElement("td");
-  tdPlugin.textContent = row.component;
+  const tdName = document.createElement("td");
+  tdName.textContent = name;
   if (row.declaredAs) {
     const warn = document.createElement("div");
     warn.className = "text-xs text-warning";
-    warn.textContent = "version.php declara " + row.declaredAs;
-    tdPlugin.appendChild(warn);
+    warn.textContent = t("devfolders.declares", { component: row.declaredAs });
+    tdName.appendChild(warn);
   }
-  tr.appendChild(tdPlugin);
+  tr.appendChild(tdName);
 
   const tdApp = document.createElement("td");
   tdApp.textContent = row.appLabel;
@@ -175,12 +201,12 @@ function buildMpRow(row) {
   tdDev.title = row.devPath;
   tr.appendChild(tdDev);
 
-  const info = MP_STATUS[row.status] || [row.status, "badge-ghost", ""];
+  const info = MP_STATUS[row.status];
   const tdStatus = document.createElement("td");
   const badge = document.createElement("span");
-  badge.className = "badge badge-sm whitespace-nowrap " + info[1];
-  badge.textContent = info[0];
-  badge.title = info[2];
+  badge.className = "badge badge-sm whitespace-nowrap " + (info ? info[1] : "badge-ghost");
+  badge.textContent = info ? t(info[0]) : row.status;
+  badge.title = info ? t(info[2]) : "";
   tdStatus.appendChild(badge);
   tr.appendChild(tdStatus);
 
@@ -188,19 +214,19 @@ function buildMpRow(row) {
   const wrap = document.createElement("div");
   wrap.className = "flex gap-1";
 
-  const btnRestart = iconButton("refreshCw", "Reiniciar contêiner");
+  const btnRestart = iconButton("refreshCw", t("devfolders.restart"));
   btnRestart.addEventListener("click", function () {
-    beginRun("Reiniciar " + row.appLabel, function () { return App.ApplyMoodlePlugins(row.app); });
+    beginRun(t("devfolders.run.restart", { app: row.appLabel }), function () { return App.ApplyDevFolders(row.app); });
   });
   wrap.appendChild(btnRestart);
 
-  const btnRemove = iconButton("trash2", "Remover");
+  const btnRemove = iconButton("trash2", t("devfolders.remove"));
   btnRemove.addEventListener("click", function () {
     if (running) return;
-    openConfirm("Remover plugin montado",
-      'Desmontar "' + row.component + '" do Moodle ' + row.appLabel + "? A pasta de desenvolvimento não é alterada, e os contêineres do Moodle e do Nginx serão reiniciados.",
+    openConfirm(t("devfolders.removeTitle"),
+      t("devfolders.removeConfirm", { name: name, app: row.appLabel }),
       function () {
-        beginRun("Remover " + row.component, function () { return App.RemoveMoodlePlugin(row.app, row.relPath); });
+        beginRun(t("devfolders.run.remove", { name: name }), function () { return App.RemoveDevFolder(row.app, row.relPath); });
       });
   });
   wrap.appendChild(btnRemove);
@@ -210,33 +236,37 @@ function buildMpRow(row) {
   return tr;
 }
 
-// loadMpRows fills the table with every mounted plugin and its status.
+// showMpRows fills the table with the mounted folders of screen.
+function showMpRows(screen) {
+  mpRows.innerHTML = "";
+  const rows = screen.rows || [];
+  rows.forEach(function (row) { mpRows.appendChild(buildMpRow(row)); });
+  mpEmpty.classList.toggle("hidden", rows.length > 0);
+}
+
+// loadMpRows fills the table with every mounted folder and its status.
 function loadMpRows() {
-  App.GetMoodlePlugins().then(latestOnly("moodleplugins-rows", function (screen) {
-    mpRows.innerHTML = "";
-    const rows = screen.rows || [];
-    rows.forEach(function (row) { mpRows.appendChild(buildMpRow(row)); });
-    mpEmpty.classList.toggle("hidden", rows.length > 0);
-  })).catch(function (err) { openError("Falha ao listar os plugins montados: " + err); });
+  App.GetDevFolders().then(latestOnly("moodleplugins-rows", showMpRows))
+    .catch(function (err) { openError(t("devfolders.listFailed", { error: err })); });
 }
 
 function renderMoodlePluginsScreen() {
   mpDev = "";
-  mpDevPath.textContent = MP_NO_FOLDER;
+  mpDevPath.textContent = t("devfolders.noFolder");
   mpDevPath.classList.add("opacity-60");
   mpName.value = "";
+  mpDest.value = "";
   setMpLocked(null);
   setMpStatus("", "");
   btnMpCreate.disabled = true;
-  App.GetMoodlePlugins().then(latestOnly("moodleplugins-screen", function (screen) {
+  App.GetDevFolders().then(latestOnly("moodleplugins-screen", function (screen) {
+    mpApps = {};
+    (screen.apps || []).forEach(function (a) { mpApps[a.folder] = a; });
     const apps = (screen.apps || []).map(function (a) { return { value: a.folder, label: a.label }; });
-    fillMpSelect(mpApp, apps, apps.length ? "" : "Nenhum contêiner Moodle — crie em Docker → Criar Contêiner");
+    fillMpSelect(mpApp, apps, apps.length ? "" : t("devfolders.noApps"));
     if (apps.length && !mpApp.value) mpApp.value = apps[0].value;
     mpApp.disabled = !apps.length;
     loadMpTypes();
-    mpRows.innerHTML = "";
-    const rows = screen.rows || [];
-    rows.forEach(function (row) { mpRows.appendChild(buildMpRow(row)); });
-    mpEmpty.classList.toggle("hidden", rows.length > 0);
-  })).catch(function (err) { openError("Falha ao carregar a tela Plugins Moodle: " + err); });
+    showMpRows(screen);
+  })).catch(function (err) { openError(t("devfolders.loadFailed", { error: err })); });
 }

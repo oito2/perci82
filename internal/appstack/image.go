@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -27,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -260,7 +262,7 @@ const phpImageDockerfile = "ARG PHP_VERSION=8.1\n" + phpImageBody
 // image without a permission mismatch on the bind-mounted html folder.
 func EnsureImage(ctx context.Context, exe *executor.Executor, stdout io.Writer, version string) error {
 	if !ValidPHPVersion(version) {
-		return fmt.Errorf("versão PHP não suportada: %s", version)
+		return errors.New(i18n.Tr("docker.badPHPVersion", i18n.Args{"version": version}))
 	}
 	return ensureImage(ctx, exe, stdout, phpImageBuild(version))
 }
@@ -269,7 +271,7 @@ func EnsureImage(ctx context.Context, exe *executor.Executor, stdout io.Writer, 
 func phpImageBuild(version string) imageBuild {
 	return imageBuild{
 		name:  ImageName(version),
-		first: "primeira vez que a versão " + version + " é usada",
+		first: i18n.Tr("docker.firstPHP", i18n.Args{"version": version}),
 		files: map[string]string{"Dockerfile": phpImageDockerfile, "php.ini": phpIni},
 		args:  []string{"PHP_VERSION=" + version, fmt.Sprintf("UID=%d", os.Getuid())},
 		bases: []string{"php:" + version + "-fpm"},
@@ -282,12 +284,12 @@ func phpImageBuild(version string) imageBuild {
 func buildImage(ctx context.Context, exe *executor.Executor, stdout io.Writer, b imageBuild) error {
 	buildDir, err := os.MkdirTemp("", "perci-appstack-image-*")
 	if err != nil {
-		return fmt.Errorf("criar diretório de build temporário: %w", err)
+		return fmt.Errorf("create the temporary build folder: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(buildDir) }()
 	for n, content := range b.files {
 		if err := os.WriteFile(filepath.Join(buildDir, n), []byte(content), 0o644); err != nil {
-			return fmt.Errorf("escrever %s: %w", n, err)
+			return fmt.Errorf("write %s: %w", n, err)
 		}
 	}
 
@@ -297,7 +299,7 @@ func buildImage(ctx context.Context, exe *executor.Executor, stdout io.Writer, b
 	}
 	args = append(args, "--", buildDir)
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "docker", args...); err != nil {
-		return fmt.Errorf("construir imagem %s: %w", b.name, err)
+		return fmt.Errorf("build image %s: %w", b.name, err)
 	}
 	return nil
 }
@@ -352,15 +354,15 @@ func ensureImage(ctx context.Context, exe *executor.Executor, stdout io.Writer, 
 	}
 
 	if rebuild {
-		ui.Warning(stdout, "A imagem "+b.name+" foi construída por outra versão do Perci — reconstruindo com a configuração atual (pode levar alguns minutos)...")
+		ui.Warning(stdout, i18n.Tr("docker.run.imageOutdated", i18n.Args{"image": b.name}))
 	} else {
-		ui.Info(stdout, "Construindo imagem "+b.name+" ("+b.first+" — pode levar alguns minutos)...")
+		ui.Info(stdout, i18n.Tr("docker.run.imageBuild", i18n.Args{"image": b.name, "reason": b.first}))
 	}
 	if err := buildImage(ctx, exe, stdout, b); err != nil {
 		return err
 	}
 	if names := strings.Fields(users); len(names) > 0 {
-		ui.Warning(stdout, "Estes contêineres continuam na imagem antiga até serem recriados (Docker → Gerenciar Containers → Recriar): "+strings.Join(names, ", "))
+		ui.Warning(stdout, i18n.Tr("docker.run.oldImage", i18n.Args{"names": strings.Join(names, ", ")}))
 	}
 	return nil
 }
@@ -372,7 +374,7 @@ func ensureImage(ctx context.Context, exe *executor.Executor, stdout io.Writer, 
 func PHPConfDir(folder string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("obter diretório home: %w", err)
+		return "", fmt.Errorf("get home folder: %w", err)
 	}
 	return filepath.Join(home, ".perci", "appstack", "php-conf", folder), nil
 }
@@ -393,7 +395,7 @@ func WritePHPMemoryLimitConf(folder, memoryLimit string) (string, error) {
 	// memoryLimit is validated here too, since it is interpolated verbatim
 	// into an .ini file loaded by php-fpm inside the container.
 	if memoryLimit != "" && !ValidPHPMemoryLimit.MatchString(memoryLimit) {
-		return "", fmt.Errorf("limite de memória PHP inválido: %s", memoryLimit)
+		return "", errors.New(i18n.Tr("docker.badMemoryLimit", i18n.Args{"value": memoryLimit}))
 	}
 
 	dir, err := PHPConfDir(folder)
@@ -401,7 +403,7 @@ func WritePHPMemoryLimitConf(folder, memoryLimit string) (string, error) {
 		return "", err
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("criar %s: %w", dir, err)
+		return "", fmt.Errorf("create %s: %w", dir, err)
 	}
 	if memoryLimit == "" {
 		memoryLimit = DefaultPHPMemoryLimit
@@ -409,7 +411,7 @@ func WritePHPMemoryLimitConf(folder, memoryLimit string) (string, error) {
 	path := filepath.Join(dir, phpMemoryLimitOverrideFile)
 	content := "memory_limit = " + memoryLimit + "\n"
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return "", fmt.Errorf("escrever %s: %w", path, err)
+		return "", fmt.Errorf("write %s: %w", path, err)
 	}
 	return path, nil
 }

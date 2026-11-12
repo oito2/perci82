@@ -17,11 +17,13 @@ package appstack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // SupportedNodeVersions is the list AppTypeNode/AppTypePHPNode containers
@@ -86,7 +88,7 @@ WORKDIR /app
 // of date, with the same rules as EnsureImage (see ensureImage).
 func EnsureNodeImage(ctx context.Context, exe *executor.Executor, stdout io.Writer, version string) error {
 	if !ValidNodeVersion(version) {
-		return fmt.Errorf("versão Node não suportada: %s", version)
+		return errors.New(i18n.Tr("docker.badNodeVersion", i18n.Args{"version": version}))
 	}
 	return ensureImage(ctx, exe, stdout, nodeImageBuild(version))
 }
@@ -95,7 +97,7 @@ func EnsureNodeImage(ctx context.Context, exe *executor.Executor, stdout io.Writ
 func nodeImageBuild(version string) imageBuild {
 	return imageBuild{
 		name:  NodeImageName(version),
-		first: "primeira vez que a versão Node " + version + " é usada",
+		first: i18n.Tr("docker.firstNode", i18n.Args{"version": version}),
 		files: map[string]string{"Dockerfile": nodeDockerfile},
 		args:  []string{"NODE_VERSION=" + version, fmt.Sprintf("UID=%d", os.Getuid())},
 		bases: []string{"node:" + version + "-bookworm"},

@@ -267,7 +267,7 @@ function resetGtImport() {
   gtImportPath = "";
   gtFolders = {};
   gtImportRows = [];
-  gtImportPathEl.textContent = TRANSFER_NO_FILE;
+  gtImportPathEl.textContent = transferNoFile();
   gtImportPathEl.classList.add("opacity-60");
   gtImportList.innerHTML = "";
   showGtNotes(gtImportNote, gtImportNoteText, []);

@@ -15,12 +15,12 @@
 
 package gui
 
-// Bound methods for "Dev Tools :: Plugins Moodle" — a thin layer over the
-// Moodle plugin mounts of internal/appstack.
+// Bound methods for "Docker :: Pastas de Desenvolvimento" — a thin layer
+// over the development folder mounts of internal/appstack.
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"path/filepath"
 	"sort"
@@ -30,25 +30,31 @@ import (
 
 	"github.com/oito2/perci82/internal/appstack"
 	"github.com/oito2/perci82/internal/config"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
-// DevToolsService binds the "Dev Tools" category: Plugins Moodle,
+// DevToolsService binds Pastas de Desenvolvimento,
 // IA: Contextos, IA: SKILLs, IA: MCPs — one struct, with one group of
 // methods per sub-screen.
 type DevToolsService struct {
 	serviceBase
 }
 
-// MoodleAppOption is one Moodle container offered by the screen.
-type MoodleAppOption struct {
+// DevFolderApp is one app container offered by the screen. Type is the
+// app's config.AppType*; Root is where a destination is relative to
+// (the app's project root on the host, relative to the workspace).
+type DevFolderApp struct {
 	Folder string `json:"folder"`
 	Label  string `json:"label"`
+	Type   string `json:"type"`
+	Root   string `json:"root"`
 }
 
-// MoodlePluginRow is one mounted plugin. Status is one of the
-// appstack.Plugin* values; DeclaredAs is set when the development folder's
-// version.php declares another component.
-type MoodlePluginRow struct {
+// DevFolderRow is one mounted folder. Component is the Moodle plugin's
+// component, empty for a folder mounted into another app type. Status is
+// one of the appstack.Plugin* values; DeclaredAs is set when a Moodle
+// plugin's development folder declares another component.
+type DevFolderRow struct {
 	App        string `json:"app"`
 	AppLabel   string `json:"appLabel"`
 	Component  string `json:"component"`
@@ -60,17 +66,17 @@ type MoodlePluginRow struct {
 	DeclaredAs string `json:"declaredAs"`
 }
 
-// MoodlePluginsScreen is everything the screen lists.
-type MoodlePluginsScreen struct {
-	Apps []MoodleAppOption `json:"apps"`
-	Rows []MoodlePluginRow `json:"rows"`
+// DevFoldersScreen is everything the screen lists.
+type DevFoldersScreen struct {
+	Apps []DevFolderApp `json:"apps"`
+	Rows []DevFolderRow `json:"rows"`
 }
 
-// MoodlePluginCheck is the result of checking the form: Locked means the
-// type and name came from the development folder's version.php; OK means
-// Criar can run and the plugin will appear at DestLabel; otherwise Message
-// says why not.
-type MoodlePluginCheck struct {
+// DevFolderCheck is the result of checking the form: Locked means the
+// Moodle plugin's type and name came from the development folder's
+// version.php; OK means Criar can run and the folder will appear at
+// DestLabel; otherwise Message says why not.
+type DevFolderCheck struct {
 	Locked    bool   `json:"locked"`
 	Type      string `json:"type"`
 	Name      string `json:"name"`
@@ -79,36 +85,37 @@ type MoodlePluginCheck struct {
 	Message   string `json:"message"`
 }
 
-// moodleAppLabel is "Name (folder)", or the folder alone when they match.
-func moodleAppLabel(a config.AppContainer) string {
+// appLabel is "Name (folder)", or the folder alone when they match.
+func appLabel(a config.AppContainer) string {
 	if a.Name == "" || a.Name == a.Folder {
 		return a.Folder
 	}
 	return a.Name + " (" + a.Folder + ")"
 }
 
-// GetMoodlePlugins lists the Moodle containers and every mounted plugin
-// with its current status.
-func (t *DevToolsService) GetMoodlePlugins() (MoodlePluginsScreen, error) {
+// GetDevFolders lists the app containers and every mounted folder with its
+// current status.
+func (t *DevToolsService) GetDevFolders() (DevFoldersScreen, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return MoodlePluginsScreen{}, err
+		return DevFoldersScreen{}, err
 	}
-	screen := MoodlePluginsScreen{Apps: []MoodleAppOption{}, Rows: []MoodlePluginRow{}}
+	screen := DevFoldersScreen{Apps: []DevFolderApp{}, Rows: []DevFolderRow{}}
 	labels := map[string]string{}
-	for _, a := range appstack.MoodleApps(cfg.Docker.Apps) {
-		labels[a.Folder] = moodleAppLabel(a)
-		screen.Apps = append(screen.Apps, MoodleAppOption{Folder: a.Folder, Label: labels[a.Folder]})
-	}
 	workspace, _ := cfg.Workspace()
+	for _, a := range cfg.Docker.Apps {
+		labels[a.Folder] = appLabel(a)
+		root := relativeToWorkspace(workspace, appstack.AppHTMLDir(workspace, a.Folder))
+		screen.Apps = append(screen.Apps, DevFolderApp{Folder: a.Folder, Label: labels[a.Folder], Type: a.Type, Root: root})
+	}
 	for _, st := range appstack.MoodlePluginStatuses(context.Background(), t.exe, cfg) {
-		appLabel := labels[st.App]
-		if appLabel == "" {
-			appLabel = st.App
+		label := labels[st.App]
+		if label == "" {
+			label = st.App
 		}
-		screen.Rows = append(screen.Rows, MoodlePluginRow{
+		screen.Rows = append(screen.Rows, DevFolderRow{
 			App:        st.App,
-			AppLabel:   appLabel,
+			AppLabel:   label,
 			Component:  st.Component,
 			DevPath:    st.DevPath,
 			DevLabel:   relativeToWorkspace(workspace, st.DevPath),
@@ -137,10 +144,10 @@ func relativeToWorkspace(workspace, path string) string {
 	return rel
 }
 
-// PickMoodlePluginDevFolder opens the native folder picker for the
-// plugin's development folder.
-func (t *DevToolsService) PickMoodlePluginDevFolder() (string, error) {
-	return t.pickFolder("Selecionar a pasta de desenvolvimento do plugin")
+// PickDevFolder opens the native folder picker for the development
+// folder.
+func (t *DevToolsService) PickDevFolder() (string, error) {
+	return t.pickFolder(i18n.Tr("devfolder.pickTitle", nil))
 }
 
 // GetMoodlePluginTypes lists, sorted, the plugin types the Moodle in
@@ -155,7 +162,7 @@ func (t *DevToolsService) GetMoodlePluginTypes(folder string) ([]string, error) 
 		return nil, err
 	}
 	if app, found := appstack.FindAppByFolder(cfg.Docker.Apps, folder); !found || app.Type != config.AppTypeMoodle {
-		return nil, fmt.Errorf("%q não é um contêiner Moodle do Perci", folder)
+		return nil, errors.New(i18n.Tr("devfolder.notMoodle", i18n.Args{"app": folder}))
 	}
 	types, err := appstack.MoodlePluginTypes(workspace, folder)
 	if err != nil {
@@ -178,29 +185,35 @@ func requireDevFolder(dev string) error {
 	return requireApprovedPath(dev)
 }
 
-// InspectMoodlePlugin checks the form. When dev/version.php declares a
-// component, its type and name replace ptype and name.
-func (t *DevToolsService) InspectMoodlePlugin(dev, folder, ptype, name string) (MoodlePluginCheck, error) {
+// InspectDevFolder checks the form: ptype and name for a Moodle app (when
+// dev/version.php declares a component, its type and name replace them),
+// relPath for the other app types.
+func (t *DevToolsService) InspectDevFolder(dev, folder, ptype, name, relPath string) (DevFolderCheck, error) {
 	if err := requireDevFolder(dev); err != nil {
-		return MoodlePluginCheck{}, err
-	}
-	check := MoodlePluginCheck{Type: ptype, Name: name}
-	if declType, declName := appstack.DevPluginComponent(dev); declType != "" {
-		check.Locked, check.Type, check.Name = true, declType, declName
-	}
-	switch {
-	case folder == "":
-		check.Message = "Selecione o Moodle."
-		return check, nil
-	case check.Type == "" || check.Name == "":
-		check.Message = "Informe o tipo e o nome do plugin."
-		return check, nil
+		return DevFolderCheck{}, err
 	}
 	cfg, err := config.Load()
 	if err != nil {
-		return check, err
+		return DevFolderCheck{}, err
 	}
-	plan, err := appstack.PlanMoodlePlugin(cfg, dev, folder, check.Type, check.Name)
+	check := DevFolderCheck{Type: ptype, Name: name}
+	if folder == "" {
+		check.Message = i18n.Tr("devfolder.chooseApp", nil)
+		return check, nil
+	}
+	app, found := appstack.FindAppByFolder(cfg.Docker.Apps, folder)
+	moodle := found && app.Type == config.AppTypeMoodle
+	if moodle {
+		if declType, declName := appstack.DevPluginComponent(dev); declType != "" {
+			check.Locked, check.Type, check.Name = true, declType, declName
+		}
+		if check.Type == "" || check.Name == "" {
+			check.Message = i18n.Tr("devfolder.enterPlugin", nil)
+			return check, nil
+		}
+	}
+	target := appstack.DevFolderTarget{PluginType: check.Type, PluginName: check.Name, RelPath: relPath}
+	plan, err := appstack.PlanDevFolder(cfg, dev, folder, target)
 	if err != nil {
 		check.Message = capitalizeFirst(err.Error())
 		return check, nil
@@ -216,30 +229,31 @@ func capitalizeFirst(s string) string {
 	return string(unicode.ToUpper(r)) + s[size:]
 }
 
-// AddMoodlePlugin mounts dev as the plugin ptype_name in the Moodle in
-// folder (one password prompt).
-func (t *DevToolsService) AddMoodlePlugin(dev, folder, ptype, name string) error {
+// AddDevFolder mounts dev into the app in folder (one password prompt): as
+// the plugin ptype_name in a Moodle app, at relPath in the other apps.
+func (t *DevToolsService) AddDevFolder(dev, folder, ptype, name, relPath string) error {
 	if err := requireDevFolder(dev); err != nil {
 		return err
 	}
+	target := appstack.DevFolderTarget{PluginType: ptype, PluginName: name, RelPath: relPath}
 	return t.runAction(func(stdout io.Writer) error {
-		return appstack.AddMoodlePlugin(context.Background(), t.exe, stdout, dev, folder, ptype, name)
+		return appstack.AddDevFolder(context.Background(), t.exe, stdout, dev, folder, target)
 	})
 }
 
-// ApplyMoodlePlugins restarts the Moodle container in folder and Nginx so
-// they see the current plugin mounts.
-func (t *DevToolsService) ApplyMoodlePlugins(folder string) error {
+// ApplyDevFolders restarts the app container in folder (and Nginx, for an
+// app it serves) so they see the current mounts.
+func (t *DevToolsService) ApplyDevFolders(folder string) error {
 	return t.runAction(func(stdout io.Writer) error {
-		return appstack.ApplyMoodlePlugins(context.Background(), t.exe, stdout, folder)
+		return appstack.ApplyDevFolders(context.Background(), t.exe, stdout, folder)
 	})
 }
 
-// RemoveMoodlePlugin unmounts the recorded plugin at relPath in the Moodle
-// in folder (one password prompt) and restarts the containers. Only a
+// RemoveDevFolder unmounts the recorded folder at relPath in the app in
+// folder (one password prompt) and restarts the containers. Only a
 // recorded mount is accepted; the development folder is never touched.
-func (t *DevToolsService) RemoveMoodlePlugin(folder, relPath string) error {
+func (t *DevToolsService) RemoveDevFolder(folder, relPath string) error {
 	return t.runAction(func(stdout io.Writer) error {
-		return appstack.RemoveMoodlePlugin(context.Background(), t.exe, stdout, folder, relPath)
+		return appstack.RemoveDevFolder(context.Background(), t.exe, stdout, folder, relPath)
 	})
 }

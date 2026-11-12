@@ -269,7 +269,7 @@ var devCatalog = []sectionDef{
 			// contêiner" select with per-type fields; Nginx/MariaDB are
 			// disabled once they exist (singletons).
 			Title:    "nav.dockerCreate",
-			Desc:     "Crie um novo contêiner Nginx, MariaDB ou Aplicativo (Moodle, PHP, Genérico, Node ou PHP + Node).",
+			Desc:     "nav.dockerCreate.desc",
 			ActionID: "docker-create",
 			Tab:      "nav.tab.newContainer",
 		},
@@ -277,24 +277,24 @@ var devCatalog = []sectionDef{
 			// "gerenciar containers" mode (#dockerlist-container): a table
 			// with live status and per-row actions.
 			Title:    "nav.dockerManage",
-			Desc:     "Inicie, pare, reinicie, recrie, veja logs, edite ou remova os contêineres Docker do Perci.",
+			Desc:     "nav.dockerManage.desc",
 			ActionID: "docker-manage",
 			Tab:      "nav.tab.containers",
 		},
 		{
-			// "plugins moodle" mode (#moodleplugins-container): a plugin
-			// folder mounted into a Moodle container, plus the
-			// "Montados" inner tab.
-			Title:    "nav.moodlePlugins",
-			Desc:     "Monte a pasta de desenvolvimento de um plugin dentro dos contêineres Moodle do Perci.",
+			// "pastas de desenvolvimento" mode (#moodleplugins-container):
+			// a development folder mounted into an app container, plus the
+			// "Pastas montadas" inner tab.
+			Title:    "nav.devFolders",
+			Desc:     "nav.devFolders.desc",
 			ActionID: "moodleplugins",
-			Tab:      "nav.moodlePlugins",
+			Tab:      "nav.devFolders",
 		},
 		{
 			// "exportar/importar" mode (#transfer-container), plus the
 			// "Importar" inner tab.
 			Title:    "nav.exportImport",
-			Desc:     "Exporte ou importe os contêineres Docker e os plugins Moodle montados, escolhendo os itens.",
+			Desc:     "nav.exportImport.desc",
 			ActionID: "docker-transfer",
 			Tab:      "nav.tab.export",
 		},

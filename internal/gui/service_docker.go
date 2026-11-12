@@ -21,6 +21,7 @@ package gui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -31,6 +32,7 @@ import (
 	"github.com/oito2/perci82/internal/appstack"
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/manager/db"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -161,19 +163,19 @@ func (s *DockerService) CreateDockerContainer(req ContainerFormRequest) error {
 		switch {
 		case req.Kind == kindNginx:
 			if appstack.NginxExists(context.Background(), s.exe) {
-				return fmt.Errorf("o contêiner Nginx já existe")
+				return errors.New(i18n.Tr("docker.exists", i18n.Args{"name": "Nginx"}))
 			}
 			_, err := appstack.CreateNginx(context.Background(), s.exe, nil, stdout)
 			return err
 		case req.Kind == kindMariaDB:
 			if appstack.MariaDBExists(context.Background(), s.exe) {
-				return fmt.Errorf("o contêiner MariaDB já existe")
+				return errors.New(i18n.Tr("docker.exists", i18n.Args{"name": "MariaDB"}))
 			}
 			return appstack.CreateMariaDB(context.Background(), s.exe, stdout, req.DBUser, req.DBPass)
 		case isAppKind(req.Kind):
 			return appstack.CreateApp(context.Background(), s.exe, stdout, req.toAppContainer())
 		default:
-			return fmt.Errorf("tipo de contêiner desconhecido: %s", req.Kind)
+			return fmt.Errorf("unknown container type: %s", req.Kind)
 		}
 	})
 }
@@ -260,7 +262,7 @@ func (s *DockerService) GetContainerForEdit(kind, folder string) (ContainerFormR
 	case kindApp:
 		app, found := appstack.FindAppByFolder(cfg.Docker.Apps, folder)
 		if !found {
-			return ContainerFormRequest{}, fmt.Errorf("contêiner aplicativo %q não encontrado", folder)
+			return ContainerFormRequest{}, errors.New(i18n.Tr("docker.appNotRegistered", i18n.Args{"app": folder}))
 		}
 		return ContainerFormRequest{
 			Kind: app.Type, Name: app.Name, Folder: app.Folder, URL: app.URL,
@@ -269,7 +271,7 @@ func (s *DockerService) GetContainerForEdit(kind, folder string) (ContainerFormR
 			PHPMemoryLimit: app.PHPMemoryLimit, WorkerCommand: app.WorkerCommand,
 		}, nil
 	}
-	return ContainerFormRequest{}, fmt.Errorf("tipo sem edição: %s", kind)
+	return ContainerFormRequest{}, fmt.Errorf("type without editing: %s", kind)
 }
 
 // UpdateDockerContainer applies an edit by removing and recreating the
@@ -297,7 +299,7 @@ func (s *DockerService) UpdateDockerContainer(req ContainerFormRequest) error {
 			// invalid input or a failed build must not leave the app down.
 			return appstack.UpdateApp(ctx, s.exe, stdout, req.toAppContainer())
 		default:
-			return fmt.Errorf("tipo sem edição: %s", req.Kind)
+			return fmt.Errorf("type without editing: %s", req.Kind)
 		}
 	})
 }
@@ -342,7 +344,7 @@ func (s *DockerService) RemoveDockerContainer(kind, folder string) error {
 		case kindApp:
 			return appstack.DeleteApp(ctx, s.exe, io.Discard, folder)
 		}
-		return fmt.Errorf("tipo desconhecido: %s", kind)
+		return fmt.Errorf("unknown type: %s", kind)
 	})
 }
 
@@ -361,7 +363,7 @@ func (s *DockerService) RecreateDockerContainer(kind, folder string) error {
 		case kindApp:
 			return appstack.RecreateApp(ctx, s.exe, stdout, folder)
 		}
-		return fmt.Errorf("tipo desconhecido: %s", kind)
+		return fmt.Errorf("unknown type: %s", kind)
 	})
 }
 
@@ -385,7 +387,7 @@ func (s *DockerService) UpdateDockerContainerImage(kind, folder string) error {
 			}
 			target = t
 		default:
-			return fmt.Errorf("tipo desconhecido: %s", kind)
+			return fmt.Errorf("unknown type: %s", kind)
 		}
 		return s.updateImages(stdout, target)
 	})
@@ -414,12 +416,12 @@ func (s *DockerService) updateImages(stdout io.Writer, target appstack.ImageUpda
 		return err
 	}
 	if plan.Empty() {
-		ui.Success(stdout, "Tudo já está na versão mais recente — nenhum contêiner foi recriado.")
+		ui.Success(stdout, i18n.Tr("docker.run.allCurrent", nil))
 		return nil
 	}
 	if plan.MariaDB {
 		if appstack.ContainerStatus(ctx, s.exe, appstack.MariaDBContainerName) != "running" {
-			return fmt.Errorf("o MariaDB precisa estar rodando para o backup automático antes da atualização — inicie-o e tente de novo")
+			return i18n.NewError("docker.mariadbMustRun")
 		}
 		cfg, err := config.Load()
 		if err != nil {
@@ -431,13 +433,13 @@ func (s *DockerService) updateImages(stdout io.Writer, target appstack.ImageUpda
 		}
 		dest := filepath.Join(dir, "mariadb-antes-da-atualizacao-"+time.Now().Format("2006-01-02-150405")+".sql")
 		if err := db.Backup(ctx, s.exe, stdout, appstack.MariaDBContainerName, cfg.Docker.MariaDB.DBUser, cfg.Docker.MariaDB.DBPass, dest); err != nil {
-			return fmt.Errorf("backup antes da atualização: %w", err)
+			return fmt.Errorf("backup before the update: %w", err)
 		}
 	}
 	if err := appstack.ApplyImageUpdate(ctx, s.exe, stdout, plan); err != nil {
 		return err
 	}
-	ui.Success(stdout, "Imagens atualizadas e contêineres recriados.")
+	ui.Success(stdout, i18n.Tr("docker.run.imagesUpdated", nil))
 	return nil
 }
 
@@ -455,9 +457,9 @@ func (s *DockerService) GetContainerLogsSnapshot(folder string) (string, error) 
 // container's logs to a .txt file.
 func (s *DockerService) PickLogsExportPath(defaultName string) (string, error) {
 	return approvePath(s.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
-		Title:    "Exportar logs",
+		Title:    i18n.Tr("docker.dialog.exportLogs", nil),
 		Filename: defaultName,
-		Filters:  []application.FileFilter{{DisplayName: "Texto (*.txt)", Pattern: "*.txt"}},
+		Filters:  []application.FileFilter{{DisplayName: i18n.Tr("docker.dialog.textFilter", nil), Pattern: "*.txt"}},
 	}).PromptForSingleSelection())
 }
 
@@ -586,7 +588,7 @@ func (s *DockerService) GetExportItems() (TransferItems, error) {
 // "Exportar" — folder AND filename in a single window.
 func (s *DockerService) PickExportConfigPath() (string, error) {
 	return approvePath(s.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
-		Title:    "Exportar configurações",
+		Title:    i18n.Tr("docker.dialog.exportConfig", nil),
 		Filename: "perci-export.yaml",
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
 	}).PromptForSingleSelection())
@@ -606,7 +608,7 @@ func (s *DockerService) ExportDockerConfig(path string, sel TransferSelection) e
 // "Importar".
 func (s *DockerService) PickImportConfigPath() (string, error) {
 	return approvePath(s.wailsApp.Dialog.OpenFile().
-		SetTitle("Selecionar arquivo de configurações").
+		SetTitle(i18n.Tr("docker.dialog.importConfig", nil)).
 		AddFilter("YAML (*.yaml)", "*.yaml;*.yml").
 		PromptForSingleSelection())
 }
@@ -623,7 +625,7 @@ func (s *DockerService) PreviewImportConfig(path string) (TransferItems, error) 
 		return TransferItems{}, err
 	}
 	if err := exported.Validate(); err != nil {
-		return TransferItems{}, fmt.Errorf("arquivo de configurações inválido: %w", err)
+		return TransferItems{}, fmt.Errorf("%s: %w", i18n.Tr("transfer.invalidFile", nil), err)
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -668,7 +670,7 @@ func (s *DockerService) ImportDockerContainerConfig(path string, sel TransferSel
 func (s *DockerService) PickBackupPath() (string, error) {
 	defaultName := "mariadb-backup-" + time.Now().Format("2006-01-02-150405") + ".sql"
 	return approvePath(s.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
-		Title:    "Exportar backup do MariaDB",
+		Title:    i18n.Tr("docker.dialog.backup", nil),
 		Filename: defaultName,
 		Filters:  []application.FileFilter{{DisplayName: "SQL (*.sql)", Pattern: "*.sql"}},
 	}).PromptForSingleSelection())
@@ -694,7 +696,7 @@ func (s *DockerService) BackupMariaDBContainer(path string) error {
 // restoring a MariaDB dump.
 func (s *DockerService) PickRestorePath() (string, error) {
 	return approvePath(s.wailsApp.Dialog.OpenFile().
-		SetTitle("Selecionar arquivo de backup do MariaDB").
+		SetTitle(i18n.Tr("docker.dialog.restore", nil)).
 		AddFilter("SQL (*.sql)", "*.sql").
 		PromptForSingleSelection())
 }

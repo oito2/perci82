@@ -352,29 +352,29 @@
             <div id="dc-mkcert-alert" role="alert" class="alert alert-warning alert-soft mb-6 text-sm items-start max-w-2xl hidden"></div>
             <div class="dc-form-grid max-w-2xl">
               <label class="form-control">
-                <div class="label"><span class="label-text">Tipo de contêiner</span></div>
+                <div class="label"><span class="label-text" data-i18n="docker.field.kind">Tipo de contêiner</span></div>
                 <select id="dc-kind" class="select select-bordered">
                   <option value="nginx">Nginx</option>
                   <option value="mariadb">MariaDB</option>
-                  <option value="__app__">Contêiner Aplicativo</option>
+                  <option value="__app__" data-i18n="docker.kind.app">Contêiner Aplicativo</option>
                   <option value="node">Node</option>
                   <option value="php_node">PHP + Node</option>
                 </select>
               </label>
 
               <label id="dc-apptype-wrap" class="form-control hidden">
-                <div class="label"><span class="label-text">Tipo</span></div>
+                <div class="label"><span class="label-text" data-i18n="docker.field.type">Tipo</span></div>
                 <select id="dc-apptype" class="select select-bordered">
                   <option value="moodle">Moodle</option>
                   <option value="php">PHP</option>
-                  <option value="generic">Genérico</option>
+                  <option value="generic" data-i18n="docker.type.generic">Genérico</option>
                 </select>
               </label>
 
               <div id="dc-fields"></div>
             </div>
 
-            <button id="btn-dc-create" class="btn btn-primary mt-6">Criar Contêiner</button>
+            <button id="btn-dc-create" class="btn btn-primary mt-6" data-i18n="docker.run.create">Criar Contêiner</button>
             <p id="dc-hint" class="text-xs opacity-50 mt-2"></p>
           </div>
 
@@ -382,35 +382,35 @@
                icons. -->
           <div id="dockerlist-container" class="hidden">
             <div id="dockerlist-toolbar" class="flex flex-wrap items-center gap-3 mb-4 hidden">
-              <button id="btn-dockerlist-update-all" class="btn btn-sm">Atualizar imagens</button>
-              <p class="text-xs opacity-60">Baixa as correções mais recentes das imagens (mesmas versões de PHP, Node, Nginx e MariaDB) e recria só os contêineres que mudaram. Arquivos, bancos e plugins montados são mantidos.</p>
+              <button id="btn-dockerlist-update-all" class="btn btn-sm" data-i18n="docker.updateImages">Atualizar imagens</button>
+              <p class="text-xs opacity-60" data-i18n="docker.updateImagesHint">Baixa as correções mais recentes das imagens (mesmas versões de PHP, Node, Nginx e MariaDB) e recria só os contêineres que mudaram. Arquivos, bancos e pastas montadas são mantidos.</p>
             </div>
             <div class="overflow-x-auto mb-4">
               <table class="table">
                 <thead>
                   <tr>
-                    <th>Tipo</th>
-                    <th>Status</th>
-                    <th>Ações</th>
+                    <th data-i18n="docker.field.type">Tipo</th>
+                    <th data-i18n="devfolders.col.status">Status</th>
+                    <th data-i18n="itemTable.actions">Ações</th>
                   </tr>
                 </thead>
                 <tbody id="dockerlist-rows"></tbody>
               </table>
             </div>
-            <p id="dockerlist-empty" class="opacity-70 mb-4 hidden">Nenhum contêiner Docker registrado ainda — crie um em "Docker :: Criar Contêiner".</p>
+            <p id="dockerlist-empty" class="opacity-70 mb-4 hidden" data-i18n="docker.listEmpty">Nenhum contêiner Docker registrado ainda — crie um em Docker → Criar Contêiner.</p>
           </div>
 
           <!-- "Docker :: Exportar/Importar": the Exportar checklist; the
                Importar checklist is the top-level tab
                #panel-transfer-import. -->
           <div id="transfer-container" class="hidden">
-            <p class="opacity-80 mb-4">Escolha o que exportar. O arquivo guarda só as definições — contêineres e plugins Moodle montados —, não os arquivos dos projetos nem os bancos. As credenciais do MariaDB vão em texto puro: guarde o arquivo como um segredo.</p>
-            <p id="transfer-export-empty" class="opacity-70 mb-4 hidden">Nada para exportar ainda — crie um contêiner em "Docker :: Criar Contêiner" ou monte um plugin em "Dev Tools :: Plugins Moodle".</p>
+            <p class="opacity-80 mb-4" data-i18n="transfer.exportIntro">Escolha o que exportar. O arquivo guarda só as definições — contêineres e pastas de desenvolvimento montadas —, não os arquivos dos projetos nem os bancos. As credenciais do MariaDB vão em texto puro: guarde o arquivo como um segredo.</p>
+            <p id="transfer-export-empty" class="opacity-70 mb-4 hidden" data-i18n="transfer.exportEmpty">Nada para exportar ainda — crie um contêiner em Docker → Criar Contêiner ou monte uma pasta em Docker → Pastas de Desenvolvimento.</p>
             <div id="transfer-export-list" class="mb-2"></div>
             <div id="transfer-export-note" role="status" class="alert alert-warning mb-4 hidden">
               <span id="transfer-export-note-text" class="whitespace-pre-line"></span>
             </div>
-            <button id="btn-transfer-export" class="btn btn-primary" disabled>Exportar…</button>
+            <button id="btn-transfer-export" class="btn btn-primary" disabled data-i18n="transfer.exportButton">Exportar…</button>
           </div>
 
           <!-- "Repositórios :: Configurar Conta": three views, one visible at a
@@ -636,40 +636,49 @@
             <button id="btn-gt-export" class="btn btn-primary" disabled>Exportar…</button>
           </div>
 
-          <!-- "Dev Tools :: Plugins Moodle": a plugin development folder +
-               a Moodle container + type/name. The mounted plugins are listed
-               in the top-level tab #panel-mp-mounted. -->
+          <!-- "Docker :: Pastas de Desenvolvimento": a development folder +
+               an app container + where it goes (plugin type/name for a
+               Moodle app, a destination folder for the others). The
+               mounted folders are listed in the top-level tab
+               #panel-mp-mounted. -->
           <div id="moodleplugins-container" class="hidden">
-            <p class="opacity-80 mb-4">Monte a pasta de desenvolvimento de um plugin dentro dos contêineres Moodle do Perci82 Dev. O plugin aparece como uma pasta comum dentro do Moodle, no editor e no contêiner.</p>
+            <p class="opacity-80 mb-4" data-i18n="devfolders.intro">Monte uma pasta de desenvolvimento dentro de um contêiner Aplicativo do Perci82 Dev. Ela aparece como uma pasta comum dentro do projeto do app, no editor e no contêiner.</p>
 
             <div class="grid gap-4 md:grid-cols-2 mb-4">
               <div class="flex flex-col gap-2 min-w-0">
-                <span class="font-semibold">Pasta de desenvolvimento</span>
-                <span class="text-xs opacity-70">Onde o plugin é desenvolvido. Pode estar vazia.</span>
-                <span id="mp-dev-path" class="text-sm break-all opacity-60">Nenhuma pasta selecionada</span>
-                <button id="btn-mp-pick-dev" class="btn btn-sm self-start">Selecionar pasta</button>
+                <span class="font-semibold" data-i18n="devfolders.devFolder">Pasta de desenvolvimento</span>
+                <span class="text-xs opacity-70" data-i18n="devfolders.devFolderHint">Onde o código é desenvolvido. Pode estar vazia.</span>
+                <span id="mp-dev-path" class="text-sm break-all opacity-60"></span>
+                <button id="btn-mp-pick-dev" class="btn btn-sm self-start" data-i18n="devfolders.pick">Selecionar pasta</button>
               </div>
               <label class="flex flex-col gap-2 min-w-0">
-                <span class="font-semibold">Moodle</span>
-                <span class="text-xs opacity-70">Contêiner Moodle onde o plugin será montado.</span>
+                <span class="font-semibold" data-i18n="devfolders.app">App</span>
+                <span class="text-xs opacity-70" data-i18n="devfolders.appHint">Contêiner Aplicativo onde a pasta será montada.</span>
                 <select id="mp-app" class="select select-bordered"></select>
               </label>
+            </div>
+            <div id="mp-moodle-fields" class="grid gap-4 md:grid-cols-2 mb-4 hidden">
               <label class="flex flex-col gap-2 min-w-0">
-                <span class="font-semibold">Tipo do plugin</span>
+                <span class="font-semibold" data-i18n="devfolders.pluginType">Tipo do plugin</span>
                 <select id="mp-type" class="select select-bordered"></select>
               </label>
               <label class="flex flex-col gap-2 min-w-0">
-                <span class="font-semibold">Nome do plugin</span>
-                <input id="mp-name" type="text" class="input input-bordered" placeholder="ex.: meuplugin" autocomplete="off" spellcheck="false" />
+                <span class="font-semibold" data-i18n="devfolders.pluginName">Nome do plugin</span>
+                <input id="mp-name" type="text" class="input input-bordered" data-i18n-placeholder="devfolders.pluginNamePlaceholder" placeholder="ex.: meuplugin" autocomplete="off" spellcheck="false" />
               </label>
             </div>
+            <label id="mp-dest-field" class="flex flex-col gap-2 min-w-0 mb-4 max-w-xl hidden">
+              <span class="font-semibold" data-i18n="devfolders.dest">Destino</span>
+              <span id="mp-dest-hint" class="text-xs opacity-70"></span>
+              <input id="mp-dest" type="text" class="input input-bordered" data-i18n-placeholder="devfolders.destPlaceholder" placeholder="ex.: modules/pagamento" autocomplete="off" spellcheck="false" />
+            </label>
             <p id="mp-locked" class="text-xs opacity-70 mb-4 hidden"></p>
 
             <div id="mp-status" role="status" class="alert mb-4 hidden">
               <span id="mp-status-text" class="break-all"></span>
             </div>
-            <button id="btn-mp-create" class="btn btn-primary" disabled>Criar</button>
-            <p class="text-xs opacity-60 mt-2">Criar e remover pedem a senha de administrador. Depois de aplicar, abra Administração do site → Notificações no Moodle para instalar ou atualizar o plugin.</p>
+            <button id="btn-mp-create" class="btn btn-primary" disabled data-i18n="devfolders.create">Criar</button>
+            <p class="text-xs opacity-60 mt-2" data-i18n="devfolders.createHint">Criar e remover pedem a senha de administrador. Num Moodle, depois de aplicar, abra Administração do site → Notificações para instalar ou atualizar o plugin.</p>
           </div>
 
           <!-- "Dev Tools :: IA: SKILLs": Global/Local select (Local requires a
@@ -772,29 +781,30 @@
           </div>
         </div>
 
-        <!-- Own top-level tab for "Dev Tools :: Plugins Moodle": the mounted
-             plugins with their status, a restart icon and a remove icon.
+        <!-- Own top-level tab for "Docker :: Pastas de Desenvolvimento": the
+             mounted folders with their status, a restart icon and a remove
+             icon.
              Only visible when the selected item is "moodleplugins". -->
         <label id="tab-label-mp-mounted" class="tab flex-none hidden">
           <input type="radio" name="content-tabs" id="tab-radio-mp-mounted" />
-          <span class="mr-1">🧩</span> Plugins montados
+          <span class="mr-1">🧩</span> <span data-i18n="devfolders.mountedTab">Pastas montadas</span>
         </label>
         <div id="panel-mp-mounted" class="tab-content o2-panel overflow-y-auto">
           <div class="overflow-x-auto">
             <table class="table">
               <thead>
                 <tr>
-                  <th>Plugin</th>
-                  <th>Moodle</th>
-                  <th>Pasta de desenvolvimento</th>
-                  <th>Status</th>
+                  <th data-i18n="devfolders.col.mount">Pasta montada</th>
+                  <th data-i18n="devfolders.app">App</th>
+                  <th data-i18n="devfolders.devFolder">Pasta de desenvolvimento</th>
+                  <th data-i18n="devfolders.col.status">Status</th>
                   <th class="w-px"></th>
                 </tr>
               </thead>
               <tbody id="mp-rows"></tbody>
             </table>
           </div>
-          <p id="mp-empty" class="opacity-70 mt-2 hidden">Nenhum plugin montado ainda.</p>
+          <p id="mp-empty" class="opacity-70 mt-2 hidden" data-i18n="devfolders.empty">Nenhuma pasta montada ainda.</p>
         </div>
 
         <!-- Own top-level tab for "Docker :: Exportar/Importar": an export
@@ -802,20 +812,20 @@
              when the selected item is "docker-transfer". -->
         <label id="tab-label-transfer-import" class="tab flex-none hidden">
           <input type="radio" name="content-tabs" id="tab-radio-transfer-import" />
-          <span class="mr-1">📥</span> Importar
+          <span class="mr-1">📥</span> <span data-i18n="transfer.importTab">Importar</span>
         </label>
         <div id="panel-transfer-import" class="tab-content o2-panel overflow-y-auto">
-          <p class="opacity-80 mb-4">Escolha um arquivo exportado e marque o que importar. Os itens marcados são criados ou substituem os de mesma pasta; o resto desta máquina não muda.</p>
+          <p class="opacity-80 mb-4" data-i18n="transfer.importIntro">Escolha um arquivo exportado e marque o que importar. Os itens marcados são criados ou substituem os de mesma pasta; o resto desta máquina não muda.</p>
           <div class="flex items-center gap-3 mb-4 flex-wrap">
-            <button id="btn-transfer-pick" class="btn btn-sm">Selecionar arquivo</button>
-            <span id="transfer-import-path" class="text-sm break-all opacity-60">Nenhum arquivo selecionado</span>
+            <button id="btn-transfer-pick" class="btn btn-sm" data-i18n="fileapp.pick">Selecionar arquivo</button>
+            <span id="transfer-import-path" class="text-sm break-all opacity-60" data-i18n="transfer.noFile">Nenhum arquivo selecionado</span>
           </div>
           <p id="transfer-import-workspace" class="text-sm opacity-70 mb-4 hidden"></p>
           <div id="transfer-import-list" class="mb-2"></div>
           <div id="transfer-import-note" role="status" class="alert alert-warning mb-4 hidden">
             <span id="transfer-import-note-text" class="whitespace-pre-line"></span>
           </div>
-          <button id="btn-transfer-import" class="btn btn-primary" disabled>Importar</button>
+          <button id="btn-transfer-import" class="btn btn-primary" disabled data-i18n="transfer.importTab">Importar</button>
         </div>
 
         <!-- Own top-level tab for "Repositórios :: Gerenciar Repositórios":
@@ -987,25 +997,25 @@
     <pre id="logs-modal-content" class="bg-base-200 rounded p-3 text-xs overflow-auto" style="max-height: 60vh; white-space: pre-wrap;"></pre>
     <div class="modal-action sm:justify-between">
       <div class="flex gap-2">
-        <button id="btn-logs-refresh" type="button" class="btn btn-outline btn-sm">Atualizar</button>
-        <button id="btn-logs-export" type="button" class="btn btn-outline btn-sm">Exportar</button>
+        <button id="btn-logs-refresh" type="button" class="btn btn-outline btn-sm" data-i18n="action.update">Atualizar</button>
+        <button id="btn-logs-export" type="button" class="btn btn-outline btn-sm" data-i18n="logs.export">Exportar</button>
       </div>
-      <form method="dialog"><button class="btn btn-sm">Fechar</button></form>
+      <form method="dialog"><button class="btn btn-sm" data-i18n="oito2.close">Fechar</button></form>
     </div>
   </div>
-  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+  <form method="dialog" class="modal-backdrop"><button data-i18n="oito2.close">fechar</button></form>
 </dialog>
 
 <dialog id="edit-modal" class="modal">
   <div class="modal-box max-w-xl">
-    <h3 id="edit-modal-title" class="font-bold text-lg mb-4">Editar</h3>
+    <h3 id="edit-modal-title" class="font-bold text-lg mb-4" data-i18n="docker.edit">Editar</h3>
     <div id="edit-fields" class="dc-form-grid"></div>
     <div class="modal-action">
-      <form method="dialog"><button class="btn">Cancelar</button></form>
-      <button id="btn-edit-save" type="button" class="btn btn-primary">Salvar</button>
+      <form method="dialog"><button class="btn" data-i18n="oito2.cancel">Cancelar</button></form>
+      <button id="btn-edit-save" type="button" class="btn btn-primary" data-i18n="field.save">Salvar</button>
     </div>
   </div>
-  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+  <form method="dialog" class="modal-backdrop"><button data-i18n="oito2.close">fechar</button></form>
 </dialog>
 
 <!-- "Repositórios :: <conta>": Novo Repositório — clone by URL or name,

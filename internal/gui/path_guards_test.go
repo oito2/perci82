@@ -58,12 +58,12 @@ func TestBoundMethods_RefuseBadPathsBeforeRunning(t *testing.T) {
 	type method func(b *serviceBase, path string) error
 	// These only require an existing absolute directory.
 	plainFolderMethods := map[string]method{
-		"InspectMoodlePlugin": func(b *serviceBase, f string) error {
-			_, err := (&DevToolsService{*b}).InspectMoodlePlugin(f, "mdle", "local", "x")
+		"InspectDevFolder": func(b *serviceBase, f string) error {
+			_, err := (&DevToolsService{*b}).InspectDevFolder(f, "mdle", "local", "x", "")
 			return err
 		},
-		"AddMoodlePlugin": func(b *serviceBase, f string) error {
-			return (&DevToolsService{*b}).AddMoodlePlugin(f, "mdle", "local", "x")
+		"AddDevFolder": func(b *serviceBase, f string) error {
+			return (&DevToolsService{*b}).AddDevFolder(f, "mdle", "local", "x", "")
 		},
 	}
 	// These also require the folder to be picked this session or already

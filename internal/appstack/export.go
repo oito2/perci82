@@ -31,6 +31,7 @@ import (
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -83,20 +84,20 @@ func (e ExportedConfig) Filter(sel TransferSelection) (ExportedConfig, error) {
 	out := ExportedConfig{WorkspacePath: e.WorkspacePath}
 	if sel.Nginx {
 		if !e.Docker.NginxCreated {
-			return ExportedConfig{}, errors.New("o Nginx não faz parte das configurações")
+			return ExportedConfig{}, errors.New(i18n.Tr("transfer.notInFile", i18n.Args{"name": "Nginx"}))
 		}
 		out.Docker.NginxCreated = true
 	}
 	if sel.MariaDB {
 		if e.Docker.MariaDB.DBUser == "" {
-			return ExportedConfig{}, errors.New("o MariaDB não faz parte das configurações")
+			return ExportedConfig{}, errors.New(i18n.Tr("transfer.notInFile", i18n.Args{"name": "MariaDB"}))
 		}
 		out.Docker.MariaDB = e.Docker.MariaDB
 	}
 	for _, folder := range sel.Apps {
 		app, ok := FindAppByFolder(e.Docker.Apps, folder)
 		if !ok {
-			return ExportedConfig{}, fmt.Errorf("o aplicativo %q não faz parte das configurações", folder)
+			return ExportedConfig{}, errors.New(i18n.Tr("transfer.notInFile", i18n.Args{"name": folder}))
 		}
 		if _, dup := FindAppByFolder(out.Docker.Apps, folder); !dup {
 			out.Docker.Apps = append(out.Docker.Apps, app)
@@ -105,7 +106,7 @@ func (e ExportedConfig) Filter(sel TransferSelection) (ExportedConfig, error) {
 	for _, key := range sel.Plugins {
 		m, ok := findPluginByKey(e.MoodlePlugins, key)
 		if !ok {
-			return ExportedConfig{}, fmt.Errorf("o plugin montado %q não faz parte das configurações", key)
+			return ExportedConfig{}, errors.New(i18n.Tr("transfer.notInFile", i18n.Args{"name": key}))
 		}
 		if _, dup := findPluginByKey(out.MoodlePlugins, key); !dup {
 			out.MoodlePlugins = append(out.MoodlePlugins, m)
@@ -131,7 +132,7 @@ func findPluginByKey(mounts []config.MoodlePluginMount, key string) (config.Mood
 
 // ErrNothingToExport is returned by ExportConfig when nothing is registered
 // yet (or nothing was selected).
-var ErrNothingToExport = errors.New("nada para exportar — nenhum contêiner Docker ou plugin montado selecionado")
+var ErrNothingToExport = i18n.NewError("transfer.nothingToExport")
 
 // Exportable returns everything the local config can export: the Docker
 // stack, the plugin mounts without their MEGA exclusions, and the
@@ -161,7 +162,7 @@ func ExportSelected(path string, sel TransferSelection) error {
 func exportTo(path string, sel *TransferSelection) error {
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 	exported := Exportable(cfg)
 	if sel != nil {
@@ -174,12 +175,12 @@ func exportTo(path string, sel *TransferSelection) error {
 	}
 	data, err := yaml.Marshal(exported)
 	if err != nil {
-		return fmt.Errorf("gerar yaml: %w", err)
+		return fmt.Errorf("generate yaml: %w", err)
 	}
 	// The file contains MariaDB credentials, so it is written atomically with
 	// 0600 permissions, even when overwriting an existing file.
 	if err := fsutil.WriteFileAtomic(path, data, 0o600); err != nil {
-		return fmt.Errorf("escrever %s: %w", path, err)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
 }
@@ -189,11 +190,11 @@ func exportTo(path string, sel *TransferSelection) error {
 func LoadExportedConfig(path string) (ExportedConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return ExportedConfig{}, fmt.Errorf("ler %s: %w", path, err)
+		return ExportedConfig{}, fmt.Errorf("read %s: %w", path, err)
 	}
 	var exported ExportedConfig
 	if err := yaml.Unmarshal(data, &exported); err != nil {
-		return ExportedConfig{}, fmt.Errorf("parsear %s: %w", path, err)
+		return ExportedConfig{}, fmt.Errorf("parse %s: %w", path, err)
 	}
 	return exported, nil
 }
@@ -202,7 +203,7 @@ func LoadExportedConfig(path string) (ExportedConfig, error) {
 // resolveImportWorkspace when the importing machine already has a
 // WorkspacePath configured and it disagrees with exported.WorkspacePath;
 // the mismatch is refused rather than silently overridden.
-var ErrWorkspaceMismatch = errors.New("workspace path não corresponde ao da exportação")
+var ErrWorkspaceMismatch = i18n.NewError("transfer.workspaceMismatch")
 
 // pluginComponentPattern is a Moodle component: <type>_<name>.
 var pluginComponentPattern = regexp.MustCompile(`^[a-z][a-z0-9]*_[a-z][a-z0-9_]*$`)
@@ -213,11 +214,11 @@ var pluginComponentPattern = regexp.MustCompile(`^[a-z][a-z0-9]*_[a-z][a-z0-9_]*
 // trusted to be well-formed.
 func validateExported(e ExportedConfig) error {
 	if e.WorkspacePath != "" && !filepath.IsAbs(e.WorkspacePath) {
-		return fmt.Errorf("workspace_path deve ser um caminho absoluto: %q", e.WorkspacePath)
+		return fmt.Errorf("workspace_path must be an absolute path: %q", e.WorkspacePath)
 	}
 	if u := e.Docker.MariaDB.DBUser; u != "" {
 		if !ValidDBIdentifier.MatchString(u) {
-			return fmt.Errorf("usuário do banco inválido: %q", u)
+			return fmt.Errorf("invalid database user: %q", u)
 		}
 		if err := validateDBPassword(e.Docker.MariaDB.DBPass); err != nil {
 			return err
@@ -225,22 +226,22 @@ func validateExported(e ExportedConfig) error {
 	}
 	for _, p := range []string{e.Docker.MariaDB.DBRootPass, e.Docker.MariaDB.DataPass} {
 		if strings.ContainsAny(p, "\r\n") {
-			return fmt.Errorf("senha do banco inválida: não pode conter quebra de linha")
+			return errors.New("invalid database password: it can't contain a line break")
 		}
 	}
 	if u := e.Docker.MariaDB.DataUser; u != "" && !ValidDBIdentifier.MatchString(u) {
-		return fmt.Errorf("usuário do banco inválido: %q", u)
+		return fmt.Errorf("invalid database user: %q", u)
 	}
 	folders := map[string]bool{}
 	for _, app := range e.Docker.Apps {
 		if err := ValidateApp(app); err != nil {
-			return fmt.Errorf("aplicativo %q: %w", app.Folder, err)
+			return fmt.Errorf("app %q: %w", app.Folder, err)
 		}
 		if strings.ContainsAny(app.DevCommand+app.WorkerCommand, "\r\n") {
-			return fmt.Errorf("aplicativo %q: os comandos não podem conter quebra de linha", app.Folder)
+			return fmt.Errorf("app %q: the commands can't contain a line break", app.Folder)
 		}
 		if folders[app.Folder] {
-			return fmt.Errorf("aplicativo %q aparece mais de uma vez", app.Folder)
+			return fmt.Errorf("app %q appears more than once", app.Folder)
 		}
 		folders[app.Folder] = true
 		if err := checkURLUnique(app, e.Docker.Apps); err != nil {
@@ -252,15 +253,15 @@ func validateExported(e ExportedConfig) error {
 		key := PluginKey(m)
 		switch {
 		case !ValidAppFolder.MatchString(m.App):
-			return fmt.Errorf("plugin montado %q: Moodle inválido", key)
-		case !pluginComponentPattern.MatchString(m.Component):
-			return fmt.Errorf("plugin montado %q: componente inválido %q", key, m.Component)
+			return fmt.Errorf("mounted folder %q: invalid app", key)
+		case m.Component != "" && !pluginComponentPattern.MatchString(m.Component):
+			return fmt.Errorf("mounted folder %q: invalid component %q", key, m.Component)
 		case !filepath.IsLocal(m.RelPath):
-			return fmt.Errorf("plugin montado %q: destino fora do Moodle", key)
+			return fmt.Errorf("mounted folder %q: destination outside the app", key)
 		case !filepath.IsAbs(m.DevPath):
-			return fmt.Errorf("plugin montado %q: a pasta de desenvolvimento deve ser um caminho absoluto", key)
+			return fmt.Errorf("mounted folder %q: the development folder must be an absolute path", key)
 		case keys[key]:
-			return fmt.Errorf("plugin montado %q aparece mais de uma vez", key)
+			return fmt.Errorf("mounted folder %q appears more than once", key)
 		}
 		keys[key] = true
 	}
@@ -275,7 +276,7 @@ func resolveImportWorkspace(localWorkspacePath, exportedWorkspacePath string) (s
 		return exportedWorkspacePath, nil
 	}
 	if exportedWorkspacePath != "" && exportedWorkspacePath != localWorkspacePath {
-		return "", fmt.Errorf("%w: exportado de %q, workspace local é %q", ErrWorkspaceMismatch, exportedWorkspacePath, localWorkspacePath)
+		return "", fmt.Errorf("%w: %s", ErrWorkspaceMismatch, i18n.Tr("transfer.workspaceDetail", i18n.Args{"exported": exportedWorkspacePath, "local": localWorkspacePath}))
 	}
 	return localWorkspacePath, nil
 }
@@ -313,7 +314,7 @@ type PluginImportState struct {
 func PluginImportStates(e ExportedConfig) ([]PluginImportState, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return nil, fmt.Errorf("carregar config: %w", err)
+		return nil, fmt.Errorf("load config: %w", err)
 	}
 	workspace, err := resolveImportWorkspace(cfg.WorkspacePath, e.WorkspacePath)
 	if err != nil {
@@ -339,16 +340,15 @@ func pluginImportCheck(cfg *config.Config, m config.MoodlePluginMount) (mounted 
 		if local.DevPath == m.DevPath {
 			return true, ""
 		}
-		return false, "outro plugin já está montado nesse destino (" + local.DevPath + ")"
+		return false, i18n.Tr("transfer.destTaken", i18n.Args{"path": local.DevPath})
 	}
-	if app, ok := FindAppByFolder(cfg.Docker.Apps, m.App); !ok || app.Type != config.AppTypeMoodle {
-		return false, "o Moodle " + m.App + " não existe nesta máquina nem no arquivo"
+	if _, ok := FindAppByFolder(cfg.Docker.Apps, m.App); !ok {
+		return false, i18n.Tr("transfer.noApp", i18n.Args{"app": m.App})
 	}
 	if info, err := os.Stat(m.DevPath); err != nil || !info.IsDir() {
-		return false, "a pasta de desenvolvimento " + m.DevPath + " não existe nesta máquina"
+		return false, i18n.Tr("transfer.noDevFolder", i18n.Args{"path": m.DevPath})
 	}
-	ptype, name, _ := strings.Cut(m.Component, "_")
-	if _, err := PlanMoodlePlugin(cfg, m.DevPath, m.App, ptype, name); err != nil {
+	if _, err := PlanDevFolder(cfg, m.DevPath, m.App, targetOf(m)); err != nil {
 		return false, err.Error()
 	}
 	return false, ""
@@ -373,14 +373,14 @@ func pluginImportCheck(cfg *config.Config, m config.MoodlePluginMount) (mounted 
 // it return executor.ErrCompletedWithWarnings.
 func ImportConfig(ctx context.Context, exe *executor.Executor, stdin io.Reader, stdout io.Writer, exported ExportedConfig, sel TransferSelection) error {
 	if err := validateExported(exported); err != nil {
-		return fmt.Errorf("arquivo de configurações inválido: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("transfer.invalidFile", nil), err)
 	}
 	part, err := exported.Filter(sel)
 	if err != nil {
 		return err
 	}
 	if part.empty() {
-		return errors.New("nenhum item selecionado para importar")
+		return i18n.NewError("transfer.nothingSelected")
 	}
 
 	stackMu.Lock()
@@ -388,7 +388,7 @@ func ImportConfig(ctx context.Context, exe *executor.Executor, stdin io.Reader, 
 
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("carregar config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 
 	workspacePath, err := resolveImportWorkspace(cfg.WorkspacePath, exported.WorkspacePath)
@@ -403,7 +403,7 @@ func ImportConfig(ctx context.Context, exe *executor.Executor, stdin io.Reader, 
 			return err
 		}
 		if app.DBAccess && !hasDB {
-			return fmt.Errorf("o aplicativo %q usa o banco: selecione também o MariaDB", app.Folder)
+			return errors.New(i18n.Tr("transfer.needsMariaDB", i18n.Args{"app": app.Folder}))
 		}
 	}
 
@@ -450,7 +450,7 @@ func ImportConfig(ctx context.Context, exe *executor.Executor, stdin io.Reader, 
 		cfg.Docker.Apps = mergeApps(cfg.Docker.Apps, part.Docker.Apps)
 		return nil
 	}); err != nil {
-		return fmt.Errorf("salvar config: %w", err)
+		return fmt.Errorf("save config: %w", err)
 	}
 
 	// Plugin mounts come before the containers, so the containers recreated
@@ -458,16 +458,16 @@ func ImportConfig(ctx context.Context, exe *executor.Executor, stdin io.Reader, 
 	pluginApps, skipped := importPlugins(ctx, exe, stdout, part.MoodlePlugins)
 
 	if part.Docker.NginxCreated {
-		ui.Info(stdout, "Recriando Contêiner Nginx...")
+		ui.Info(stdout, i18n.Tr("transfer.run.recreateNginx", nil))
 		if _, err := recreateNginx(ctx, exe, stdin, stdout, false); err != nil {
-			return fmt.Errorf("recriar nginx: %w", err)
+			return fmt.Errorf("recreate nginx: %w", err)
 		}
 	}
 
 	if part.Docker.MariaDB.DBUser != "" {
-		ui.Info(stdout, "Recriando Contêiner MariaDB...")
+		ui.Info(stdout, i18n.Tr("transfer.run.recreateMariaDB", nil))
 		if err := RecreateMariaDB(ctx, exe, stdout); err != nil {
-			return fmt.Errorf("recriar mariadb: %w", err)
+			return fmt.Errorf("recreate mariadb: %w", err)
 		}
 	}
 
@@ -477,15 +477,15 @@ func ImportConfig(ctx context.Context, exe *executor.Executor, stdin io.Reader, 
 	recreated := map[string]bool{}
 	apps := merged
 	for _, app := range part.Docker.Apps {
-		ui.Info(stdout, "Recriando Contêiner Aplicativo "+app.Folder+"...")
+		ui.Info(stdout, i18n.Tr("transfer.run.recreateApp", i18n.Args{"app": app.Folder}))
 		if apps, err = recreateAppContainer(ctx, exe, stdout, app.Folder); err != nil {
-			return fmt.Errorf("recriar app %s: %w", app.Folder, err)
+			return fmt.Errorf("recreate app %s: %w", app.Folder, err)
 		}
 		recreated[app.Folder] = true
 	}
 	if part.Docker.NginxCreated || len(part.Docker.Apps) > 0 {
 		if err := ReloadNginxConfig(ctx, exe, stdout, apps); err != nil {
-			return fmt.Errorf("recarregar nginx: %w", err)
+			return fmt.Errorf("reload nginx: %w", err)
 		}
 	}
 
@@ -494,14 +494,14 @@ func ImportConfig(ctx context.Context, exe *executor.Executor, stdin io.Reader, 
 	if len(pluginApps) > 0 {
 		for app := range pluginApps {
 			if !recreated[app] && ContainerStatus(ctx, exe, app) == "running" {
-				ui.Info(stdout, "Reiniciando o contêiner "+app+" para aplicar os plugins...")
+				ui.Info(stdout, i18n.Tr("transfer.run.restartForMounts", i18n.Args{"app": app}))
 				if err := RestartContainer(ctx, exe, stdout, app); err != nil {
 					return err
 				}
 			}
 		}
 		if !part.Docker.NginxCreated && nginxContainerRunning(ctx, exe) {
-			ui.Info(stdout, "Reiniciando o contêiner Nginx...")
+			ui.Info(stdout, i18n.Tr("devfolder.run.restartingNginx", nil))
 			if err := RestartContainer(ctx, exe, stdout, NginxContainerName); err != nil {
 				return err
 			}
@@ -509,10 +509,10 @@ func ImportConfig(ctx context.Context, exe *executor.Executor, stdin io.Reader, 
 	}
 
 	if skipped > 0 {
-		ui.Warning(stdout, fmt.Sprintf("%d plugin(s) montado(s) do arquivo não foram montados nesta máquina (veja os avisos acima).", skipped))
+		ui.Warning(stdout, i18n.Tr("transfer.run.skipped", i18n.Args{"count": skipped}))
 		return executor.ErrCompletedWithWarnings
 	}
-	ui.Success(stdout, "Configurações importadas.")
+	ui.Success(stdout, i18n.Tr("transfer.run.imported", nil))
 	return nil
 }
 
@@ -527,7 +527,7 @@ func importPlugins(ctx context.Context, exe *executor.Executor, stdout io.Writer
 	}
 	cfg, err := config.Load()
 	if err != nil {
-		ui.Warning(stdout, "Plugins montados não importados: carregar config: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("transfer.run.mountsNotImported", i18n.Args{"error": err.Error()}))
 		return nil, len(mounts)
 	}
 	var prepared []preparedMount
@@ -535,16 +535,15 @@ func importPlugins(ctx context.Context, exe *executor.Executor, stdout io.Writer
 		key := PluginKey(m)
 		mounted, reason := pluginImportCheck(cfg, m)
 		if mounted {
-			ui.Info(stdout, "Plugin "+m.Component+" já está montado em "+key+".")
+			ui.Info(stdout, i18n.Tr("transfer.run.alreadyMounted", i18n.Args{"name": mountLabel(m), "dest": key}))
 			continue
 		}
 		if reason != "" {
-			ui.Warning(stdout, "Plugin "+m.Component+" ("+key+") não montado: "+reason)
+			ui.Warning(stdout, i18n.Tr("transfer.run.notMounted", i18n.Args{"name": mountLabel(m), "dest": key, "error": reason}))
 			skipped++
 			continue
 		}
-		ptype, name, _ := strings.Cut(m.Component, "_")
-		plan, err := PlanMoodlePlugin(cfg, m.DevPath, m.App, ptype, name)
+		plan, err := PlanDevFolder(cfg, m.DevPath, m.App, targetOf(m))
 		if err == nil {
 			var p preparedMount
 			if p, err = prepareMount(stdout, plan); err == nil {
@@ -554,22 +553,22 @@ func importPlugins(ctx context.Context, exe *executor.Executor, stdout io.Writer
 				continue
 			}
 		}
-		ui.Warning(stdout, "Plugin "+m.Component+" ("+key+") não montado: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("transfer.run.notMounted", i18n.Args{"name": mountLabel(m), "dest": key, "error": err.Error()}))
 		skipped++
 	}
 	if len(prepared) == 0 {
 		return nil, skipped
 	}
-	ui.Info(stdout, fmt.Sprintf("Montando %d plugin(s)...", len(prepared)))
+	ui.Info(stdout, i18n.Tr("transfer.run.mounting", i18n.Args{"count": len(prepared)}))
 	kept, err := installPrepared(ctx, exe, stdout, prepared)
 	if err != nil {
-		ui.Warning(stdout, "Falha ao montar os plugins: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("transfer.run.mountFailed", i18n.Args{"error": err.Error()}))
 		skipped += len(prepared) - len(kept)
 	}
 	apps = map[string]bool{}
 	for _, p := range kept {
 		apps[p.plan.App] = true
-		ui.Success(stdout, p.plan.Component+" montado em "+p.plan.Dest+".")
+		ui.Success(stdout, i18n.Tr("transfer.run.mounted", i18n.Args{"name": p.plan.label(), "dest": p.plan.Dest}))
 	}
 	return apps, skipped
 }

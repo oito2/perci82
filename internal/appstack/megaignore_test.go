@@ -130,7 +130,7 @@ func TestAddAndRemoveMoodlePlugin_ExcludesFromMega(t *testing.T) {
 		t.Fatalf("records = %+v", recs)
 	}
 
-	if err := RemoveMoodlePlugin(context.Background(), exe, &buf, "mdle", "local/example"); err != nil {
+	if err := RemoveDevFolder(context.Background(), exe, &buf, "mdle", "local/example"); err != nil {
 		t.Fatalf("RemoveMoodlePlugin: %v", err)
 	}
 	if got := readFile(t, file); strings.Contains(got, rule) || !strings.HasPrefix(got, userMegaIgnore) {
@@ -152,7 +152,7 @@ func TestAddMoodlePlugin_KeepsTheUsersOwnRule(t *testing.T) {
 	if recs := loadCfg(t).MoodlePlugins; len(recs) != 1 || recs[0].MegaIgnoreRule != "" {
 		t.Fatalf("a rule perci did not add was recorded: %+v", recs)
 	}
-	if err := RemoveMoodlePlugin(context.Background(), exe, &buf, "mdle", "local/example"); err != nil {
+	if err := RemoveDevFolder(context.Background(), exe, &buf, "mdle", "local/example"); err != nil {
 		t.Fatalf("RemoveMoodlePlugin: %v", err)
 	}
 	if got := readFile(t, file); got != userMegaIgnore+"\n"+rule {

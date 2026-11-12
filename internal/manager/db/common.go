@@ -17,12 +17,14 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/oito2/perci82/internal/appstack"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // RequireContainer verifies that the named container is running in
@@ -30,7 +32,7 @@ import (
 // substring filter).
 func RequireContainer(ctx context.Context, exe *executor.Executor, name string) error {
 	if appstack.ContainerStatus(ctx, exe, name) != "running" {
-		return fmt.Errorf("o contêiner '%s' não está em execução — inicie-o em Docker → Gerenciar Containers (o Docker está rodando?)", name)
+		return errors.New(i18n.Tr("db.notRunning", i18n.Args{"name": name}))
 	}
 	return nil
 }
@@ -44,7 +46,7 @@ func writeTempSecret(content, pattern string) (string, func(), error) {
 	if _, err := fmt.Fprint(f, content); err != nil {
 		_ = f.Close()
 		_ = os.Remove(f.Name())
-		return "", nil, fmt.Errorf("credencial: %w", err)
+		return "", nil, fmt.Errorf("credential: %w", err)
 	}
 	_ = f.Close()
 	name := f.Name()
@@ -57,14 +59,14 @@ func writeTempSecret(content, pattern string) (string, func(), error) {
 // operations that need a live mysql/mariadb client session.
 func withDBSession(ctx context.Context, exe *executor.Executor, container, pass string, fn func(envPath string) error) error {
 	if strings.ContainsAny(pass, "\r\n") {
-		return fmt.Errorf("senha do banco contém caracteres inválidos")
+		return i18n.NewError("db.badPassword")
 	}
 	if err := RequireContainer(ctx, exe, container); err != nil {
 		return err
 	}
 	envPath, cleanup, err := writeTempSecret("MYSQL_PWD="+pass+"\n", "perci-db-*.env")
 	if err != nil {
-		return fmt.Errorf("falha ao criar credencial temporária: %w", err)
+		return fmt.Errorf("create the temporary credential: %w", err)
 	}
 	defer cleanup()
 	return fn(envPath)

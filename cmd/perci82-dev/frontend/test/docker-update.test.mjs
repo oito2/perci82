@@ -53,7 +53,7 @@ test("Gerenciar: every row has one Atualizar imagem button that confirms, then u
 test("Gerenciar: the confirmation says what is kept and announces the MariaDB backup", () => {
   const { ctx } = loadScripts(scriptOrder());
   const app = ctx.updateImageMessage(ROWS[2]);
-  assert.ok(app.includes("plugins montados são mantidos") && app.includes("mesma imagem"), app);
+  assert.ok(app.includes("pastas montadas são mantidos") && app.includes("mesma imagem"), app);
   const db = ctx.updateImageMessage(ROWS[1]);
   assert.ok(db.includes("backup completo") && db.includes("~/.perci/appstack/backups"), db);
 });

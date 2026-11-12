@@ -24,7 +24,13 @@
 // Importar checklist (top-level tab #panel-transfer-import).
 // ===========================================================================
 
-const TRANSFER_NO_FILE = "Nenhum arquivo selecionado";
+// transferNoFile is the file line of the Importar tab before a file is
+// chosen.
+function transferNoFile() { return t("transfer.noFile"); }
+
+// mountName is how the lists name a mounted folder: its Moodle component,
+// or its destination inside the app.
+function mountName(p) { return p.component || p.key; }
 
 // transferExportItems / transferImportItems are the lists last shown on each
 // tab (TransferItems from the backend); transferImportPath is the file the
@@ -39,7 +45,7 @@ function pluginKey(key) { return "plugin:" + key; }
 
 // transferDependencies returns, for one checklist key, the keys it depends
 // on that are also in items: every app needs Nginx, an app with database
-// access needs MariaDB, and a plugin mount needs its Moodle app.
+// access needs MariaDB, and a mounted folder needs its app.
 function transferDependencies(items, key) {
   if (key.indexOf("app:") === 0) {
     const app = (items.apps || []).find(function (a) { return appKey(a.folder) === key; });
@@ -58,8 +64,8 @@ function transferDependencies(items, key) {
 }
 
 // transferCompanions returns, for one checklist key, the keys checked along
-// with it besides its dependencies: a Moodle app brings the plugin mounts
-// mounted on it.
+// with it besides its dependencies: an app brings the folders mounted on
+// it.
 function transferCompanions(items, key) {
   if (key.indexOf("app:") !== 0) return [];
   const folder = key.slice(4);
@@ -67,7 +73,7 @@ function transferCompanions(items, key) {
 }
 
 // transferNotes lists the dependency problems of a selection: an app
-// without Nginx or the database it uses, a plugin mount without its Moodle.
+// without Nginx or the database it uses, a mounted folder without its app.
 // mode is "export" (the importing machine must already have it) or
 // "import" (what exists here counts). blocking is true when the import
 // would be refused (an app whose database exists neither here nor in the
@@ -81,24 +87,20 @@ function transferNotes(items, sel, mode) {
   (items.apps || []).forEach(function (app) {
     if (sel.apps.indexOf(app.folder) < 0) return;
     if (!hasNginx) {
-      notes.push(importing
-        ? '"' + app.folder + '" depende do Nginx, que não existe nesta máquina: o aplicativo fica sem URL até o Nginx ser criado.'
-        : '"' + app.folder + '" depende do Nginx: ele precisa já existir na máquina que importar o arquivo.');
+      notes.push(t(importing ? "transfer.note.nginxMissingHere" : "transfer.note.nginxNeeded", { app: app.folder }));
     }
     if (app.dbAccess && !hasDB) {
       if (importing) blocking = true;
-      notes.push(importing
-        ? '"' + app.folder + '" usa o banco e o MariaDB não existe nesta máquina: marque o MariaDB.'
-        : '"' + app.folder + '" usa o banco: o MariaDB precisa já existir na máquina que importar o arquivo.');
+      notes.push(t(importing ? "transfer.note.dbMissingHere" : "transfer.note.dbNeeded", { app: app.folder }));
     }
   });
   (items.plugins || []).forEach(function (p) {
     if (sel.plugins.indexOf(p.key) < 0 || sel.apps.indexOf(p.app) >= 0) return;
     const inFile = (items.apps || []).find(function (a) { return a.folder === p.app; });
     if (!importing) {
-      notes.push('"' + p.component + '" depende do Moodle ' + p.app + ": ele precisa já existir na máquina que importar o arquivo.");
+      notes.push(t("transfer.note.appNeeded", { name: mountName(p), app: p.app }));
     } else if (inFile && !inFile.exists) {
-      notes.push('"' + p.component + '" depende do Moodle ' + p.app + ", que não está marcado nem existe nesta máquina: o plugin será pulado.");
+      notes.push(t("transfer.note.appMissingHere", { name: mountName(p), app: p.app }));
     }
   });
   return { notes: notes, blocking: blocking };
@@ -187,7 +189,7 @@ function transferGroup(list, title, rows, onChange) {
     });
     all.appendChild(allBox);
     const allText = document.createElement("span");
-    allText.textContent = "Marcar todos";
+    allText.textContent = t("transfer.checkAll");
     all.appendChild(allText);
     head.appendChild(all);
   }
@@ -204,26 +206,26 @@ function renderTransferList(list, items, mode, onChange) {
   const importing = mode === "import";
   const infra = [];
   if (items.nginx) {
-    infra.push(transferRow("nginx", "Nginx", "Proxy reverso de todos os aplicativos (*.localhost).",
-      importing && items.localNginx ? "já existe aqui — será recriado" : "", false));
+    infra.push(transferRow("nginx", "Nginx", t("transfer.nginxDesc"),
+      importing && items.localNginx ? t("transfer.existsRecreated") : "", false));
   }
   if (items.mariadb) {
-    infra.push(transferRow("mariadb", "MariaDB", "Banco compartilhado e suas credenciais (em texto puro no arquivo).",
-      importing && items.localMariaDb ? "já existe aqui — será recriado" : "", false));
+    infra.push(transferRow("mariadb", "MariaDB", t("transfer.mariadbDesc"),
+      importing && items.localMariaDb ? t("transfer.existsRecreated") : "", false));
   }
   const apps = (items.apps || []).map(function (a) {
     const type = CONTAINER_TYPE_LABELS[a.type] || a.type;
-    return transferRow(appKey(a.folder), a.name || a.folder, type + " · " + a.url + (a.dbAccess ? " · usa o banco" : ""),
-      importing && a.exists ? "substitui o existente" : "", false);
+    return transferRow(appKey(a.folder), a.name || a.folder, type + " · " + a.url + (a.dbAccess ? " · " + t("transfer.usesDB") : ""),
+      importing && a.exists ? t("transfer.replaces") : "", false);
   });
   const plugins = (items.plugins || []).map(function (p) {
-    if (importing && p.mounted) return transferRow(pluginKey(p.key), p.component, "Já está montado nesta máquina.", "montado", true);
-    if (importing && p.reason) return transferRow(pluginKey(p.key), p.component, "Indisponível: " + p.reason, "", true);
-    return transferRow(pluginKey(p.key), p.component, "Moodle " + p.app + " · " + p.devPath, "", false);
+    if (importing && p.mounted) return transferRow(pluginKey(p.key), mountName(p), t("transfer.mountedHere"), t("transfer.mounted"), true);
+    if (importing && p.reason) return transferRow(pluginKey(p.key), mountName(p), t("transfer.unavailable", { reason: p.reason }), "", true);
+    return transferRow(pluginKey(p.key), mountName(p), p.app + " · " + p.devPath, "", false);
   });
-  transferGroup(list, "Infraestrutura", infra, onChange);
-  transferGroup(list, "Aplicativos", apps, onChange);
-  transferGroup(list, "Plugins Moodle montados", plugins, onChange);
+  transferGroup(list, t("transfer.group.infra"), infra, onChange);
+  transferGroup(list, t("transfer.group.apps"), apps, onChange);
+  transferGroup(list, t("transfer.group.mounts"), plugins, onChange);
 
   list.querySelectorAll("input[data-key]").forEach(function (box) {
     box.addEventListener("change", function () {
@@ -263,7 +265,7 @@ function loadTransferExport() {
     const empty = !items.nginx && !items.mariadb && !(items.apps || []).length && !(items.plugins || []).length;
     transferExportEmpty.classList.toggle("hidden", !empty);
     renderTransferList(transferExportList, items, "export", updateTransferExport);
-  })).catch(function (err) { openError("Falha ao listar o que exportar: " + err); });
+  })).catch(function (err) { openError(t("transfer.listFailed", { error: err })); });
 }
 
 btnTransferExport.addEventListener("click", function () {
@@ -272,9 +274,9 @@ btnTransferExport.addEventListener("click", function () {
   App.PickExportConfigPath().then(function (path) {
     if (!path) return; // user cancelled the dialog
     return App.ExportDockerConfig(path, sel).then(function () {
-      openMessage("Exportado", selectionCount(sel) + " item(ns) exportado(s) para:\n" + path, false);
+      openMessage(t("transfer.exported"), t("transfer.exportedTo", { count: selectionCount(sel), path: path }), false);
     });
-  }).catch(function (err) { openError("Falha ao exportar: " + err); });
+  }).catch(function (err) { openError(t("transfer.exportFailed", { error: err })); });
 });
 
 // ---- Importar ---------------------------------------------------------------
@@ -295,7 +297,7 @@ function resetTransferImport() {
   invalidate("transfer-import");
   transferImportItems = null;
   transferImportPath = "";
-  transferImportPathEl.textContent = TRANSFER_NO_FILE;
+  transferImportPathEl.textContent = transferNoFile();
   transferImportPathEl.classList.add("opacity-60");
   transferImportWorkspace.classList.add("hidden");
   transferImportList.innerHTML = "";
@@ -310,19 +312,19 @@ function loadTransferImport(path) {
     transferImportPath = path;
     transferImportPathEl.textContent = path;
     transferImportPathEl.classList.remove("opacity-60");
-    transferImportWorkspace.textContent = "Workspace do arquivo: " + (items.workspacePath || "(nenhum)");
+    transferImportWorkspace.textContent = t("transfer.fileWorkspace", { path: items.workspacePath || t("transfer.none") });
     transferImportWorkspace.classList.remove("hidden");
     renderTransferList(transferImportList, items, "import", updateTransferImport);
   })).catch(function (err) {
     resetTransferImport();
-    openError("Falha ao ler o arquivo: " + err);
+    openError(t("transfer.readFailed", { error: err }));
   });
 }
 
 btnTransferPick.addEventListener("click", function () {
   App.PickImportConfigPath().then(function (path) {
     if (path) loadTransferImport(path);
-  }).catch(function (err) { openError("Falha ao selecionar o arquivo: " + err); });
+  }).catch(function (err) { openError(t("transfer.pickFailed", { error: err })); });
 });
 
 // importConfirmMessage is the text of the import confirmation: what will
@@ -332,18 +334,18 @@ function importConfirmMessage(items, sel) {
   const parts = [];
   if (sel.nginx) parts.push("Nginx");
   if (sel.mariadb) parts.push("MariaDB");
-  if (sel.apps.length) parts.push(sel.apps.length + " aplicativo(s)");
-  if (sel.plugins.length) parts.push(sel.plugins.length + " plugin(s) montado(s)");
-  let msg = "Importar: " + parts.join(", ") + ".\n\n";
+  if (sel.apps.length) parts.push(t("transfer.countApps", { count: sel.apps.length }));
+  if (sel.plugins.length) parts.push(t("transfer.countMounts", { count: sel.plugins.length }));
+  let msg = t("transfer.importWhat", { items: parts.join(", ") }) + "\n\n";
   const commands = (items.commands || []).filter(function (c) {
     return sel.apps.indexOf(c.split(/[: ]/)[0]) >= 0;
   });
   if (commands.length > 0) {
-    msg += "Comandos que serão executados dentro dos contêineres:\n" +
+    msg += t("transfer.commands") + "\n" +
       commands.map(function (c) { return "• " + c; }).join("\n") + "\n\n";
   }
-  if (sel.plugins.length) msg += "Montar os plugins pede a senha de administrador.\n\n";
-  return msg + "Os itens marcados são criados ou substituem os de mesma pasta e os contêineres deles são recriados; o resto desta máquina não muda. Continuar?";
+  if (sel.plugins.length) msg += t("transfer.mountsNeedPassword") + "\n\n";
+  return msg + t("transfer.importConfirm");
 }
 
 btnTransferImport.addEventListener("click", function () {
@@ -351,8 +353,8 @@ btnTransferImport.addEventListener("click", function () {
   const sel = transferSelection(transferImportList);
   if (selectionCount(sel) === 0) return;
   const path = transferImportPath;
-  openConfirm("Importar configurações", importConfirmMessage(transferImportItems, sel), function () {
-    beginRun("Importar configurações", function () {
+  openConfirm(t("transfer.importTitle"), importConfirmMessage(transferImportItems, sel), function () {
+    beginRun(t("transfer.importTitle"), function () {
       return App.ImportDockerContainerConfig(path, sel);
     }, { buttons: [btnTransferImport] });
   });

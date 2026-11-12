@@ -74,9 +74,9 @@ test("transferNotes: a plugin without its Moodle", () => {
   const items = fileItems();
   const sel = { ...none(), plugins: ["mdle/local/x"] };
   assert.equal(ctx.transferNotes(items, sel, "import").notes.length, 0, "mdle exists here");
-  assert.match(ctx.transferNotes(items, sel, "export").notes.join("\n"), /depende do Moodle mdle/);
+  assert.match(ctx.transferNotes(items, sel, "export").notes.join("\n"), /depende do app mdle/);
   items.apps[1].exists = false;
-  assert.match(ctx.transferNotes(items, sel, "import").notes.join("\n"), /será pulado/);
+  assert.match(ctx.transferNotes(items, sel, "import").notes.join("\n"), /será pulada/);
 });
 
 test("Importar: lists the file, leaves an unavailable plugin out and imports the selection", async () => {
@@ -111,7 +111,7 @@ test("Importar: lists the file, leaves an unavailable plugin out and imports the
 
   element("btn-transfer-import").listeners.click[0]();
   assert.match(element("confirm-modal-message").textContent, /• blog: php artisan serve/);
-  assert.match(element("confirm-modal-message").textContent, /1 plugin\(s\) montado\(s\)/);
+  assert.match(element("confirm-modal-message").textContent, /1 pasta\(s\) montada\(s\)/);
   element("btn-confirm-ok").listeners.click[0]();
   const call = calls.find((c) => c.name === "ImportDockerContainerConfig");
   assert.ok(call, "ImportDockerContainerConfig not called");

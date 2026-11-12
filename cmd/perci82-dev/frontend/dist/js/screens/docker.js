@@ -63,9 +63,7 @@ function renderMkcertAlert(catalog) {
   dcMkcertAlert.classList.toggle("hidden", !show);
   dcMkcertAlert.innerHTML = show
     ? LUCIDE.svg("triangleAlert", { size: 18 }) +
-      "<span>Primeira criação: o Perci vai gerar um certificado local via <code>mkcert</code>. " +
-      "Se isso pedir uma senha de administrador e travar, abra um terminal fora do Perci e rode " +
-      "<code>mkcert -install</code> manualmente uma vez antes de clicar em Criar.</span>"
+      "<span>" + escHTML(t("docker.mkcertAlert")) + "</span>"
     : "";
 }
 
@@ -87,7 +85,7 @@ btnDcCreate.addEventListener("click", function () {
   if (running) return;
   const kind = dcFinalKind();
   const req = readContainerFieldsValues("dc", kind);
-  startExecution("Criar Contêiner");
+  startExecution(t("docker.run.create"));
   App.CreateDockerContainer(req).catch(failRun);
 });
 
@@ -110,7 +108,7 @@ function openEditModal(row) {
   ]).then(function (results) {
     const values = results[0];
     const catalog = results[1];
-    editModalTitle.textContent = "Editar — " + row.name;
+    editModalTitle.textContent = t("docker.editTitle", { name: row.name });
     editFields.innerHTML = buildContainerFieldsHTML("edit", values.kind, catalog, values);
     wireMoodlePHPFilter("edit");
     wireFolderURLAutofill("edit");
@@ -121,11 +119,11 @@ function openEditModal(row) {
       const req = readContainerFieldsValues("edit", values.kind);
       req.folder = values.folder; // the original folder, even though its field is disabled
       editModal.close();
-      startExecution("Editar " + row.name);
+      startExecution(t("docker.run.edit", { name: row.name }));
       App.UpdateDockerContainer(req).catch(failRun);
     };
     editModal.showModal();
-  }).catch(function (err) { openError("Falha ao carregar dados para edição: " + err); });
+  }).catch(function (err) { openError(t("docker.editLoadFailed", { error: err })); });
 }
 
 function buildDockerRow(row) {
@@ -165,46 +163,46 @@ function buildDockerRow(row) {
   const wrap = document.createElement("div");
   wrap.className = "flex gap-1 flex-wrap";
 
-  const btnStart = iconButton("play", "Iniciar");
+  const btnStart = iconButton("play", t("docker.start"));
   wireQuickAction(btnStart, function () { return App.StartDockerContainer(row.folder); });
   wrap.appendChild(btnStart);
 
-  const btnStop = iconButton("square", "Parar");
+  const btnStop = iconButton("square", t("docker.stop"));
   wireQuickAction(btnStop, function () { return App.StopDockerContainer(row.folder); });
   wrap.appendChild(btnStop);
 
-  const btnRestart = iconButton("rotateCw", "Reiniciar");
+  const btnRestart = iconButton("rotateCw", t("docker.restart"));
   wireQuickAction(btnRestart, function () { return App.RestartDockerContainer(row.folder); });
   wrap.appendChild(btnRestart);
 
-  const btnRecreate = iconButton("refreshCw", "Recriar");
+  const btnRecreate = iconButton("refreshCw", t("docker.recreate"));
   btnRecreate.addEventListener("click", function () {
     if (running) return;
-    openConfirm("Recriar", 'Recriar "' + row.name + '" com os parâmetros atuais?', function () {
+    openConfirm(t("docker.recreate"), t("docker.recreateConfirm", { name: row.name }), function () {
       if (running) return; // re-checked: the confirm dialog is async
-      startExecution('Recriar "' + row.name + '"');
+      startExecution(t("docker.run.recreate", { name: row.name }));
       App.RecreateDockerContainer(row.family, row.folder).catch(failRun);
     });
   });
   wrap.appendChild(btnRecreate);
 
-  const btnUpdateImage = iconButton("circleArrowUp", "Atualizar imagem");
+  const btnUpdateImage = iconButton("circleArrowUp", t("docker.updateImage"));
   btnUpdateImage.addEventListener("click", function () {
     if (running) return;
-    openConfirm("Atualizar imagem", updateImageMessage(row), function () {
+    openConfirm(t("docker.updateImage"), updateImageMessage(row), function () {
       if (running) return; // re-checked: the confirm dialog is async
-      startExecution('Atualizar imagem de "' + row.name + '"');
+      startExecution(t("docker.run.updateImage", { name: row.name }));
       App.UpdateDockerContainerImage(row.family, row.folder).catch(failRun);
     });
   });
   wrap.appendChild(btnUpdateImage);
 
-  const btnLogs = iconButton("scrollText", "Ver Logs");
+  const btnLogs = iconButton("scrollText", t("docker.logs"));
   btnLogs.addEventListener("click", function () { openLogs(row.folder, row.name); });
   wrap.appendChild(btnLogs);
 
   if (row.canEdit) {
-    const btnEdit = iconButton("pencil", "Editar");
+    const btnEdit = iconButton("pencil", t("docker.edit"));
     btnEdit.addEventListener("click", function () {
       if (running) return;
       openEditModal(row);
@@ -213,25 +211,25 @@ function buildDockerRow(row) {
   }
 
   if (row.hasDb) {
-    const btnBackup = iconButton("download", "Backup");
+    const btnBackup = iconButton("download", t("docker.backup"));
     btnBackup.addEventListener("click", function () {
       if (running) return;
       App.PickBackupPath().then(function (path) {
         if (!path || running) return; // re-checked: the dialog is async
-        startExecution("Backup do MariaDB");
+        startExecution(t("docker.run.backup"));
         App.BackupMariaDBContainer(path).catch(failRun);
       });
     });
     wrap.appendChild(btnBackup);
 
-    const btnRestore = iconButton("upload", "Restore");
+    const btnRestore = iconButton("upload", t("docker.restore"));
     btnRestore.addEventListener("click", function () {
       if (running) return;
       App.PickRestorePath().then(function (path) {
         if (!path) return;
-        openConfirm("Restore", "Restaurar o backup selecionado? Isso sobrescreve os dados atuais do MariaDB.", function () {
+        openConfirm(t("docker.restore"), t("docker.restoreConfirm"), function () {
           if (running) return; // re-checked: the dialogs are async
-          startExecution("Restore do MariaDB");
+          startExecution(t("docker.run.restore"));
           App.RestoreMariaDBContainer(path).catch(failRun);
         });
       });
@@ -239,10 +237,10 @@ function buildDockerRow(row) {
     wrap.appendChild(btnRestore);
   }
 
-  const btnRemove = iconButton("trash2", "Remover");
+  const btnRemove = iconButton("trash2", t("docker.remove"));
   btnRemove.addEventListener("click", function () {
     if (running) return;
-    openConfirm("Remover", 'Remover "' + row.name + '"? Isso não apaga html/data em disco.', function () {
+    openConfirm(t("docker.remove"), t("docker.removeConfirm", { name: row.name }), function () {
       setRowLoading();
       App.RemoveDockerContainer(row.family, row.folder).then(function () {
         renderDockerListScreen();
@@ -262,23 +260,18 @@ function buildDockerRow(row) {
 // updateImageMessage is the confirmation text of a row's "Atualizar
 // imagem": what is downloaded and recreated, and what is kept.
 function updateImageMessage(row) {
-  const kept = " Arquivos, bancos e plugins montados são mantidos; se nada mudou, nada é recriado.";
-  if (row.family === "mariadb") {
-    return 'Atualizar a imagem do MariaDB para a correção mais recente da mesma versão? Antes de recriar o contêiner, um backup completo do banco é salvo em ~/.perci/appstack/backups (o MariaDB precisa estar rodando).' + kept;
-  }
-  if (row.family === "nginx") {
-    return "Atualizar a imagem do Nginx para a correção mais recente da mesma versão e recriar o contêiner?" + kept;
-  }
-  return 'Atualizar a imagem de "' + row.name + '" para a correção mais recente da mesma versão? Todos os contêineres que usam a mesma imagem são recriados.' + kept;
+  const kept = " " + t("docker.updateImageKept");
+  if (row.family === "mariadb") return t("docker.updateImageMariaDB") + kept;
+  if (row.family === "nginx") return t("docker.updateImageNginx") + kept;
+  return t("docker.updateImageApp", { name: row.name }) + kept;
 }
 
 btnDockerlistUpdateAll.addEventListener("click", function () {
   if (running) return;
-  openConfirm("Atualizar imagens",
-    "Atualizar as imagens de todos os contêineres para as correções mais recentes das mesmas versões? Só os contêineres cuja imagem mudou são recriados; o MariaDB recebe um backup completo antes, em ~/.perci/appstack/backups (precisa estar rodando). Arquivos, bancos e plugins montados são mantidos.",
+  openConfirm(t("docker.updateImages"), t("docker.updateImagesConfirm"),
     function () {
       if (running) return; // re-checked: the confirm dialog is async
-      startExecution("Atualizar imagens");
+      startExecution(t("docker.updateImages"));
       App.UpdateAllDockerImages().catch(failRun);
     });
 });

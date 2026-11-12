@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/dev/localbin"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -99,13 +100,13 @@ func removeAppWrappers(folder string) {
 func writeWrappers(folder string, tools []string, hostDir, containerDir, user string, stdout io.Writer) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		ui.Warning(stdout, "Não foi possível determinar diretório home: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("docker.run.noHome", i18n.Args{"error": err.Error()}))
 		return
 	}
 
 	localBin := filepath.Join(home, ".local", "bin")
 	if err := os.MkdirAll(localBin, 0o755); err != nil {
-		ui.Warning(stdout, "Não foi possível criar ~/.local/bin: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("docker.run.localBinFailed", i18n.Args{"error": err.Error()}))
 		return
 	}
 
@@ -114,16 +115,16 @@ func writeWrappers(folder string, tools []string, hostDir, containerDir, user st
 		path := filepath.Join(localBin, name)
 		// A file that is not a perci wrapper is never overwritten.
 		if _, err := os.Lstat(path); err == nil && !isPerciWrapper(path) {
-			ui.Warning(stdout, "O arquivo "+path+" já existe e não é um wrapper do Perci — mantido, o wrapper "+name+" não foi criado.")
+			ui.Warning(stdout, i18n.Tr("docker.run.wrapperExists", i18n.Args{"path": path, "name": name}))
 			continue
 		}
 		// Each wrapper is removed first so a symlink at path is replaced, not followed.
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-			ui.Warning(stdout, "Falha ao substituir wrapper "+name+": "+err.Error())
+			ui.Warning(stdout, i18n.Tr("docker.run.wrapperReplaceFailed", i18n.Args{"name": name, "error": err.Error()}))
 			continue
 		}
 		if err := os.WriteFile(path, []byte(buildAppWrapperScript(folder, tool, hostDir, containerDir, user)), 0o755); err != nil {
-			ui.Warning(stdout, "Falha ao criar wrapper "+name+": "+err.Error())
+			ui.Warning(stdout, i18n.Tr("docker.run.wrapperFailed", i18n.Args{"name": name, "error": err.Error()}))
 		}
 	}
 

@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -31,6 +32,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -76,9 +78,9 @@ func EnsureNetwork(ctx context.Context, exe *executor.Executor, stdout io.Writer
 	if NetworkExists(ctx, exe) {
 		return nil
 	}
-	ui.Info(stdout, "Criando rede Docker "+NetworkName+"...")
+	ui.Info(stdout, i18n.Tr("docker.run.network", i18n.Args{"name": NetworkName}))
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "docker", "network", "create", NetworkName); err != nil {
-		return fmt.Errorf("criar rede %s: %w", NetworkName, err)
+		return fmt.Errorf("create network %s: %w", NetworkName, err)
 	}
 	return nil
 }
@@ -95,7 +97,7 @@ func NginxExists(ctx context.Context, exe *executor.Executor) bool {
 // RemoveNginx force-removes the nginx container, running or stopped. The
 // caller is responsible for confirming with the user first.
 func RemoveNginx(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-	return removeContainer(ctx, exe, stdout, NginxContainerName, "contêiner nginx")
+	return removeContainer(ctx, exe, stdout, NginxContainerName, "nginx container")
 }
 
 // wildcardCertFile / wildcardKeyFile are the fixed filenames of the
@@ -129,7 +131,7 @@ func WildcardCertReady() bool {
 func CertsDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("obter diretório home: %w", err)
+		return "", fmt.Errorf("get home folder: %w", err)
 	}
 	return filepath.Join(home, ".perci", "appstack", "certs"), nil
 }
@@ -161,7 +163,7 @@ func readCert(certFile string) (*x509.Certificate, error) {
 	}
 	block, _ := pem.Decode(data)
 	if block == nil {
-		return nil, fmt.Errorf("%s não tem um certificado PEM", certFile)
+		return nil, fmt.Errorf("%s has no PEM certificate", certFile)
 	}
 	return x509.ParseCertificate(block.Bytes)
 }
@@ -206,7 +208,7 @@ func certMissingNames(certFile string, names []string) []string {
 // time.
 func EnsureWildcardCert(ctx context.Context, exe *executor.Executor, stdin io.Reader, stdout io.Writer) (certFile, keyFile string, err error) {
 	if !isMkcertInstalled(ctx, exe) {
-		return "", "", fmt.Errorf("mkcert não está instalado — instale em \"Dev Stuff :: Pré-requisitos\" antes de criar o Contêiner Nginx")
+		return "", "", i18n.NewError("docker.noMkcert")
 	}
 
 	dir, err := CertsDir()
@@ -215,7 +217,7 @@ func EnsureWildcardCert(ctx context.Context, exe *executor.Executor, stdin io.Re
 	}
 	// 0o700: this directory holds the wildcard's private key.
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", "", fmt.Errorf("criar %s: %w", dir, err)
+		return "", "", fmt.Errorf("create %s: %w", dir, err)
 	}
 
 	certFile = filepath.Join(dir, wildcardCertFile)
@@ -223,16 +225,16 @@ func EnsureWildcardCert(ctx context.Context, exe *executor.Executor, stdin io.Re
 
 	cfg, err := config.Load()
 	if err != nil {
-		return "", "", fmt.Errorf("carregar config: %w", err)
+		return "", "", fmt.Errorf("load config: %w", err)
 	}
 	names := certNames(cfg.Docker.Apps)
 	if _, statErr := os.Stat(certFile); statErr == nil {
 		if _, statErr := os.Stat(keyFile); statErr == nil {
 			switch missing := certMissingNames(certFile, names); {
 			case certNeedsRenewal(certFile, time.Now()):
-				ui.Info(stdout, "O certificado *.localhost expira em menos de 30 dias — gerando um novo...")
+				ui.Info(stdout, i18n.Tr("docker.run.certExpiring", nil))
 			case len(missing) > 0:
-				ui.Info(stdout, "O certificado não cobre "+strings.Join(missing, ", ")+" — gerando um novo...")
+				ui.Info(stdout, i18n.Tr("docker.run.certMissing", i18n.Args{"names": strings.Join(missing, ", ")}))
 			default:
 				return certFile, keyFile, nil
 			}
@@ -245,7 +247,7 @@ func EnsureWildcardCert(ctx context.Context, exe *executor.Executor, stdin io.Re
 	// invoking user, not wrapped in our own sudo: under sudo, $HOME (and so
 	// mkcert's CAROOT) resolves to root's, not the user's, and mkcert would
 	// still prompt for a password of its own on top of that.
-	ui.Info(stdout, "Instalando autoridade certificadora local (mkcert -install)...")
+	ui.Info(stdout, i18n.Tr("docker.run.mkcertInstall", nil))
 	if err := exe.Run(ctx, executor.Options{Stdin: stdin, Stdout: stdout, Stderr: stdout}, "mkcert", "-install"); err != nil {
 		return "", "", fmt.Errorf("mkcert -install: %w", err)
 	}
@@ -258,10 +260,10 @@ func EnsureWildcardCert(ctx context.Context, exe *executor.Executor, stdin io.Re
 
 // generateCert writes a certificate pair for names, signed by mkcert's CA.
 func generateCert(ctx context.Context, exe *executor.Executor, stdin io.Reader, stdout io.Writer, certFile, keyFile string, names []string) error {
-	ui.Info(stdout, "Gerando certificado para "+strings.Join(names, ", ")+"...")
+	ui.Info(stdout, i18n.Tr("docker.run.certGenerate", i18n.Args{"names": strings.Join(names, ", ")}))
 	args := append([]string{"-cert-file", certFile, "-key-file", keyFile}, names...)
 	if err := exe.Run(ctx, executor.Options{Stdin: stdin, Stdout: stdout, Stderr: stdout}, "mkcert", args...); err != nil {
-		return fmt.Errorf("gerar certificado: %w", err)
+		return fmt.Errorf("generate certificate: %w", err)
 	}
 	return nil
 }
@@ -284,9 +286,9 @@ func ensureCertCoversApps(ctx context.Context, exe *executor.Executor, stdout io
 	if len(missing) == 0 {
 		return
 	}
-	ui.Info(stdout, "O certificado não cobre "+strings.Join(missing, ", ")+" — gerando um novo...")
+	ui.Info(stdout, i18n.Tr("docker.run.certMissing", i18n.Args{"names": strings.Join(missing, ", ")}))
 	if err := generateCert(ctx, exe, nil, stdout, certFile, keyFile, names); err != nil {
-		ui.Warning(stdout, "O certificado não foi atualizado ("+err.Error()+"); o navegador pode recusar "+strings.Join(missing, ", ")+".")
+		ui.Warning(stdout, i18n.Tr("docker.run.certNotUpdated", i18n.Args{"error": err.Error(), "names": strings.Join(missing, ", ")}))
 	}
 }
 
@@ -295,7 +297,7 @@ func ensureCertCoversApps(ctx context.Context, exe *executor.Executor, stdout io
 func NginxConfDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("obter diretório home: %w", err)
+		return "", fmt.Errorf("get home folder: %w", err)
 	}
 	return filepath.Join(home, ".perci", "appstack", "nginx"), nil
 }
@@ -610,11 +612,11 @@ func writeNginxConf(apps []config.AppContainer) (string, error) {
 		return "", err
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("criar %s: %w", dir, err)
+		return "", fmt.Errorf("create %s: %w", dir, err)
 	}
 	path := filepath.Join(dir, "default.conf")
 	if err := os.WriteFile(path, []byte(BuildNginxConf(apps)), 0o644); err != nil {
-		return "", fmt.Errorf("escrever %s: %w", path, err)
+		return "", fmt.Errorf("write %s: %w", path, err)
 	}
 	return path, nil
 }
@@ -650,7 +652,7 @@ func ReloadNginxConfig(ctx context.Context, exe *executor.Executor, stdout io.Wr
 		if _, err := writeNginxConf(apps); err != nil {
 			return err
 		}
-		ui.Info(stdout, "nginx/default.conf atualizado em disco. Crie ou inicie o Contêiner Nginx para aplicar.")
+		ui.Info(stdout, i18n.Tr("docker.run.nginxConfSaved", nil))
 		return nil
 	}
 
@@ -664,7 +666,7 @@ func ReloadNginxConfig(ctx context.Context, exe *executor.Executor, stdout io.Wr
 	if err := exe.Run(ctx, executor.Options{Stdout: &out, Stderr: &out}, "docker", "exec", NginxContainerName, "nginx", "-t"); err != nil {
 		if readErr == nil {
 			if restoreErr := os.WriteFile(path, oldContent, 0o644); restoreErr != nil {
-				return fmt.Errorf("configuração nginx inválida e falha ao reverter: %w", restoreErr)
+				return fmt.Errorf("%s: %w", i18n.Tr("docker.nginxRevertFailed", nil), restoreErr)
 			}
 		} else {
 			// No valid previous config to roll back to — remove the broken
@@ -672,13 +674,13 @@ func ReloadNginxConfig(ctx context.Context, exe *executor.Executor, stdout io.Wr
 			// (corrupt) baseline for the next reload's own rollback attempt.
 			_ = os.Remove(path)
 		}
-		return fmt.Errorf("configuração nginx inválida (alterações revertidas): %s", out.String())
+		return errors.New(i18n.Tr("docker.nginxInvalidReverted", i18n.Args{"output": out.String()}))
 	}
 
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "docker", "exec", NginxContainerName, "nginx", "-s", "reload"); err != nil {
-		return fmt.Errorf("recarregar nginx: %w", err)
+		return fmt.Errorf("reload nginx: %w", err)
 	}
-	ui.Success(stdout, "Roteamento do Nginx atualizado e aplicado sem downtime.")
+	ui.Success(stdout, i18n.Tr("docker.run.nginxReloaded", nil))
 	return nil
 }
 
@@ -703,19 +705,19 @@ func validateNginxConfStandalone(ctx context.Context, exe *executor.Executor, co
 		return err
 	}
 	if err := os.MkdirAll(confDir, 0o755); err != nil {
-		return fmt.Errorf("criar %s: %w", confDir, err)
+		return fmt.Errorf("create %s: %w", confDir, err)
 	}
 	tmp, err := os.CreateTemp(confDir, ".candidate-*.conf")
 	if err != nil {
-		return fmt.Errorf("criar arquivo temporário de teste: %w", err)
+		return fmt.Errorf("create temporary test file: %w", err)
 	}
 	defer func() { _ = os.Remove(tmp.Name()) }()
 	if _, err := tmp.WriteString(content); err != nil {
 		_ = tmp.Close()
-		return fmt.Errorf("escrever %s: %w", tmp.Name(), err)
+		return fmt.Errorf("write %s: %w", tmp.Name(), err)
 	}
 	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("escrever %s: %w", tmp.Name(), err)
+		return fmt.Errorf("write %s: %w", tmp.Name(), err)
 	}
 	if err := os.Chmod(tmp.Name(), 0o644); err != nil {
 		return err
@@ -730,7 +732,7 @@ func validateNginxConfStandalone(ctx context.Context, exe *executor.Executor, co
 	args = append(args, "--", NginxImage, "-t")
 	var out bytes.Buffer
 	if err := exe.Run(ctx, executor.Options{Stdout: &out, Stderr: &out}, "docker", args...); err != nil {
-		return fmt.Errorf("configuração nginx inválida (nada foi gravado): %s", out.String())
+		return errors.New(i18n.Tr("docker.nginxInvalid", i18n.Args{"output": out.String()}))
 	}
 	return nil
 }
@@ -767,12 +769,12 @@ func CreateNginx(ctx context.Context, exe *executor.Executor, stdin io.Reader, s
 // default.conf write (false when the caller already holds it).
 func createNginx(ctx context.Context, exe *executor.Executor, stdin io.Reader, stdout io.Writer, lock bool) (certFile string, err error) {
 	if !isDockerInstalled(ctx, exe) {
-		return "", fmt.Errorf("docker não instalado")
+		return "", i18n.NewError("docker.notInstalled")
 	}
 
 	cfg, err := config.Load()
 	if err != nil {
-		return "", fmt.Errorf("carregar config: %w", err)
+		return "", fmt.Errorf("load config: %w", err)
 	}
 
 	workspace, err := resolveWorkspace(cfg)
@@ -797,28 +799,28 @@ func createNginx(ctx context.Context, exe *executor.Executor, stdin io.Reader, s
 
 	htmlDir := filepath.Join(workspace, "localhost", "html")
 	if err := os.MkdirAll(htmlDir, 0o755); err != nil {
-		return "", fmt.Errorf("criar diretório html: %w", err)
+		return "", fmt.Errorf("create the html folder: %w", err)
 	}
 
 	logDir := filepath.Join(workspace, "localhost", "logs", "nginx")
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
-		return "", fmt.Errorf("criar diretório de logs: %w", err)
+		return "", fmt.Errorf("create the logs folder: %w", err)
 	}
 	if err := mountableError(confPath, filepath.Dir(certFile), htmlDir, logDir); err != nil {
 		return "", err
 	}
 
-	ui.Info(stdout, "Criando contêiner nginx...")
+	ui.Info(stdout, i18n.Tr("docker.run.creating", i18n.Args{"name": "nginx"}))
 	args := nginxRunArgs(confPath, filepath.Dir(certFile), htmlDir, logDir)
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "docker", args...); err != nil {
-		return "", fmt.Errorf("criar contêiner nginx: %w", err)
+		return "", fmt.Errorf("create the nginx container: %w", err)
 	}
 
 	if err := config.Update(func(cfg *config.Config) error {
 		cfg.Docker.NginxCreated = true
 		return nil
 	}); err != nil {
-		return "", fmt.Errorf("contêiner nginx criado, mas falha ao salvar configurações: %w", err)
+		return "", fmt.Errorf("%s: %w", i18n.Tr("docker.createdNotSaved", i18n.Args{"name": "nginx"}), err)
 	}
 
 	return certFile, nil
@@ -835,7 +837,7 @@ func writeNginxConfFromConfig(lock bool) (string, error) {
 	}
 	cfg, err := config.Load()
 	if err != nil {
-		return "", fmt.Errorf("carregar config: %w", err)
+		return "", fmt.Errorf("load config: %w", err)
 	}
 	return writeNginxConf(cfg.Docker.Apps)
 }
@@ -879,7 +881,7 @@ func DeleteNginx(ctx context.Context, exe *executor.Executor, stdout io.Writer) 
 		cfg.Docker.NginxCreated = false
 		return nil
 	}); err != nil {
-		return fmt.Errorf("nginx removido, mas falha ao salvar configurações: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("docker.removedNotSaved", i18n.Args{"name": "nginx"}), err)
 	}
 	return nil
 }

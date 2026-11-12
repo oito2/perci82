@@ -17,11 +17,13 @@ package appstack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // ComboImageName returns the perci-managed base image tag for a PHP+Node
@@ -135,10 +137,10 @@ CMD ["supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 // ensureImage).
 func EnsureComboImage(ctx context.Context, exe *executor.Executor, stdout io.Writer, phpVersion, nodeVersion string) error {
 	if !ValidPHPVersion(phpVersion) {
-		return fmt.Errorf("versão PHP não suportada: %s", phpVersion)
+		return errors.New(i18n.Tr("docker.badPHPVersion", i18n.Args{"version": phpVersion}))
 	}
 	if !ValidNodeVersion(nodeVersion) {
-		return fmt.Errorf("versão Node não suportada: %s", nodeVersion)
+		return errors.New(i18n.Tr("docker.badNodeVersion", i18n.Args{"version": nodeVersion}))
 	}
 	return ensureImage(ctx, exe, stdout, comboImageBuild(phpVersion, nodeVersion))
 }
@@ -148,7 +150,7 @@ func EnsureComboImage(ctx context.Context, exe *executor.Executor, stdout io.Wri
 func comboImageBuild(phpVersion, nodeVersion string) imageBuild {
 	return imageBuild{
 		name:  ComboImageName(phpVersion, nodeVersion),
-		first: "primeira vez que essa combinação PHP+Node é usada",
+		first: i18n.Tr("docker.firstCombo", nil),
 		files: map[string]string{"Dockerfile": comboDockerfile, "php.ini": phpIni, "supervisord.conf": comboSupervisordConf},
 		args: []string{"PHP_VERSION=" + phpVersion, "NODE_VERSION=" + nodeVersion,
 			fmt.Sprintf("UID=%d", os.Getuid())},

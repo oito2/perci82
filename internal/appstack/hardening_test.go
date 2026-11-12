@@ -652,7 +652,7 @@ func TestRemoveMoodlePlugin_RefusesTamperedRecord(t *testing.T) {
 			t.Fatal(err)
 		}
 		buf.Reset()
-		if err := RemoveMoodlePlugin(context.Background(), exe, &buf, "mdle", rel); err == nil {
+		if err := RemoveDevFolder(context.Background(), exe, &buf, "mdle", rel); err == nil {
 			t.Errorf("record %q accepted", rel)
 		}
 		if strings.Contains(buf.String(), "pkexec") {
@@ -680,7 +680,7 @@ func TestRemoveMoodlePlugin_RefusesRecordBehindALink(t *testing.T) {
 	}
 	var buf bytes.Buffer
 	exe := &executor.Executor{DryRun: true, UsePolicyKit: true, Stdout: &buf, Stderr: &buf}
-	if err := RemoveMoodlePlugin(context.Background(), exe, &buf, "mdle", "local/x"); err == nil || strings.Contains(buf.String(), "pkexec") {
+	if err := RemoveDevFolder(context.Background(), exe, &buf, "mdle", "local/x"); err == nil || strings.Contains(buf.String(), "pkexec") {
 		t.Errorf("err = %v, output:\n%s", err, buf.String())
 	}
 }

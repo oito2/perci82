@@ -311,7 +311,7 @@ test("Moodle PHP versions: a stale answer does not replace a newer one", async (
 // FE-10
 test("Plugins Moodle: typing the name checks the backend once, after a pause", async () => {
   const { ctx, element, calls } = load({
-    InspectMoodlePlugin: { ok: true, destLabel: "x", locked: false },
+    InspectDevFolder: { ok: true, destLabel: "x", locked: false },
   });
   element("mp-type").options = [];
   evalIn(ctx, 'mpDev = "/ws/dev"');
@@ -320,15 +320,15 @@ test("Plugins Moodle: typing the name checks the backend once, after a pause", a
   input();
   input();
   assert.equal(element("btn-mp-create").disabled, true);
-  assert.equal(calls.filter((c) => c.name === "InspectMoodlePlugin").length, 0);
+  assert.equal(calls.filter((c) => c.name === "InspectDevFolder").length, 0);
   await sleep(350);
-  assert.equal(calls.filter((c) => c.name === "InspectMoodlePlugin").length, 1);
+  assert.equal(calls.filter((c) => c.name === "InspectDevFolder").length, 1);
 });
 
 test("Plugins Moodle: the screen load and the table reload use separate request keys", async () => {
   const screen = deferred();
   const rows = deferred();
-  const { ctx, element } = load({ GetMoodlePlugins: queued([screen, rows]) });
+  const { ctx, element } = load({ GetDevFolders: queued([screen, rows]) });
   element("mp-app").options = [];
   ctx.renderMoodlePluginsScreen();
   ctx.loadMpRows();

@@ -72,15 +72,15 @@ func TestMoodlePlugins_InspectWithEmptyAndDeclaredFolder(t *testing.T) {
 	}
 
 	// Empty development folder: type and name come from the form.
-	check, err := svc.InspectMoodlePlugin(dev, "mdle", "", "")
+	check, err := svc.InspectDevFolder(dev, "mdle", "", "", "")
 	if err != nil || check.Locked || check.OK || check.Message == "" {
 		t.Errorf("without type/name: %+v, %v", check, err)
 	}
-	check, err = svc.InspectMoodlePlugin(dev, "mdle", "local", "example")
+	check, err = svc.InspectDevFolder(dev, "mdle", "local", "example", "")
 	if err != nil || check.Locked || !check.OK || check.DestLabel != "mdle/public/local/example" {
 		t.Errorf("empty folder: %+v, %v", check, err)
 	}
-	check, err = svc.InspectMoodlePlugin(dev, "mdle", "course_format", "example")
+	check, err = svc.InspectDevFolder(dev, "mdle", "course_format", "example", "")
 	if err != nil || check.OK || check.Message == "" {
 		t.Errorf("unknown type: %+v, %v", check, err)
 	}
@@ -89,14 +89,14 @@ func TestMoodlePlugins_InspectWithEmptyAndDeclaredFolder(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dev, "version.php"), []byte(`<?php $plugin->component = 'format_grid';`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	check, err = svc.InspectMoodlePlugin(dev, "mdle", "local", "example")
+	check, err = svc.InspectDevFolder(dev, "mdle", "local", "example", "")
 	if err != nil || !check.Locked || check.Type != "format" || check.Name != "grid" || !check.OK || check.DestLabel != "mdle/public/course/format/grid" {
 		t.Errorf("declared component: %+v, %v", check, err)
 	}
 
-	screen, err := svc.GetMoodlePlugins()
+	screen, err := svc.GetDevFolders()
 	if err != nil || len(screen.Apps) != 1 || screen.Apps[0].Label != "Moodle 5 (mdle)" || len(screen.Rows) != 0 {
-		t.Errorf("GetMoodlePlugins = %+v, %v", screen, err)
+		t.Errorf("GetDevFolders = %+v, %v", screen, err)
 	}
 }
 

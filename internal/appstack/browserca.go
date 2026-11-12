@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -87,17 +88,17 @@ func trustCAInFlatpakBrowsers(ctx context.Context, exe *executor.Executor, stdou
 		return
 	}
 	if !exe.CommandAvailable(ctx, "certutil") {
-		ui.Warning(stdout, "Há navegadores Flatpak, mas o certutil não está instalado: reinstale o Mkcert em Pré-requisitos (ele traz o certutil) e recrie o Contêiner Nginx para que esses navegadores confiem nos sites *.localhost.")
+		ui.Warning(stdout, i18n.Tr("docker.run.noCertutil", nil))
 		return
 	}
 	out, err := exe.Output(ctx, executor.Options{}, "mkcert", "-CAROOT")
 	if err != nil {
-		ui.Warning(stdout, "Não foi possível localizar a autoridade certificadora do mkcert: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("docker.run.caNotFound", i18n.Args{"error": err.Error()}))
 		return
 	}
 	rootCA := filepath.Join(strings.TrimSpace(out), "rootCA.pem")
 	if _, err := os.Stat(rootCA); err != nil && !exe.DryRun {
-		ui.Warning(stdout, "Autoridade certificadora do mkcert não encontrada em "+rootCA)
+		ui.Warning(stdout, i18n.Tr("docker.run.caMissing", i18n.Args{"path": rootCA}))
 		return
 	}
 
@@ -113,7 +114,7 @@ func trustCAInFlatpakBrowsers(ctx context.Context, exe *executor.Executor, stdou
 		db := "sql:" + dir
 		before := list(db)
 		if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "certutil", "-A", "-d", db, "-t", "C,,", "-n", mkcertCANickname, "-i", rootCA); err != nil {
-			ui.Warning(stdout, "Não foi possível registrar a autoridade certificadora em "+dir+": "+err.Error())
+			ui.Warning(stdout, i18n.Tr("docker.run.caRegisterFailed", i18n.Args{"path": dir, "error": err.Error()}))
 			continue
 		}
 		if list(db) != before {
@@ -122,6 +123,6 @@ func trustCAInFlatpakBrowsers(ctx context.Context, exe *executor.Executor, stdou
 	}
 	if len(added) > 0 {
 		slices.Sort(added)
-		ui.Info(stdout, "Autoridade certificadora do mkcert registrada nos navegadores Flatpak: "+strings.Join(slices.Compact(added), ", ")+". Reinicie esses navegadores para que confiem nos sites *.localhost.")
+		ui.Info(stdout, i18n.Tr("docker.run.caRegistered", i18n.Args{"browsers": strings.Join(slices.Compact(added), ", ")}))
 	}
 }

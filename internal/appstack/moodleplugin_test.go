@@ -244,11 +244,11 @@ func TestAddAndRemoveMoodlePlugin_OnePasswordEach(t *testing.T) {
 		t.Error("the same plugin was mounted twice")
 	}
 
-	if err := RemoveMoodlePlugin(context.Background(), exe, &buf, "mdle", "public/local/nope"); err == nil {
+	if err := RemoveDevFolder(context.Background(), exe, &buf, "mdle", "public/local/nope"); err == nil {
 		t.Error("removed an unknown record")
 	}
 	buf.Reset()
-	if err := RemoveMoodlePlugin(context.Background(), exe, &buf, "mdle", "public/local/example"); err != nil {
+	if err := RemoveDevFolder(context.Background(), exe, &buf, "mdle", "public/local/example"); err != nil {
 		t.Fatalf("RemoveMoodlePlugin: %v", err)
 	}
 	out = buf.String()
@@ -350,5 +350,102 @@ func TestMoodlePluginStatuses(t *testing.T) {
 	}
 	if got := status().DeclaredAs; got != "local_renamed" {
 		t.Errorf("DeclaredAs = %q", got)
+	}
+}
+
+func TestPlanDevFolder_OtherAppTypes(t *testing.T) {
+	workspace, dev := pluginStack(t, map[string]string{"local": "local"})
+	if err := config.Update(func(c *config.Config) error {
+		c.Docker.Apps = append(c.Docker.Apps,
+			config.AppContainer{Folder: "site", Type: config.AppTypeNode},
+			config.AppContainer{Folder: "painel", Type: config.AppTypePHPNode},
+		)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, app := range []string{"loja", "site", "painel"} {
+		if err := os.MkdirAll(AppHTMLDir(workspace, app), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg := loadCfg(t)
+
+	cases := []struct {
+		app, rel string
+		ok       bool
+	}{
+		{"loja", "modules/pagamento", true},
+		{"site", "packages/ui", true},
+		{"painel", "api/ext/pagamento", true},
+		{"painel", "app/packages/ui", true},
+		{"painel", "outra", false},
+		{"painel", "api", false},
+		{"loja", "", false},
+		{"loja", ".", false},
+		{"loja", "../fora", false},
+		{"nope", "x", false},
+	}
+	for _, c := range cases {
+		plan, err := PlanDevFolder(cfg, dev, c.app, DevFolderTarget{RelPath: c.rel})
+		if (err == nil) != c.ok {
+			t.Errorf("%s %q: err = %v, want ok=%v", c.app, c.rel, err, c.ok)
+			continue
+		}
+		if c.ok && (plan.Component != "" || plan.RelPath != filepath.Clean(c.rel) || plan.Dest != filepath.Join(AppHTMLDir(workspace, c.app), c.rel)) {
+			t.Errorf("%s %q: plan = %+v", c.app, c.rel, plan)
+		}
+	}
+
+	// A Moodle app takes a plugin: its RelPath comes from the plugin type.
+	plan, err := PlanDevFolder(cfg, dev, "mdle", DevFolderTarget{PluginType: "local", PluginName: "example", RelPath: "ignored"})
+	if err != nil || plan.Component != "local_example" || plan.RelPath != filepath.Join("local", "example") {
+		t.Errorf("moodle plan = %+v, %v", plan, err)
+	}
+}
+
+func TestContainerPath(t *testing.T) {
+	cases := []struct {
+		appType, rel, want string
+		ok                 bool
+	}{
+		{config.AppTypeMoodle, "local/x", "/var/www/html/local/x", true},
+		{config.AppTypePHP, "modules/x", "/var/www/html/modules/x", true},
+		{config.AppTypeGeneric, "x", "/var/www/html/x", true},
+		{config.AppTypeNode, "packages/ui", "/app/packages/ui", true},
+		{config.AppTypePHPNode, "api/ext", "/var/www/html/ext", true},
+		{config.AppTypePHPNode, "app/packages/ui", "/app/packages/ui", true},
+		{config.AppTypePHPNode, "docs", "", false},
+		{config.AppTypePHPNode, "app", "", false},
+	}
+	for _, c := range cases {
+		got, ok := containerPath(c.appType, c.rel)
+		if got != c.want || ok != c.ok {
+			t.Errorf("containerPath(%s, %s) = %q, %v; want %q, %v", c.appType, c.rel, got, ok, c.want, c.ok)
+		}
+	}
+	if nginxServes(config.AppTypeNode) || !nginxServes(config.AppTypePHPNode) || !nginxServes(config.AppTypeMoodle) {
+		t.Error("Nginx serves every app type but Node")
+	}
+}
+
+func TestPluginStatus_UsesTheAppTypesContainerPath(t *testing.T) {
+	workspace, dev := pluginStack(t, nil)
+	dest := filepath.Join(AppHTMLDir(workspace, "site"), "packages", "ui")
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A symlink makes the host destination resolve to the development
+	// folder, as a bind mount does.
+	if err := os.Symlink(dev, dest); err != nil {
+		t.Fatal(err)
+	}
+	devID, _ := dirID(dev)
+	m := config.MoodlePluginMount{App: "site", DevPath: dev, RelPath: "packages/ui"}
+	if got := pluginStatus(workspace, nil, m, config.AppTypeNode, "running", map[string]string{"/app/packages/ui": devID}, false, nil); got != PluginApplied {
+		t.Errorf("node mount seen at /app = %q, want applied", got)
+	}
+	if got := pluginStatus(workspace, nil, m, config.AppTypeNode, "running", map[string]string{"/var/www/html/packages/ui": devID}, false, nil); got != PluginPending {
+		t.Errorf("node mount seen only at /var/www/html = %q, want pending", got)
 	}
 }

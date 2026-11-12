@@ -30,20 +30,20 @@ function refreshLogs() {
   const folder = __logsFolder;
   __logsText = "";
   btnLogsExport.disabled = true;
-  logsModalContent.textContent = "Carregando...";
+  logsModalContent.textContent = t("logs.loading");
   App.GetContainerLogsSnapshot(folder).then(function (text) {
     if (folder !== __logsFolder) return; // another container's logs opened meanwhile
     __logsText = text || "";
     btnLogsExport.disabled = __logsText === "";
-    logsModalContent.textContent = __logsText || "(sem saída)";
+    logsModalContent.textContent = __logsText || t("logs.empty");
   }).catch(function (err) {
     if (folder !== __logsFolder) return;
-    logsModalContent.textContent = "Falha ao buscar logs: " + err;
+    logsModalContent.textContent = t("logs.failed", { error: err });
   });
 }
 function openLogs(folder, title) {
   __logsFolder = folder;
-  logsModalTitle.textContent = "Logs — " + title;
+  logsModalTitle.textContent = t("logs.title", { name: title });
   showDialog(logsModal);
   refreshLogs();
 }
@@ -52,25 +52,27 @@ btnLogsExport.addEventListener("click", function () {
   App.PickLogsExportPath(__logsFolder + "-logs.txt").then(function (path) {
     if (!path) return;
     return App.SaveTextFile(path, __logsText);
-  }).catch(function (err) { openError("Falha ao exportar logs: " + err); });
+  }).catch(function (err) { openError(t("logs.exportFailed", { error: err })); });
 });
 
 // --- status → daisyUI "Status with ping animation" ---
 
+// CONTAINER_TYPE_LABELS maps each container type to its name; "generic"
+// is translated, so the map has getters.
 const CONTAINER_TYPE_LABELS = {
   nginx: "Nginx", mariadb: "MariaDB", moodle: "Moodle", php: "PHP",
-  generic: "Genérico", node: "Node", php_node: "PHP + Node",
+  get generic() { return t("docker.type.generic"); }, node: "Node", php_node: "PHP + Node",
 };
 
 function statusInfo(status) {
   switch (status) {
-    case "running": return { label: "rodando", color: "success", ping: true };
-    case "restarting": return { label: "reiniciando", color: "warning", ping: true };
-    case "paused": return { label: "pausado", color: "warning", ping: false };
-    case "created": return { label: "criado", color: "info", ping: false };
-    case "exited": return { label: "parado", color: "neutral", ping: false };
-    case "dead": return { label: "morto", color: "error", ping: false };
-    case "": return { label: "não encontrado", color: "error", ping: false };
+    case "running": return { label: t("docker.status.running"), color: "success", ping: true };
+    case "restarting": return { label: t("docker.status.restarting"), color: "warning", ping: true };
+    case "paused": return { label: t("docker.status.paused"), color: "warning", ping: false };
+    case "created": return { label: t("docker.status.created"), color: "info", ping: false };
+    case "exited": return { label: t("docker.status.exited"), color: "neutral", ping: false };
+    case "dead": return { label: t("docker.status.dead"), color: "error", ping: false };
+    case "": return { label: t("docker.status.missing"), color: "error", ping: false };
     default: return { label: status, color: "neutral", ping: false };
   }
 }
@@ -79,7 +81,7 @@ function statusInfo(status) {
 // "não encontrado".
 function statusBadgeHTML(status, dockerError) {
   const info = dockerError
-    ? { label: "Docker inacessível", color: "warning", ping: false }
+    ? { label: t("docker.status.unreachable"), color: "warning", ping: false }
     : statusInfo(status);
   const dot = "status status-" + info.color;
   const indicator = info.ping
@@ -110,7 +112,7 @@ function textFieldHTML(id, label, opts) {
     '<div class="label"><span class="label-text">' + escHTML(label) + "</span></div>" +
     (opts.secret
       ? '<div class="join w-full">' + input +
-        '<button type="button" class="btn join-item" data-reveal="' + escAttr(id) + '" aria-pressed="false">Mostrar</button></div>'
+        '<button type="button" class="btn join-item" data-reveal="' + escAttr(id) + '" aria-pressed="false">' + escHTML(t("field.show")) + "</button></div>"
       : input) +
     "</label>"
   );
@@ -123,7 +125,7 @@ document.addEventListener("click", function (ev) {
   if (!input) return;
   const show = input.type === "password";
   input.type = show ? "text" : "password";
-  btn.textContent = show ? "Ocultar" : "Mostrar";
+  btn.textContent = show ? t("field.hide") : t("field.show");
   btn.setAttribute("aria-pressed", show ? "true" : "false");
 });
 function selectFieldHTML(id, label, options, selected) {
@@ -199,19 +201,19 @@ function buildContainerFieldsHTML(prefix, kind, catalog, values) {
   values = values || {};
   const p = prefix;
   if (kind === "nginx") {
-    return '<p class="opacity-70 text-sm">O contêiner Nginx não tem parâmetros — ele roteia todos os *.localhost já configurados.</p>';
+    return '<p class="opacity-70 text-sm">' + escHTML(t("docker.nginxNoParams")) + "</p>";
   }
   if (kind === "mariadb") {
     return (
-      textFieldHTML(p + "-dbUser", "Usuário do banco", { value: values.dbUser || "dev_user" }) +
-      textFieldHTML(p + "-dbPass", "Senha", { value: values.dbPass || "", secret: true })
+      textFieldHTML(p + "-dbUser", t("docker.field.dbUser"), { value: values.dbUser || "dev_user" }) +
+      textFieldHTML(p + "-dbPass", t("docker.field.dbPass"), { value: values.dbPass || "", secret: true })
     );
   }
   const isPHPFamily = kind === "moodle" || kind === "php" || kind === "generic";
   const isNodeFamily = kind === "node" || kind === "php_node";
   let html = "";
-  html += textFieldHTML(p + "-name", "Nome do aplicativo", { value: values.name || "" });
-  html += textFieldHTML(p + "-folder", "Pasta (nome técnico do contêiner)", { value: values.folder || "", placeholder: "meuapp" });
+  html += textFieldHTML(p + "-name", t("docker.field.name"), { value: values.name || "" });
+  html += textFieldHTML(p + "-folder", t("docker.field.folder"), { value: values.folder || "", placeholder: t("docker.field.folderPlaceholder") });
   html += textFieldHTML(p + "-url", "URL", { value: values.url || "" });
 
   if (kind === "moodle") {
@@ -219,24 +221,24 @@ function buildContainerFieldsHTML(prefix, kind, catalog, values) {
     // A saved value no longer offered (e.g. "4.x") stays selectable, so
     // editing the container keeps it unless the user picks another one.
     const moodleOptions = catalog.moodleVersions.indexOf(mv) >= 0 ? catalog.moodleVersions : catalog.moodleVersions.concat([mv]);
-    html += selectFieldHTML(p + "-moodleVersion", "Versão do Moodle", moodleOptions, mv);
+    html += selectFieldHTML(p + "-moodleVersion", t("docker.field.moodleVersion"), moodleOptions, mv);
   }
   if (isPHPFamily) {
-    html += '<div id="' + p + '-phpVersion-wrap">' + selectFieldHTML(p + "-phpVersion", "Versão PHP", catalog.phpVersions, values.phpVersion || catalog.phpVersions[0]) + "</div>";
-    html += textFieldHTML(p + "-phpMemoryLimit", "Limite de memória PHP (opcional)", { value: values.phpMemoryLimit || "", placeholder: "512M" });
+    html += '<div id="' + p + '-phpVersion-wrap">' + selectFieldHTML(p + "-phpVersion", t("docker.field.phpVersion"), catalog.phpVersions, values.phpVersion || catalog.phpVersions[0]) + "</div>";
+    html += textFieldHTML(p + "-phpMemoryLimit", t("docker.field.phpMemoryLimit"), { value: values.phpMemoryLimit || "", placeholder: "512M" });
   }
   if (isNodeFamily) {
-    html += selectFieldHTML(p + "-nodeVersion", "Versão Node", catalog.nodeVersions, values.nodeVersion || catalog.nodeVersions[0]);
-    html += textFieldHTML(p + "-devCommand", "Comando de start", { value: values.devCommand || "npm run dev" });
-    html += textFieldHTML(p + "-devPort", "Porta", { type: "number", value: values.devPort || 5173 });
+    html += selectFieldHTML(p + "-nodeVersion", t("docker.field.nodeVersion"), catalog.nodeVersions, values.nodeVersion || catalog.nodeVersions[0]);
+    html += textFieldHTML(p + "-devCommand", t("docker.field.devCommand"), { value: values.devCommand || "npm run dev" });
+    html += textFieldHTML(p + "-devPort", t("docker.field.devPort"), { type: "number", value: values.devPort || 5173 });
   }
   if (kind === "php_node") {
-    html += textFieldHTML(p + "-workerCommand", "Comando do worker (opcional)", { value: values.workerCommand || "" });
+    html += textFieldHTML(p + "-workerCommand", t("docker.field.workerCommand"), { value: values.workerCommand || "" });
   }
   if (isPHPFamily || kind === "php_node") {
     html += checkboxFieldHTML(
-      p + "-dbAccess", "Habilitar acesso ao banco", !!values.dbAccess, !catalog.mariadbReady,
-      catalog.mariadbReady ? "" : "Crie um Contêiner MariaDB primeiro para habilitar isso."
+      p + "-dbAccess", t("docker.field.dbAccess"), !!values.dbAccess, !catalog.mariadbReady,
+      catalog.mariadbReady ? "" : t("docker.field.dbAccessHint")
     );
   }
   return html;
@@ -252,7 +254,7 @@ function wireMoodlePHPFilter(prefix) {
     const current = document.getElementById(prefix + "-phpVersion");
     const currentVal = current ? current.value : "";
     App.GetPHPVersionsForMoodleVersion(moodleSel.value).then(latestOnly("php-versions-" + prefix, function (versions) {
-      phpWrap.innerHTML = selectFieldHTML(prefix + "-phpVersion", "Versão PHP", versions, versions.indexOf(currentVal) >= 0 ? currentVal : versions[0]);
+      phpWrap.innerHTML = selectFieldHTML(prefix + "-phpVersion", t("docker.field.phpVersion"), versions, versions.indexOf(currentVal) >= 0 ? currentVal : versions[0]);
     }));
   }
   moodleSel.addEventListener("change", refresh);
