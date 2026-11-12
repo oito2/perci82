@@ -31,6 +31,7 @@ import (
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // pinnedHostKeys are the published SSH host keys of the public GitHub and
@@ -95,7 +96,7 @@ func Fingerprint(line string) (string, error) {
 			return "SHA256:" + base64.RawStdEncoding.EncodeToString(sum[:]), nil
 		}
 	}
-	return "", fmt.Errorf("chave SSH inválida: %q", line)
+	return "", fmt.Errorf("invalid SSH key: %q", line)
 }
 
 // isKeyType reports whether field names an SSH public key algorithm.
@@ -166,7 +167,7 @@ func ScanHostKeys(ctx context.Context, exe *executor.Executor, acc config.GitAcc
 		keys = append(keys, HostKey{Line: strings.Join(f[:3], " "), Type: f[1], Fingerprint: fp})
 	}
 	if len(keys) == 0 {
-		return nil, fmt.Errorf("o servidor %s não respondeu com chaves SSH", pattern)
+		return nil, errors.New(i18n.Tr("git.noHostKeys", i18n.Args{"host": pattern}))
 	}
 	return keys, nil
 }
@@ -179,7 +180,7 @@ func TrustHostKeys(acc config.GitAccount, keys []HostKey) error {
 	for _, k := range keys {
 		f := strings.Fields(k.Line)
 		if len(f) != 3 || f[0] != pattern {
-			return fmt.Errorf("chave de host não pertence a %s: %q", pattern, k.Line)
+			return fmt.Errorf("host key does not belong to %s: %q", pattern, k.Line)
 		}
 		if _, err := Fingerprint(k.Line); err != nil {
 			return err
@@ -201,7 +202,7 @@ func readKnownHosts() ([]string, error) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("ler %s: %w", path, err)
+		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
 	var lines []string
 	for _, l := range strings.Split(string(data), "\n") {
@@ -234,10 +235,10 @@ func addKnownHosts(lines []string) error {
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("criar %s: %w", filepath.Dir(path), err)
+		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
 	}
 	if err := fsutil.WriteFileAtomic(path, []byte(strings.Join(current, "\n")+"\n"), 0o644); err != nil {
-		return fmt.Errorf("gravar %s: %w", path, err)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
 }

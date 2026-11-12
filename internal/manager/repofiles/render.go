@@ -17,8 +17,11 @@ package repofiles
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // Templates of the generated files. The texts carry no fixed address or
@@ -82,7 +85,7 @@ func render(id string, opts Options) ([]file, error) {
 		}
 		project := strings.TrimSpace(opts.Project)
 		if project == "" || strings.ContainsAny(project, "\r\n") {
-			return nil, fmt.Errorf("nome do projeto inválido: %q", opts.Project)
+			return nil, errors.New(i18n.Tr("repofiles.badProject", i18n.Args{"name": opts.Project}))
 		}
 		issuesURL, _, err := webLinks(opts)
 		if err != nil {
@@ -133,7 +136,7 @@ func contactEmail(opts Options) (string, error) {
 func CheckContactEmail(email string) (string, error) {
 	trimmed := strings.TrimSpace(email)
 	if !validContactEmail.MatchString(trimmed) {
-		return "", fmt.Errorf("informe um e-mail de contato válido (recebido: %q)", email)
+		return "", errors.New(i18n.Tr("repofiles.badEmail", i18n.Args{"email": email}))
 	}
 	return trimmed, nil
 }
@@ -147,7 +150,7 @@ func webLinks(opts Options) (issues, support string, err error) {
 		return "", "", nil
 	}
 	if !validWebURL.MatchString(base) {
-		return "", "", fmt.Errorf("endereço do repositório inválido: %q", opts.WebURL)
+		return "", "", errors.New(i18n.Tr("repofiles.badURL", i18n.Args{"url": opts.WebURL}))
 	}
 	if opts.Provider == ProviderGitLab {
 		return base + "/-/issues", base + "/-/blob/HEAD/SUPPORT.md", nil

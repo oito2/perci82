@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -58,14 +59,14 @@ func setCredentialHelper(ctx context.Context, exe *executor.Executor, stdout io.
 	}
 	if out, err := exe.Output(ctx, executor.Options{}, "git", gitDirArgs(dir, probe...)...); err == nil {
 		if current := strings.Join(strings.Fields(out), ", "); current != "" {
-			ui.Info(stdout, "credential.helper já configurado ("+current+") — mantido.")
+			ui.Info(stdout, i18n.Tr("repo.run.helperKept", i18n.Args{"helper": current}))
 			return nil
 		}
 	}
 
 	cred := resolveCredHelper(ctx, exe)
 	if cred == "cache" {
-		ui.Warning(stdout, "git-credential-libsecret não encontrado — usando o helper 'cache', que guarda a senha só na memória por 15 minutos. Instale o Libsecret Tools em Pré-requisitos para guardá-la no chaveiro do sistema.")
+		ui.Warning(stdout, i18n.Tr("repo.run.helperCache", nil))
 	}
 	args := []string{"config", scope, "--", "credential.helper", cred}
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "git", gitDirArgs(dir, args...)...); err != nil {

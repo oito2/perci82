@@ -16,11 +16,12 @@
 package gitaccount
 
 import (
-	"fmt"
+	"errors"
 	"path/filepath"
 	"strings"
 
 	"github.com/oito2/perci82/internal/config"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/manager/repofiles"
 )
 
@@ -69,7 +70,7 @@ func SetContactEmail(id, path, email string) error {
 			acc.RepoSettings = setRepoEmail(acc.RepoSettings, path, email)
 			return nil
 		}
-		return fmt.Errorf("conta não encontrada: %q", id)
+		return errors.New(i18n.Tr("git.accountNotFound", i18n.Args{"id": id}))
 	})
 }
 

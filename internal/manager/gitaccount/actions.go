@@ -25,6 +25,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -34,19 +35,19 @@ import (
 // the old URL goes away with it.
 func FixURL(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc config.GitAccount, st RepoState) error {
 	if st.RemoteClass != RemoteHTTPS || st.SSHURL == "" {
-		return fmt.Errorf("%s: o remote não é uma URL HTTPS da conta", st.Path)
+		return errors.New(i18n.Tr("git.notHTTPS", i18n.Args{"path": st.Path}))
 	}
 	env, err := netEnv(acc)
 	if err != nil {
 		return err
 	}
 	if err := gitNet(ctx, exe, env, st.Dir, "ls-remote", "--heads", "--", st.SSHURL); err != nil {
-		return fmt.Errorf("%s: %s não respondeu pela chave da conta (%v); o remote não foi alterado", st.Path, st.SSHURL, err)
+		return errors.New(i18n.Tr("git.sshNoAnswer", i18n.Args{"path": st.Path, "url": st.SSHURL, "error": err.Error()}))
 	}
 	if err := exe.Run(ctx, executor.Options{}, "git", "-C", st.Dir, "remote", "set-url", "origin", st.SSHURL); err != nil {
 		return fmt.Errorf("%s: git remote set-url: %w", st.Path, err)
 	}
-	ui.Success(stdout, "✓ "+st.Path+": origin agora é "+st.SSHURL)
+	ui.Success(stdout, "✓ "+i18n.Tr("git.run.originNow", i18n.Args{"path": st.Path, "url": st.SSHURL}))
 	return nil
 }
 
@@ -65,10 +66,10 @@ func FixURLs(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc 
 		}
 	}
 	if done == 0 {
-		return errors.New("nenhum repositório com URL HTTPS")
+		return i18n.NewError("git.noHTTPS")
 	}
 	if failed > 0 {
-		return fmt.Errorf("%d URL(s) não puderam ser ajustadas", failed)
+		return errors.New(i18n.Tr("git.urlsFailed", i18n.Args{"count": failed}))
 	}
 	return nil
 }
@@ -81,7 +82,7 @@ var repoNamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$`)
 // on the server may not exist yet.
 func SetRemote(ctx context.Context, exe *executor.Executor, acc config.GitAccount, st RepoState, name string) (string, error) {
 	if st.RemoteClass != RemoteNone {
-		return "", fmt.Errorf("%s já tem o remote origin", st.Path)
+		return "", errors.New(i18n.Tr("git.hasOrigin", i18n.Args{"path": st.Path}))
 	}
 	name, err := cleanRepoName(acc, name)
 	if err != nil {
@@ -102,7 +103,7 @@ func cleanRepoName(acc config.GitAccount, name string) (string, error) {
 		name = rest
 	}
 	if !repoNamePattern.MatchString(name) || strings.Contains(name, "..") {
-		return "", fmt.Errorf("nome de repositório inválido: %q", name)
+		return "", errors.New(i18n.Tr("git.badRepoName", i18n.Args{"name": name}))
 	}
 	return name, nil
 }

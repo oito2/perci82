@@ -17,9 +17,11 @@ package repofiles
 
 import (
 	"embed"
-	"fmt"
+	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // licenseFS holds the canonical license texts, unmodified: the GNU
@@ -79,7 +81,7 @@ func licenseText(l License) string {
 func renderLicense(id, holder string, year int) (string, error) {
 	l, ok := findLicense(id)
 	if !ok {
-		return "", fmt.Errorf("licença desconhecida: %q", id)
+		return "", errors.New(i18n.Tr("repofiles.badLicense", i18n.Args{"id": id}))
 	}
 	text := licenseText(l)
 	if !l.Copyright {
@@ -87,10 +89,10 @@ func renderLicense(id, holder string, year int) (string, error) {
 	}
 	holder = strings.TrimSpace(holder)
 	if holder == "" || strings.ContainsAny(holder, "\r\n") || len(holder) > 200 {
-		return "", fmt.Errorf("informe o titular dos direitos da licença %s (uma linha, até 200 caracteres)", l.ID)
+		return "", errors.New(i18n.Tr("repofiles.noHolder", i18n.Args{"id": l.ID}))
 	}
 	if year < 1000 || year > 9999 {
-		return "", fmt.Errorf("ano inválido para a licença %s: %d", l.ID, year)
+		return "", errors.New(i18n.Tr("repofiles.badYear", i18n.Args{"id": l.ID, "year": year}))
 	}
 	text = strings.Replace(text, "[year]", strconv.Itoa(year), 1)
 	return strings.Replace(text, "[fullname]", holder, 1), nil

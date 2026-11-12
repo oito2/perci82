@@ -85,15 +85,15 @@ const GA_PROVIDERS = {
     label: "GitHub", host: "github.com",
     keysPath: "/settings/keys",
     tokenPath: "/settings/personal-access-tokens/new",
-    keyHint: "Depois de salvar, copie a chave pública nos detalhes da conta e cadastre-a no GitHub em New SSH key, com Key type \"Authentication Key\". É uma chave SSH, não GPG.",
-    tokenSteps: "Crie um token fine-grained: Resource owner = seu usuário, Repository access = All repositories e, em Permissions, só Metadata: Read-only (já vem marcada). Copie o token ao criá-lo: ele só aparece uma vez.",
+    get keyHint() { return t("ga.github.keyHint"); },
+    get tokenSteps() { return t("ga.github.tokenSteps"); },
   },
   gitlab: {
     label: "GitLab", host: "gitlab.com",
     keysPath: "/-/user_settings/ssh_keys",
     tokenPath: "/-/user_settings/personal_access_tokens",
-    keyHint: "Depois de salvar, copie a chave pública nos detalhes da conta e cadastre-a no GitLab em SSH Keys, com Usage type \"Authentication\" ou \"Authentication & Signing\". É uma chave SSH, não GPG.",
-    tokenSteps: "Crie um personal access token só com o escopo read_api. Copie o token ao criá-lo: ele só aparece uma vez.",
+    get keyHint() { return t("ga.gitlab.keyHint"); },
+    get tokenSteps() { return t("ga.gitlab.tokenSteps"); },
   },
 };
 
@@ -109,13 +109,14 @@ function gaProviderPage(path) {
   return GA_HOST_PATTERN.test(host) ? "https://" + host + path : "";
 }
 
-// Badge per GitAccountView.keyState.
+// Badge per GitAccountView.keyState: the message key of its label and its
+// color.
 const GA_KEY_STATES = {
-  missing: { label: "não encontrada", color: "error" },
-  ready: { label: "pronta", color: "success" },
-  unlocked: { label: "desbloqueada", color: "success" },
-  locked: { label: "bloqueada", color: "warning" },
-  "no-agent": { label: "sem agente SSH", color: "warning" },
+  missing: { key: "ga.key.missing", color: "error" },
+  ready: { key: "ga.key.ready", color: "success" },
+  unlocked: { key: "ga.key.unlocked", color: "success" },
+  locked: { key: "ga.key.locked", color: "warning" },
+  "no-agent": { key: "ga.key.noAgent", color: "warning" },
 };
 
 // Key states in which a connection test can't authenticate.
@@ -142,7 +143,8 @@ function gaHostLabel(v) {
 }
 
 function gaKeyState(state) {
-  return GA_KEY_STATES[state] || { label: state, color: "neutral" };
+  const s = GA_KEY_STATES[state];
+  return s ? { label: t(s.key), color: s.color } : { label: state, color: "neutral" };
 }
 
 function gaKeyBadgeHTML(state) {
@@ -154,12 +156,12 @@ function gaKeyBadgeHTML(state) {
 // and the account screen.
 function gaSummaryHTML(v) {
   const rows = [
-    ["Provedor", gaProviderLabel(v) + " — " + gaHostLabel(v)],
-    ["Usuário", v.username],
-    ["Commits", v.gitName + " <" + v.gitEmail + ">"],
-    ["Pasta", v.folder],
-    ["Chave SSH", v.sshKey],
-    ["Token", v.hasToken ? "salvo no chaveiro" : "nenhum"],
+    [t("ga.sum.provider"), gaProviderLabel(v) + " — " + gaHostLabel(v)],
+    [t("ga.sum.user"), v.username],
+    [t("ga.sum.commits"), v.gitName + " <" + v.gitEmail + ">"],
+    [t("ga.sum.folder"), v.folder],
+    [t("ga.sum.key"), v.sshKey],
+    [t("ga.sum.token"), v.hasToken ? t("ga.sum.tokenSaved") : t("ga.sum.none")],
   ];
   return '<dl class="grid gap-x-4 gap-y-1 text-sm" style="grid-template-columns: max-content 1fr;">' +
     rows.map(function (r) {
@@ -223,9 +225,9 @@ function buildGaRow(v) {
 
   const tdActions = document.createElement("td");
   tdActions.className = "whitespace-nowrap";
-  const btnEdit = iconButton("pencil", "Editar");
+  const btnEdit = iconButton("pencil", t("docker.edit"));
   btnEdit.addEventListener("click", function () { gaShowForm(v); });
-  const btnRemove = iconButton("trash2", "Remover");
+  const btnRemove = iconButton("trash2", t("docker.remove"));
   btnRemove.addEventListener("click", function () { gaConfirmRemove(v); });
   tdActions.appendChild(btnEdit);
   tdActions.appendChild(btnRemove);
@@ -235,17 +237,15 @@ function buildGaRow(v) {
 
 function gaConfirmRemove(v) {
   openConfirm(
-    "Remover a conta?",
-    'Remover a conta "' + v.name + '"?\n\n' +
-      "O Perci esquece a conta e tira a regra dela do ~/.gitconfig: os repositórios da pasta passam a usar a identidade padrão.\n\n" +
-      "Continuam no disco:\n- os repositórios em " + v.folder + "\n- a chave SSH " + v.sshKey +
-      (v.hasToken ? "\n\nO token é apagado do chaveiro." : ""),
+    t("ga.removeTitle"),
+    t("ga.removeConfirm", { name: v.name, folder: v.folder, key: v.sshKey }) +
+      (v.hasToken ? "\n\n" + t("ga.removeToken") : ""),
     function () {
       App.RemoveGitAccount(v.id).then(function () {
         loadMenu();
         gaShowList();
       }).catch(function (err) {
-        openError("Falha ao remover a conta: " + gaErrText(err));
+        openError(t("ga.removeFailed", { error: gaErrText(err) }));
       });
     }
   );
@@ -259,7 +259,7 @@ function gaShowForm(v) {
   gaEditing = v;
   gaFolder = v ? v.folder : "";
   gaKeyPath = "";
-  gaFormTitle.textContent = v ? "Editar conta " + v.name : "Nova conta";
+  gaFormTitle.textContent = v ? t("ga.editTitle", { name: v.name }) : t("ga.newTitle");
   gaName.value = v ? v.name : "";
   gaProvider.value = v ? v.provider : "github";
   gaHost.value = v && !v.pinnedHost ? v.host : "";
@@ -272,12 +272,12 @@ function gaShowForm(v) {
   gaToken.value = "";
   gaClearToken.checked = false;
   gaClearTokenWrap.classList.toggle("hidden", !(v && v.hasToken));
-  gaToken.placeholder = v && v.hasToken ? "Novo token (vazio mantém o salvo)" : "Token (opcional)";
+  gaToken.placeholder = v && v.hasToken ? t("ga.tokenNew") : t("ga.tokenOptional");
 
   const modes = [];
-  if (v) modes.push(["keep", "Manter a chave atual (" + v.sshKey + ")"]);
-  modes.push(["generate", "Gerar uma chave nova (ed25519)"]);
-  modes.push(["existing", "Usar uma chave existente"]);
+  if (v) modes.push(["keep", t("ga.keyMode.keep", { key: v.sshKey })]);
+  modes.push(["generate", t("ga.keyMode.generate")]);
+  modes.push(["existing", t("ga.keyMode.existing")]);
   gaKeyMode.innerHTML = modes.map(function (m) {
     return '<option value="' + escAttr(m[0]) + '">' + escHTML(m[1]) + "</option>";
   }).join("");
@@ -296,8 +296,8 @@ function gaUpdateForm() {
   gaPortWrap.classList.toggle("hidden", host === "" || host === provider.host);
   gaPassWrap.classList.toggle("hidden", gaKeyMode.value !== "generate");
   gaKeyExistingWrap.classList.toggle("hidden", gaKeyMode.value !== "existing");
-  gaFolderPath.textContent = gaFolder || "Nenhuma pasta selecionada";
-  gaKeyPathEl.textContent = gaKeyPath || "Nenhuma chave selecionada";
+  gaFolderPath.textContent = gaFolder || t("devfolders.noFolder");
+  gaKeyPathEl.textContent = gaKeyPath || t("ga.noKey");
   gaKeyHint.textContent = provider.keyHint;
   gaTokenSteps.textContent = provider.tokenSteps;
   btnGaFormKeysPage.disabled = !gaProviderPage(provider.keysPath);
@@ -337,7 +337,7 @@ btnGaPickKey.addEventListener("click", function () {
 function gaFormInput() {
   const mode = gaKeyMode.value;
   if (mode === "generate" && gaPass.value !== gaPass2.value) {
-    return { error: "As senhas da chave não conferem." };
+    return { error: t("ga.passMismatch") };
   }
   const portShown = !gaPortWrap.classList.contains("hidden");
   return {
@@ -375,7 +375,7 @@ btnGaSave.addEventListener("click", function () {
     loadMenu();
     gaShowDetail(v.id, v);
   }).catch(function (err) {
-    openError("Não foi possível salvar a conta: " + gaErrText(err));
+    openError(t("ga.saveFailed", { error: gaErrText(err) }));
   }).finally(function () {
     btnGaSave.disabled = false;
   });
@@ -403,7 +403,7 @@ function gaShowDetail(id, v) {
     return;
   }
   App.GetGitAccount(id).then(latestOnly("ga-detail", gaRenderDetail)).catch(function (err) {
-    openError("Falha ao ler a conta: " + gaErrText(err));
+    openError(t("ga.readFailed", { error: gaErrText(err) }));
     gaShowList();
   });
 }
@@ -416,10 +416,10 @@ function gaRenderDetail(v) {
   const state = gaKeyState(v.keyState);
   gaKeyBadge.className = "badge badge-soft badge-" + state.color;
   gaKeyBadge.textContent = state.label;
-  gaPubkey.textContent = v.publicKey || "Chave pública não encontrada (" + v.sshKey + ".pub).";
+  gaPubkey.textContent = v.publicKey || t("ga.noPubkey", { path: v.sshKey + ".pub" });
   btnGaCopy.disabled = !v.publicKey;
-  btnGaCopy.textContent = "Copiar";
-  btnGaKeysPage.textContent = "Abrir chaves SSH no " + gaProviderLabel(v);
+  btnGaCopy.textContent = t("ga.copy");
+  btnGaKeysPage.textContent = t("ga.openKeys", { provider: gaProviderLabel(v) });
   btnGaKeysPage.classList.toggle("hidden", !v.keysUrl);
   gaUnlockWrap.classList.toggle("hidden", v.keyState !== "locked");
   gaNoAgentNote.classList.toggle("hidden", v.keyState !== "no-agent");
@@ -435,9 +435,9 @@ btnGaBack.addEventListener("click", gaShowList);
 btnGaCopy.addEventListener("click", function () {
   if (!gaDetail || !gaDetail.publicKey) return;
   Clipboard.SetText(gaDetail.publicKey).then(function () {
-    btnGaCopy.textContent = "Copiado!";
+    btnGaCopy.textContent = t("ga.copied");
   }).catch(function (err) {
-    openError("Falha ao copiar: " + gaErrText(err));
+    openError(t("ga.copyFailed", { error: gaErrText(err) }));
   });
 });
 
@@ -466,7 +466,7 @@ btnGaScan.addEventListener("click", function () {
   const id = gaDetail.id;
   btnGaScan.disabled = true;
   btnGaTrust.classList.add("hidden");
-  gaHostKeys.textContent = "Consultando o servidor...";
+  gaHostKeys.textContent = t("ga.scanning");
   App.ScanGitAccountHostKeys(id).then(function (keys) {
     if (!gaDetail || gaDetail.id !== id) return;
     gaHostKeys.innerHTML = "<ul>" + (keys || []).map(function (k) {
@@ -495,9 +495,9 @@ btnGaTest.addEventListener("click", function () {
   if (!gaDetail || btnGaTest.disabled) return;
   const id = gaDetail.id;
   btnGaTest.disabled = true;
-  gaShowTestResult("info", "Conectando a " + gaHostLabel(gaDetail) + "...");
+  gaShowTestResult("info", t("ga.connecting", { host: gaHostLabel(gaDetail) }));
   App.TestGitAccountConnection(id).then(function (user) {
-    if (gaDetail && gaDetail.id === id) gaShowTestResult("success", "Conexão OK: autenticado como " + user + ".");
+    if (gaDetail && gaDetail.id === id) gaShowTestResult("success", t("ga.connected", { user: user }));
   }).catch(function (err) {
     if (gaDetail && gaDetail.id === id) gaShowTestResult("error", gaErrText(err));
   }).finally(function () {
@@ -522,7 +522,7 @@ function renderGitIdentityTab() {
 btnGaIdApply.addEventListener("click", function () {
   const name = gaIdName.value;
   const email = gaIdEmail.value;
-  beginRun("Aplicar identidade padrão", function () { return App.ApplyGlobalGitIdentity(name, email); },
+  beginRun(t("ga.run.identity"), function () { return App.ApplyGlobalGitIdentity(name, email); },
     { buttons: [btnGaIdApply] });
 });
 
@@ -597,18 +597,18 @@ let gacReady = false;
 // relTime renders an RFC 3339 time relative to now ("há 5 min"), or as a
 // date once it is more than a month old.
 function relTime(iso, now) {
-  const t = Date.parse(iso);
-  if (isNaN(t)) return "";
-  const secs = Math.max(0, Math.round(((now || Date.now()) - t) / 1000));
-  if (secs < 60) return "agora";
+  const ms = Date.parse(iso);
+  if (isNaN(ms)) return "";
+  const secs = Math.max(0, Math.round(((now || Date.now()) - ms) / 1000));
+  if (secs < 60) return t("time.now");
   const mins = Math.round(secs / 60);
-  if (mins < 60) return "há " + mins + " min";
+  if (mins < 60) return t("time.minutes", { count: mins });
   const hours = Math.round(mins / 60);
-  if (hours < 24) return "há " + hours + " h";
+  if (hours < 24) return t("time.hours", { count: hours });
   const days = Math.round(hours / 24);
-  if (days === 1) return "ontem";
-  if (days < 30) return "há " + days + " dias";
-  const d = new Date(t);
+  if (days === 1) return t("time.yesterday");
+  if (days < 30) return t("time.days", { count: days });
+  const d = new Date(ms);
   return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
 }
 
@@ -616,23 +616,23 @@ function relTime(iso, now) {
 // local state.
 function gacChanges(st) {
   const out = [];
-  if (st.error) out.push({ label: "erro ao ler", color: "error", title: st.error });
-  if (st.behind > 0) out.push({ label: "↓ " + st.behind, color: "info", title: st.behind + " commit(s) para baixar, desde a última verificação" });
-  if (st.ahead > 0) out.push({ label: "↑ " + st.ahead, color: "warning", title: st.ahead + " commit(s) não enviados" });
-  if (st.modified > 0) out.push({ label: st.modified + " modificado(s)", color: "warning", title: "Arquivos alterados ainda não commitados" });
-  if (st.untracked > 0) out.push({ label: st.untracked + " novo(s)", color: "neutral", title: "Arquivos fora do Git" });
-  if (st.remoteClass === "none") out.push({ label: "sem remote", color: "neutral", title: "O repositório não tem o remote origin" });
-  if (st.remoteClass === "https") out.push({ label: "URL HTTPS", color: "warning", title: "O remote usa HTTPS; com SSH vale a chave da conta" });
+  if (st.error) out.push({ label: t("gac.ch.error"), color: "error", title: st.error });
+  if (st.behind > 0) out.push({ label: "↓ " + st.behind, color: "info", title: t("gac.ch.behind", { count: st.behind }) });
+  if (st.ahead > 0) out.push({ label: "↑ " + st.ahead, color: "warning", title: t("gac.ch.ahead", { count: st.ahead }) });
+  if (st.modified > 0) out.push({ label: t("gac.ch.modified", { count: st.modified }), color: "warning", title: t("gac.ch.modifiedHint") });
+  if (st.untracked > 0) out.push({ label: t("gac.ch.untracked", { count: st.untracked }), color: "neutral", title: t("gac.ch.untrackedHint") });
+  if (st.remoteClass === "none") out.push({ label: t("gac.ch.noRemote"), color: "neutral", title: t("gac.ch.noRemoteHint") });
+  if (st.remoteClass === "https") out.push({ label: t("gac.ch.https"), color: "warning", title: t("gac.ch.httpsHint") });
   if (st.remoteClass === "ok" && !st.upstream && !st.detached && st.lastCommit) {
-    out.push({ label: "sem upstream", color: "neutral", title: "A branch atual não acompanha uma branch remota" });
+    out.push({ label: t("gac.ch.noUpstream"), color: "neutral", title: t("gac.ch.noUpstreamHint") });
   }
   if (st.identityDiverges) {
     out.push({
-      label: "identidade divergente", color: "warning",
-      title: "O repositório define a própria identidade: " + [st.localName, st.localEmail].filter(Boolean).join(" "),
+      label: t("gac.ch.identity"), color: "warning",
+      title: t("gac.ch.identityHint", { identity: [st.localName, st.localEmail].filter(Boolean).join(" ") }),
     });
   }
-  if (!out.length) out.push({ label: "em dia", color: "success", title: "Nada a enviar nem a baixar desde a última verificação" });
+  if (!out.length) out.push({ label: t("gac.ch.current"), color: "success", title: t("gac.ch.currentHint") });
   return out;
 }
 
@@ -653,17 +653,17 @@ function buildGacRow(st) {
   tr.appendChild(tdRepo);
 
   const tdBranch = document.createElement("td");
-  tdBranch.textContent = st.detached ? "(HEAD solto)" : st.branch;
-  if (st.upstream) tdBranch.title = "Acompanha " + st.upstream;
+  tdBranch.textContent = st.detached ? t("gac.detached") : st.branch;
+  if (st.upstream) tdBranch.title = t("gac.tracks", { branch: st.upstream });
   tr.appendChild(tdBranch);
 
   const tdCommit = document.createElement("td");
   tdCommit.className = "whitespace-nowrap";
   if (st.lastCommit) {
     tdCommit.textContent = relTime(st.lastCommit);
-    tdCommit.title = new Date(Date.parse(st.lastCommit)).toLocaleString("pt-BR") + " — " + st.lastSubject;
+    tdCommit.title = new Date(Date.parse(st.lastCommit)).toLocaleString(i18nLocale) + " — " + st.lastSubject;
   } else {
-    tdCommit.textContent = "sem commits";
+    tdCommit.textContent = t("gac.noCommits");
     tdCommit.className += " opacity-60";
   }
   tr.appendChild(tdCommit);
@@ -682,7 +682,7 @@ function buildGacRow(st) {
   if (st.remoteClass !== "none") {
     const fetched = document.createElement("div");
     fetched.className = "text-xs opacity-60 mt-1";
-    fetched.textContent = st.lastFetch ? "verificado " + relTime(st.lastFetch) : "nunca verificado";
+    fetched.textContent = st.lastFetch ? t("gac.fetched", { when: relTime(st.lastFetch) }) : t("gac.neverFetched");
     tdChanges.appendChild(fetched);
   }
   tr.appendChild(tdChanges);
@@ -690,16 +690,16 @@ function buildGacRow(st) {
   const tdActions = document.createElement("td");
   tdActions.className = "whitespace-nowrap";
   const canNet = gacReady && st.remoteClass !== "none" && !st.error;
-  const btnVerify = iconButton("refreshCw", "Verificar " + st.path);
+  const btnVerify = iconButton("refreshCw", t("gac.verifyOne", { path: st.path }));
   btnVerify.disabled = !canNet;
   btnVerify.addEventListener("click", function () { gacRun("verify", st); });
-  const btnPull = iconButton("download", "Baixar " + st.path);
+  const btnPull = iconButton("download", t("gac.pullOne", { path: st.path }));
   btnPull.disabled = !canNet;
   btnPull.addEventListener("click", function () { gacRun("pull", st); });
   const btnMore = document.createElement("button");
   btnMore.type = "button";
   btnMore.className = "btn btn-ghost btn-xs";
-  btnMore.title = "Configurações, remote e arquivos de " + st.path;
+  btnMore.title = t("gac.more", { path: st.path });
   btnMore.setAttribute("aria-label", btnMore.title);
   btnMore.innerHTML = LUCIDE.svg("plus", { size: 16 });
   btnMore.disabled = !!st.error;
@@ -719,8 +719,8 @@ const GAC_RUN_BUTTONS = [btnGacVerify, btnGacPull, btnGacReload, btnGacFixUrls, 
 function gacRun(kind, st) {
   const id = gacAccountId;
   const dir = st ? st.dir : "";
-  const what = st ? st.path : "todos os repositórios";
-  const label = (kind === "verify" ? "Verificar " : "Baixar ") + what;
+  const what = st ? st.path : t("gac.allRepos");
+  const label = t(kind === "verify" ? "gac.verifyOne" : "gac.pullOne", { path: what });
   beginRun(label, function () {
     return kind === "verify" ? App.VerifyGitAccountRepos(id, dir) : App.PullGitAccountRepos(id, dir);
   }, { buttons: GAC_RUN_BUTTONS });
@@ -729,7 +729,7 @@ function gacRun(kind, st) {
 btnGacFixUrls.addEventListener("click", function () {
   if (!gacAccountId || btnGacFixUrls.disabled) return;
   const id = gacAccountId;
-  beginRun("Ajustar URLs", function () { return App.FixGitAccountRepoURLs(id, ""); },
+  beginRun(t("gac.run.fixUrls"), function () { return App.FixGitAccountRepoURLs(id, ""); },
     { buttons: GAC_RUN_BUTTONS });
 });
 
@@ -755,9 +755,9 @@ function openRepoActions(st) {
   raTabSettings.checked = true;
 
   raSSHOk.classList.toggle("hidden", st.remoteClass !== "ok");
-  raSSHOkText.textContent = "O remote origin já usa SSH com a chave da conta: " + st.remote;
+  raSSHOkText.textContent = t("ra.sshOk", { remote: st.remote });
   raUrl.classList.toggle("hidden", st.remoteClass !== "https");
-  raUrlText.textContent = "O remote usa HTTPS: " + st.remote + "\nCom SSH, vale a chave da conta: " + (st.sshUrl || "");
+  raUrlText.textContent = t("ra.https", { remote: st.remote, ssh: st.sshUrl || "" });
   btnRaUrl.disabled = !gacReady || running;
 
   raRemote.classList.toggle("hidden", st.remoteClass !== "none");
@@ -765,9 +765,10 @@ function openRepoActions(st) {
   raUpdateRemotePreview();
 
   raIdent.classList.toggle("hidden", !st.identityDiverges);
-  raIdentText.textContent = "O repositório define a própria identidade (" +
-    [st.localName, st.localEmail].filter(Boolean).join(" ") + "). Os próximos commits passam a usar " +
-    gacAccount.gitName + " <" + gacAccount.gitEmail + ">; os commits já feitos não mudam.";
+  raIdentText.textContent = t("ra.identity", {
+    local: [st.localName, st.localEmail].filter(Boolean).join(" "),
+    identity: gacAccount.gitName + " <" + gacAccount.gitEmail + ">",
+  });
 
   raFiles = null;
   raAccountEmail.value = "";
@@ -781,7 +782,7 @@ function openRepoActions(st) {
 
 function raUpdateRemotePreview() {
   const name = raRemoteName.value.trim().replace(/\.git$/, "");
-  raRemotePreview.textContent = name && gacAccount ? "Remote: " + gacSSHURL(gacAccount, name) : "";
+  raRemotePreview.textContent = name && gacAccount ? t("ra.remotePreview", { url: gacSSHURL(gacAccount, name) }) : "";
 }
 raRemoteName.addEventListener("input", raUpdateRemotePreview);
 
@@ -795,7 +796,7 @@ btnRaUrl.addEventListener("click", function () {
   if (!raRepo || btnRaUrl.disabled) return;
   const id = gacAccountId;
   const dir = raRepo.dir;
-  raLaunch("Ajustar URL de " + raRepo.path, function () { return App.FixGitAccountRepoURLs(id, dir); });
+  raLaunch(t("ra.run.fixUrl", { path: raRepo.path }), function () { return App.FixGitAccountRepoURLs(id, dir); });
 });
 
 btnRaRemote.addEventListener("click", function () {
@@ -805,7 +806,7 @@ btnRaRemote.addEventListener("click", function () {
     repoActionsModal.close();
     loadGacRepos();
   }).catch(function (err) {
-    openError("Não foi possível definir o remote: " + gaErrText(err));
+    openError(t("ra.remoteFailed", { error: gaErrText(err) }));
   }).finally(function () {
     btnRaRemote.disabled = false;
   });
@@ -817,12 +818,11 @@ btnRaIdent.addEventListener("click", function () {
   const id = gacAccountId;
   repoActionsModal.close();
   openConfirm(
-    "Usar a identidade da conta?",
-    "Remover user.name e user.email da configuração própria de " + st.path + "?\n\n" +
-      "Os próximos commits passam a usar " + gacAccount.gitName + " <" + gacAccount.gitEmail + ">.",
+    t("ra.identityTitle"),
+    t("ra.identityConfirm", { path: st.path, identity: gacAccount.gitName + " <" + gacAccount.gitEmail + ">" }),
     function () {
       App.ResetGitAccountRepoIdentity(id, st.dir).then(loadGacRepos).catch(function (err) {
-        openError("Não foi possível corrigir a identidade: " + gaErrText(err));
+        openError(t("ra.identityFailed", { error: gaErrText(err) }));
       });
     }
   );
@@ -857,7 +857,7 @@ function raLoadFiles(license) {
     raRenderFiles(view);
   }).catch(function (err) {
     if (seq !== raFilesSeq) return;
-    raShowFilesMsg("Não foi possível ler os arquivos: " + gaErrText(err), true);
+    raShowFilesMsg(t("ra.filesFailed", { error: gaErrText(err) }), true);
   });
 }
 
@@ -865,11 +865,11 @@ function raRenderEmails(v) {
   raAccountEmail.value = v.accountEmail || "";
   raRepoEmail.value = v.repoEmail || "";
   if (!v.contactEmail) {
-    raEmailEffective.textContent = "Nenhum e-mail definido: CODE_OF_CONDUCT.md e SUPPORT.md não podem ser gerados.";
+    raEmailEffective.textContent = t("ra.noEmail");
   } else if (v.repoEmail) {
-    raEmailEffective.textContent = "Em uso neste repositório: " + v.contactEmail + " (só deste repositório).";
+    raEmailEffective.textContent = t("ra.emailRepo", { email: v.contactEmail });
   } else {
-    raEmailEffective.textContent = "Em uso neste repositório: " + v.contactEmail + " (padrão da conta).";
+    raEmailEffective.textContent = t("ra.emailAccount", { email: v.contactEmail });
   }
 }
 
@@ -908,29 +908,29 @@ function raRenderLicense(v, first) {
 function raStatus(row, v) {
   switch (row.state) {
     case "missing":
-      return { label: "não existe", color: "neutral", title: "Nenhum dos arquivos existe" };
+      return { label: t("ra.st.missing"), color: "neutral", title: t("ra.st.missingHint") };
     case "current":
       return {
-        label: row.license ? row.license + " — em dia" : "em dia", color: "success",
-        title: "Igual ao que o Perci gera agora",
+        label: row.license ? row.license + " — " + t("gac.ch.current") : t("gac.ch.current"), color: "success",
+        title: t("ra.st.currentHint"),
       };
     case "differs":
       if (row.id === "gitignore") {
-        return { label: "faltam " + row.missing + " padrão(ões)", color: "warning", title: "Atualizar acrescenta só os padrões que faltam" };
+        return { label: t("ra.st.patterns", { count: row.missing }), color: "warning", title: t("ra.st.patternsHint") };
       }
       if (row.id === "license") {
         return row.license
-          ? { label: row.license, color: "warning", title: "A licença do arquivo não é a escolhida (" + v.license + ")" }
-          : { label: "licença não reconhecida", color: "warning", title: "O texto não é de nenhuma das licenças oferecidas" };
+          ? { label: row.license, color: "warning", title: t("ra.st.otherLicense", { license: v.license }) }
+          : { label: t("ra.st.unknownLicense"), color: "warning", title: t("ra.st.unknownLicenseHint") };
       }
       return {
-        label: "diferente", color: "warning",
-        title: "Diferente do que o Perci gera agora: editado, de outra versão, com outro e-mail ou endereço, ou faltando um arquivo",
+        label: t("ra.st.differs"), color: "warning",
+        title: t("ra.st.differsHint"),
       };
     case "present":
-      return { label: "existe", color: "info", title: "Defina o e-mail de contato na aba Configurações para comparar" };
+      return { label: t("ra.st.present"), color: "info", title: t("ra.st.presentHint") };
     default:
-      return { label: "em breve", color: "ghost", title: "Ainda não disponível" };
+      return { label: t("ra.st.soon"), color: "ghost", title: t("ra.st.soonHint") };
   }
 }
 
@@ -938,10 +938,10 @@ function raStatus(row, v) {
 // Atualizar) and "remove".
 function raActions(row) {
   switch (row.state) {
-    case "missing": return [{ kind: "apply", label: "Criar" }];
-    case "current": return [{ kind: "remove", label: "Remover" }];
+    case "missing": return [{ kind: "apply", label: t("devfolders.create") }];
+    case "current": return [{ kind: "remove", label: t("docker.remove") }];
     case "differs":
-    case "present": return [{ kind: "apply", label: "Atualizar" }, { kind: "remove", label: "Remover" }];
+    case "present": return [{ kind: "apply", label: t("action.update") }, { kind: "remove", label: t("docker.remove") }];
     default: return [];
   }
 }
@@ -991,7 +991,7 @@ function raRenderFiles(v) {
       btn.disabled = running;
       if (a.kind === "apply" && row.needsEmail && !v.contactEmail) {
         btn.disabled = true;
-        btn.title = "Defina o e-mail de contato na aba Configurações";
+        btn.title = t("ra.needEmail");
       }
       btn.addEventListener("click", function () {
         if (btn.disabled) return;
@@ -1024,18 +1024,18 @@ function raApply(row) {
       raShowFilesMsg(msg, false);
       raLoadFiles(choice.license);
     }).catch(function (err) {
-      raShowFilesMsg("Não foi possível gravar " + row.label + ": " + gaErrText(err), true);
+      raShowFilesMsg(t("ra.writeFailed", { name: row.label, error: gaErrText(err) }), true);
     });
   };
   if (row.state === "missing" || row.id === "gitignore") {
     go();
     return;
   }
-  let message = "Substituir " + row.files.join(", ") + " pela versão do Perci?\n\nA versão atual de cada arquivo fica em <arquivo>.perci-bak.";
+  let message = t("ra.replaceConfirm", { files: row.files.join(", ") });
   if (row.id === "license" && row.license && row.license !== choice.license) {
-    message = "Substituir a licença " + row.license + " por " + choice.license + "?\n\nA versão atual fica em LICENSE.perci-bak.";
+    message = t("ra.replaceLicense", { from: row.license, to: choice.license });
   }
-  openConfirm("Atualizar " + row.label + "?", message, go);
+  openConfirm(t("ra.updateTitle", { name: row.label }), message, go);
 }
 
 // raRemove deletes the files of row after a confirmation.
@@ -1043,14 +1043,14 @@ function raRemove(row) {
   const id = gacAccountId;
   const dir = raRepo.dir;
   openConfirm(
-    "Remover " + row.label + "?",
-    "Apagar do repositório:\n- " + row.files.join("\n- ") + "\n\nO Git ainda guarda a versão commitada.",
+    t("ra.removeTitle", { name: row.label }),
+    t("ra.removeConfirm", { files: row.files.join("\n- ") }),
     function () {
       App.RemoveGitAccountRepoFile(id, dir, row.id).then(function () {
-        raShowFilesMsg(row.label + " removido.", false);
+        raShowFilesMsg(t("ra.removed", { name: row.label }), false);
         raLoadFiles(raLicense.value);
       }).catch(function (err) {
-        raShowFilesMsg("Não foi possível remover " + row.label + ": " + gaErrText(err), true);
+        raShowFilesMsg(t("ra.removeFailed", { name: row.label, error: gaErrText(err) }), true);
       });
     }
   );
@@ -1072,7 +1072,7 @@ function raSaveEmail(forRepo) {
   App.SetGitAccountContactEmail(gacAccountId, forRepo ? raRepo.dir : "", value).then(function () {
     raLoadFiles(raLicense.value);
   }).catch(function (err) {
-    openError("Não foi possível salvar o e-mail de contato: " + gaErrText(err));
+    openError(t("ra.emailFailed", { error: gaErrText(err) }));
   }).finally(function () {
     btn.disabled = false;
   });
@@ -1101,10 +1101,10 @@ function gacSetReady(ready) {
 // gacAccountAlert says why the account can't reach its server yet, or ""
 // when it can.
 function gacAccountAlert(v) {
-  if (v.keyState === "missing") return "A chave SSH da conta não foi encontrada. Abra Configurar conta para escolher outra.";
-  if (v.keyState === "locked") return "A chave SSH está bloqueada. Abra Configurar conta para desbloqueá-la.";
-  if (v.keyState === "no-agent") return "A chave SSH tem senha e não há agente SSH nesta sessão.";
-  if (!v.hostTrusted) return "A chave do servidor " + v.host + " ainda não foi confirmada. Abra Configurar conta para confirmá-la.";
+  if (v.keyState === "missing") return t("gac.alert.keyMissing");
+  if (v.keyState === "locked") return t("gac.alert.keyLocked");
+  if (v.keyState === "no-agent") return t("gac.alert.noAgent");
+  if (!v.hostTrusted) return t("gac.alert.hostUntrusted", { host: v.host });
   return "";
 }
 
@@ -1126,7 +1126,7 @@ function renderGitAccountScreen(item) {
     gacSetReady(!alert);
     loadGacRepos();
   })).catch(function (err) {
-    openError("Falha ao ler a conta: " + gaErrText(err));
+    openError(t("ga.readFailed", { error: gaErrText(err) }));
   });
 }
 
@@ -1149,7 +1149,7 @@ function loadGacRepos() {
     btnGacFixUrls.classList.toggle("hidden", !repos.some(function (st) { return st.remoteClass === "https"; }));
     gacEmpty.classList.toggle("hidden", repos.length > 0);
     gacHidden.classList.toggle("hidden", hidden.length === 0);
-    gacHiddenSummary.textContent = hidden.length + " repositório(s) desta pasta não aparecem: o remote origin é de outro dono ou de outro host.";
+    gacHiddenSummary.textContent = t("gac.hidden", { count: hidden.length });
     gacHiddenList.innerHTML = "";
     hidden.forEach(function (st) {
       const li = document.createElement("li");
@@ -1161,7 +1161,7 @@ function loadGacRepos() {
   }); }, function (err) { latest(function () {
     gacLoading.classList.add("hidden");
     btnGacReload.disabled = running;
-    openError("Falha ao listar os repositórios: " + gaErrText(err));
+    openError(t("gac.listFailed", { error: gaErrText(err) }));
   }); });
 }
 
@@ -1181,19 +1181,19 @@ function renderGacPending(pending) {
     if (p.reason) {
       const badge = document.createElement("span");
       badge.className = "badge badge-sm badge-warning";
-      badge.textContent = "bloqueado";
+      badge.textContent = t("gac.blocked");
       badge.title = p.reason;
       li.appendChild(badge);
     }
     const discard = document.createElement("button");
     discard.className = "btn btn-xs btn-ghost";
-    discard.textContent = "Descartar";
+    discard.textContent = t("gac.discard");
     discard.addEventListener("click", function () {
       const id = gacAccountId;
-      openConfirm("Descartar pendente", "Tirar " + p.path + " da lista de pendentes? Nada é apagado do disco nem do servidor.", function () {
+      openConfirm(t("gac.discardTitle"), t("gac.discardConfirm", { path: p.path }), function () {
         App.DiscardGitAccountPending(id, p.path).then(function () {
           loadGacRepos();
-        }).catch(function (err) { openError("Falha ao descartar: " + gaErrText(err)); });
+        }).catch(function (err) { openError(t("gac.discardFailed", { error: gaErrText(err) })); });
       });
     });
     li.appendChild(discard);
@@ -1205,8 +1205,8 @@ btnGacClonePending.addEventListener("click", function () {
   if (!gacAccountId || btnGacClonePending.disabled) return;
   const id = gacAccountId;
   const count = gacPendingList.children.length;
-  openConfirm("Clonar pendentes", "Testar a conexão da conta e clonar " + count + " repositório(s) pendente(s) na pasta da conta?", function () {
-    beginRun("Clonar pendentes", function () { return App.CloneGitAccountPending(id); },
+  openConfirm(t("gac.clonePending"), t("gac.clonePendingConfirm", { count: count }), function () {
+    beginRun(t("gac.clonePending"), function () { return App.CloneGitAccountPending(id); },
       { buttons: GAC_RUN_BUTTONS });
   });
 });
@@ -1262,7 +1262,7 @@ function nrUpdate() {
   nrAccount.classList.toggle("hidden", mode !== "account");
   nrClone.classList.toggle("hidden", mode !== "clone");
   nrInit.classList.toggle("hidden", mode !== "init");
-  btnNrGo.textContent = mode === "init" ? "Iniciar" : "Clonar";
+  btnNrGo.textContent = mode === "init" ? t("nr.init") : t("nr.clone");
   if (!nrDestTouched) nrDest.value = nrSuggestedDest();
   const dest = nrDest.value.trim();
   nrDestPreview.textContent = dest && gacAccount ? gacAccount.folder.replace(/\/+$/, "") + "/" + dest.replace(/^\.?\/+/, "") : "";
@@ -1280,16 +1280,15 @@ nrDest.addEventListener("input", function () {
 btnNrLoad.addEventListener("click", function () {
   if (btnNrLoad.disabled || !gacAccountId) return;
   btnNrLoad.disabled = true;
-  nrListNote.textContent = "Consultando " + (gacAccount ? gacAccount.host : "o provedor") + "...";
+  nrListNote.textContent = t("nr.querying", { host: gacAccount ? gacAccount.host : t("nr.provider") });
   nrList.innerHTML = "";
   App.ListGitAccountRemoteRepos(gacAccountId).then(function (res) {
     const repos = (res && res.repos) || [];
-    nrListNote.textContent = (res.withToken ? "Públicos e privados" : "Só os públicos (a conta não tem token)") +
-      " — " + repos.length + " repositório(s)." + (res.note ? " " + res.note : "");
+    nrListNote.textContent = t(res.withToken ? "nr.listAll" : "nr.listPublic", { count: repos.length }) + (res.note ? " " + res.note : "");
     repos.forEach(function (r) { nrList.appendChild(buildNrItem(r)); });
   }).catch(function (err) {
     nrListNote.textContent = "";
-    openError("Falha ao listar os repositórios da conta: " + gaErrText(err));
+    openError(t("nr.listFailed", { error: gaErrText(err) }));
   }).finally(function () {
     btnNrLoad.disabled = false;
   });
@@ -1306,7 +1305,7 @@ function buildNrItem(r) {
   a.appendChild(title);
   const sub = document.createElement("span");
   sub.className = "text-xs opacity-70";
-  sub.textContent = r.localPath ? "já clonado em " + r.localPath : (r.description || "");
+  sub.textContent = r.localPath ? t("nr.cloned", { path: r.localPath }) : (r.description || "");
   a.appendChild(sub);
   if (r.localPath) {
     a.classList.add("menu-disabled");
@@ -1334,7 +1333,7 @@ btnNrGo.addEventListener("click", function () {
       newRepoModal.close();
       loadGacRepos();
     }).catch(function (err) {
-      openError("Não foi possível iniciar o repositório: " + gaErrText(err));
+      openError(t("nr.initFailed", { error: gaErrText(err) }));
     }).finally(nrUpdate);
     return;
   }
@@ -1344,9 +1343,9 @@ btnNrGo.addEventListener("click", function () {
   btnNrGo.disabled = true;
   App.CheckGitAccountClone(id, source, dest).then(function () {
     newRepoModal.close();
-    beginRun("Clonar " + dest, function () { return App.CloneGitAccountRepo(id, source, dest); },
+    beginRun(t("nr.run.clone", { path: dest }), function () { return App.CloneGitAccountRepo(id, source, dest); },
       { buttons: GAC_RUN_BUTTONS });
   }).catch(function (err) {
-    openError("Não foi possível clonar: " + gaErrText(err));
+    openError(t("nr.cloneFailed", { error: gaErrText(err) }));
   }).finally(nrUpdate);
 });

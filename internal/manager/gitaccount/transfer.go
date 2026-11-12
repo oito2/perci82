@@ -31,6 +31,7 @@ import (
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/manager/repofiles"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -93,7 +94,7 @@ func (t TransferAccount) account() config.GitAccount {
 }
 
 // ErrNothingToExport is returned when an export would hold no account.
-var ErrNothingToExport = errors.New("nada para exportar — nenhuma conta selecionada")
+var ErrNothingToExport = i18n.NewError("git.nothingToExport")
 
 // Exportable lists what accounts can export: each account's fields and
 // its repositories with an origin of the account (as SSH URL) plus its
@@ -110,7 +111,7 @@ func Exportable(ctx context.Context, exe *executor.Executor, accounts []config.G
 		}
 		listed, err := ListRepos(ctx, exe, acc)
 		if err != nil {
-			return TransferFile{}, nil, fmt.Errorf("conta %s: %w", acc.Name, err)
+			return TransferFile{}, nil, fmt.Errorf("%s: %w", i18n.Tr("git.accountLabel", i18n.Args{"name": acc.Name}), err)
 		}
 		seen := map[string]bool{}
 		for _, st := range listed.Repos {
@@ -144,11 +145,11 @@ func (f TransferFile) Filter(picks []TransferPick) (TransferFile, error) {
 	for _, pick := range picks {
 		i := f.accountIndex(pick.Account)
 		if i < 0 {
-			return TransferFile{}, fmt.Errorf("a conta %q não faz parte do arquivo", pick.Account)
+			return TransferFile{}, errors.New(i18n.Tr("git.accountNotInFile", i18n.Args{"name": pick.Account}))
 		}
 		for _, path := range pick.Repos {
 			if f.Accounts[i].repoIndex(path) < 0 {
-				return TransferFile{}, fmt.Errorf("o repositório %q não faz parte da conta %q", path, pick.Account)
+				return TransferFile{}, errors.New(i18n.Tr("git.repoNotInAccount", i18n.Args{"path": path, "name": pick.Account}))
 			}
 		}
 	}
@@ -207,10 +208,10 @@ func WriteTransfer(path string, f TransferFile) error {
 	f.Version = f.formatVersion()
 	data, err := yaml.Marshal(f)
 	if err != nil {
-		return fmt.Errorf("gerar yaml: %w", err)
+		return fmt.Errorf("generate yaml: %w", err)
 	}
 	if err := fsutil.WriteFileAtomic(path, data, 0o600); err != nil {
-		return fmt.Errorf("escrever %s: %w", path, err)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
 }
@@ -237,16 +238,16 @@ func (f TransferFile) formatVersion() int {
 func LoadTransfer(path string) (TransferFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return TransferFile{}, fmt.Errorf("ler %s: %w", path, err)
+		return TransferFile{}, fmt.Errorf("read %s: %w", path, err)
 	}
 	var f TransferFile
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 	if err := dec.Decode(&f); err != nil {
-		return TransferFile{}, fmt.Errorf("%s não é um arquivo de repositórios do Perci: %w", path, err)
+		return TransferFile{}, fmt.Errorf("%s: %w", i18n.Tr("git.notTransferFile", i18n.Args{"path": path}), err)
 	}
 	if err := f.Validate(); err != nil {
-		return TransferFile{}, fmt.Errorf("arquivo de repositórios inválido: %w", err)
+		return TransferFile{}, fmt.Errorf("%s: %w", i18n.Tr("git.invalidFile", nil), err)
 	}
 	return f, nil
 }
@@ -258,28 +259,28 @@ func LoadTransfer(path string) (TransferFile, error) {
 func (f TransferFile) Validate() error {
 	switch {
 	case f.Version == 0:
-		return errors.New("o arquivo não informa a versão do formato")
+		return i18n.NewError("git.noVersion")
 	case f.Version > TransferVersion:
-		return fmt.Errorf("o arquivo usa a versão %d do formato, mais nova que a desta versão do Perci (%d)", f.Version, TransferVersion)
+		return errors.New(i18n.Tr("git.newerVersion", i18n.Args{"version": f.Version, "supported": TransferVersion}))
 	}
 	var accounts []config.GitAccount
 	for _, t := range f.Accounts {
 		acc := t.account()
 		if err := validateFields(acc); err != nil {
-			return fmt.Errorf("conta %q: %w", t.Name, err)
+			return fmt.Errorf("%s: %w", i18n.Tr("git.accountLabel", i18n.Args{"name": t.Name}), err)
 		}
 		if !filepath.IsAbs(acc.Folder) {
-			return fmt.Errorf("conta %q: a pasta deve ser um caminho absoluto", t.Name)
+			return errors.New(i18n.Tr("git.folderNotAbs", i18n.Args{"name": t.Name}))
 		}
 		if err := checkClash(acc, accounts); err != nil {
-			return fmt.Errorf("conta %q: %w", t.Name, err)
+			return fmt.Errorf("%s: %w", i18n.Tr("git.accountLabel", i18n.Args{"name": t.Name}), err)
 		}
 		if err := checkOptionalEmail(t.ContactEmail); err != nil {
-			return fmt.Errorf("conta %q: %w", t.Name, err)
+			return fmt.Errorf("%s: %w", i18n.Tr("git.accountLabel", i18n.Args{"name": t.Name}), err)
 		}
 		for _, o := range accounts {
 			if sameUser(o, acc) {
-				return fmt.Errorf("conta %q: o usuário %s em %s aparece mais de uma vez", t.Name, acc.Username, acc.Host)
+				return errors.New(i18n.Tr("git.userTwice", i18n.Args{"name": t.Name, "user": acc.Username, "host": acc.Host}))
 			}
 		}
 		accounts = append(accounts, acc)
@@ -287,17 +288,17 @@ func (f TransferFile) Validate() error {
 		paths := map[string]bool{}
 		for _, r := range t.Repos {
 			if err := checkRepoPath(r.Path); err != nil {
-				return fmt.Errorf("conta %q: %w", t.Name, err)
+				return fmt.Errorf("%s: %w", i18n.Tr("git.accountLabel", i18n.Args{"name": t.Name}), err)
 			}
 			if paths[r.Path] {
-				return fmt.Errorf("conta %q: o repositório %s aparece mais de uma vez", t.Name, r.Path)
+				return errors.New(i18n.Tr("git.repoTwice", i18n.Args{"name": t.Name, "path": r.Path}))
 			}
 			paths[r.Path] = true
 			if ClassifyRemote(acc, r.URL) != RemoteOK {
-				return fmt.Errorf("conta %q: %s não é uma URL SSH de %s em %s", t.Name, RedactURL(r.URL), acc.Username, acc.Host)
+				return errors.New(i18n.Tr("git.notSSHURL", i18n.Args{"name": t.Name, "url": RedactURL(r.URL), "user": acc.Username, "host": acc.Host}))
 			}
 			if err := checkOptionalEmail(r.ContactEmail); err != nil {
-				return fmt.Errorf("conta %q, repositório %s: %w", t.Name, r.Path, err)
+				return fmt.Errorf("%s: %w", i18n.Tr("git.accountRepoLabel", i18n.Args{"name": t.Name, "path": r.Path}), err)
 			}
 		}
 	}
@@ -308,7 +309,7 @@ func (f TransferFile) Validate() error {
 // written with "/".
 func checkRepoPath(path string) error {
 	if path == "" || path == "." || !filepath.IsLocal(filepath.FromSlash(path)) || filepath.ToSlash(filepath.Clean(path)) != path {
-		return fmt.Errorf("caminho de repositório inválido: %q", path)
+		return errors.New(i18n.Tr("git.badRepoPath", i18n.Args{"path": path}))
 	}
 	return nil
 }
@@ -321,7 +322,7 @@ func checkOptionalEmail(email string) error {
 	}
 	checked, err := repofiles.CheckContactEmail(email)
 	if err == nil && checked != email {
-		err = fmt.Errorf("e-mail de contato com espaços: %q", email)
+		err = errors.New(i18n.Tr("git.contactSpaces", i18n.Args{"email": email}))
 	}
 	return err
 }
@@ -401,10 +402,10 @@ func PlanImport(ctx context.Context, exe *executor.Executor, f TransferFile, acc
 // registered accounts.
 func checkNewAccount(acc config.GitAccount, accounts []config.GitAccount) error {
 	if !filepath.IsAbs(acc.Folder) {
-		return errors.New("a pasta deve ser um caminho absoluto")
+		return i18n.NewError("git.mustBeAbs")
 	}
 	if info, err := os.Stat(acc.Folder); err == nil && !info.IsDir() {
-		return fmt.Errorf("%s não é uma pasta", acc.Folder)
+		return errors.New(i18n.Tr("git.notAFolder", i18n.Args{"path": acc.Folder}))
 	}
 	return checkClash(acc, accounts)
 }
@@ -423,7 +424,7 @@ func repoImportState(ctx context.Context, exe *executor.Executor, acc config.Git
 		if sameRepo(ctx, exe, dest, r.URL) {
 			st.State = ImportPresent
 		} else {
-			st.State, st.Reason = ImportConflict, "a pasta já tem outro repositório"
+			st.State, st.Reason = ImportConflict, i18n.Tr("git.otherRepo", nil)
 		}
 		return st
 	}
@@ -458,25 +459,25 @@ func sameRepo(ctx context.Context, exe *executor.Executor, dir, url string) bool
 // executor.ErrCompletedWithWarnings.
 func Import(ctx context.Context, exe *executor.Executor, stdout io.Writer, f TransferFile, picks []TransferPick, folders map[string]string) error {
 	if err := f.Validate(); err != nil {
-		return fmt.Errorf("arquivo de repositórios inválido: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("git.invalidFile", nil), err)
 	}
 	part, err := f.Filter(picks)
 	if err != nil {
 		return err
 	}
 	if len(part.Accounts) == 0 {
-		return errors.New("nenhuma conta selecionada para importar")
+		return i18n.NewError("git.nothingToImport")
 	}
 
 	skipped := 0
 	for _, t := range part.Accounts {
 		cfg, err := config.Load()
 		if err != nil {
-			return fmt.Errorf("carregar config: %w", err)
+			return fmt.Errorf("load config: %w", err)
 		}
 		plan := PlanImport(ctx, exe, TransferFile{Version: part.Version, Accounts: []TransferAccount{t}}, cfg.GitAccounts, folders)[0]
 		if plan.Reason != "" {
-			ui.Warning(stdout, "Conta "+t.Name+" não importada: "+plan.Reason)
+			ui.Warning(stdout, i18n.Tr("git.run.notImported", i18n.Args{"name": t.Name, "reason": plan.Reason}))
 			skipped++
 			continue
 		}
@@ -490,11 +491,11 @@ func Import(ctx context.Context, exe *executor.Executor, stdout io.Writer, f Tra
 			case ImportNew:
 				pending = append(pending, config.PendingRepo{Path: st.Path, URL: t.Repos[i].URL})
 			case ImportPending:
-				ui.Info(stdout, t.Name+": "+st.Path+" já está pendente.")
+				ui.Info(stdout, i18n.Tr("git.run.alreadyPending", i18n.Args{"name": t.Name, "path": st.Path}))
 			case ImportPresent:
-				ui.Info(stdout, t.Name+": "+st.Path+" já está clonado.")
+				ui.Info(stdout, i18n.Tr("git.run.alreadyCloned", i18n.Args{"name": t.Name, "path": st.Path}))
 			case ImportConflict:
-				ui.Warning(stdout, t.Name+": "+st.Path+" ignorado: "+st.Reason)
+				ui.Warning(stdout, i18n.Tr("git.run.repoSkipped", i18n.Args{"name": t.Name, "path": st.Path, "reason": st.Reason}))
 				skipped++
 			}
 		}
@@ -506,7 +507,7 @@ func Import(ctx context.Context, exe *executor.Executor, stdout io.Writer, f Tra
 			if err := mergeContactEmails(plan.ExistingID, t.ContactEmail, emails); err != nil {
 				return err
 			}
-			ui.Success(stdout, fmt.Sprintf("Conta %s já existe nesta máquina (%s): %d repositório(s) pendente(s) adicionado(s).", t.Name, plan.ExistingName, len(pending)))
+			ui.Success(stdout, i18n.Tr("git.run.pendingAdded", i18n.Args{"name": t.Name, "existing": plan.ExistingName, "count": len(pending)}))
 			continue
 		}
 
@@ -520,15 +521,15 @@ func Import(ctx context.Context, exe *executor.Executor, stdout io.Writer, f Tra
 			}
 		}
 		if err := createAccount(ctx, exe, stdout, acc, cfg.GitAccounts); err != nil {
-			return fmt.Errorf("conta %s: %w", t.Name, err)
+			return fmt.Errorf("%s: %w", i18n.Tr("git.accountLabel", i18n.Args{"name": t.Name}), err)
 		}
 	}
 
-	ui.Info(stdout, "Os repositórios importados aparecem como pendentes na tela de cada conta: cadastre a chave pública no servidor, use Testar conexão e depois Clonar pendentes.")
+	ui.Info(stdout, i18n.Tr("git.run.importNext", nil))
 	if skipped > 0 {
 		return executor.ErrCompletedWithWarnings
 	}
-	ui.Success(stdout, "Repositórios importados.")
+	ui.Success(stdout, i18n.Tr("git.run.imported", nil))
 	return nil
 }
 
@@ -538,7 +539,7 @@ func Import(ctx context.Context, exe *executor.Executor, stdout io.Writer, f Tra
 // removed again when a later step fails.
 func createAccount(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc config.GitAccount, others []config.GitAccount) error {
 	if err := os.MkdirAll(acc.Folder, 0o755); err != nil {
-		return fmt.Errorf("criar %s: %w", acc.Folder, err)
+		return fmt.Errorf("create %s: %w", acc.Folder, err)
 	}
 	if err := Validate(acc, others); err != nil {
 		return err
@@ -549,7 +550,7 @@ func createAccount(ctx context.Context, exe *executor.Executor, stdout io.Writer
 	}
 	generated := false
 	if CheckKey(path) == nil {
-		ui.Info(stdout, "Usando a chave SSH existente "+path)
+		ui.Info(stdout, i18n.Tr("git.run.existingKey", i18n.Args{"path": path}))
 	} else {
 		if err := GenerateKey(ctx, exe, Askpass{}, path, acc.GitEmail, ""); err != nil {
 			return err
@@ -576,13 +577,13 @@ func createAccount(ctx context.Context, exe *executor.Executor, stdout io.Writer
 		return err
 	}
 
-	ui.Success(stdout, fmt.Sprintf("Conta %s criada em %s com %d repositório(s) pendente(s).", acc.Name, acc.Folder, len(acc.Pending)))
+	ui.Success(stdout, i18n.Tr("git.run.accountCreated", i18n.Args{"name": acc.Name, "folder": acc.Folder, "count": len(acc.Pending)}))
 	if pub, err := PublicKey(path); err == nil {
-		ui.Info(stdout, "Chave pública da conta "+acc.Name+" — cadastre em "+KeysURL(acc)+":")
+		ui.Info(stdout, i18n.Tr("git.run.publicKey", i18n.Args{"name": acc.Name, "url": KeysURL(acc)}))
 		_, _ = fmt.Fprintln(stdout, pub)
 	}
 	if !IsPinnedHost(acc) {
-		ui.Warning(stdout, "Confirme a chave do servidor "+acc.Host+" em Configurar Conta antes de clonar.")
+		ui.Warning(stdout, i18n.Tr("git.run.confirmHost", i18n.Args{"host": acc.Host}))
 	}
 	return nil
 }
@@ -599,7 +600,7 @@ func addPending(id string, repos []config.PendingRepo) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("conta não encontrada: %q", id)
+		return errors.New(i18n.Tr("git.accountNotFound", i18n.Args{"id": id}))
 	})
 }
 
@@ -632,7 +633,7 @@ func mergeContactEmails(id, account string, repos map[string]string) error {
 			}
 			return nil
 		}
-		return fmt.Errorf("conta não encontrada: %q", id)
+		return errors.New(i18n.Tr("git.accountNotFound", i18n.Args{"id": id}))
 	})
 }
 
@@ -651,9 +652,9 @@ func DiscardPending(id, path string) error {
 					return nil
 				}
 			}
-			return fmt.Errorf("o repositório %q não está pendente", path)
+			return errors.New(i18n.Tr("git.notPending", i18n.Args{"path": path}))
 		}
-		return fmt.Errorf("conta não encontrada: %q", id)
+		return errors.New(i18n.Tr("git.accountNotFound", i18n.Args{"id": id}))
 	})
 }
 
@@ -662,7 +663,7 @@ func DiscardPending(id, path string) error {
 // already cloned). It fails when any of them could not be cloned.
 func ClonePending(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc config.GitAccount) error {
 	if len(acc.Pending) == 0 {
-		return errors.New("nenhum repositório pendente")
+		return i18n.NewError("git.noPending")
 	}
 	var done []string
 	failed := 0
@@ -670,13 +671,13 @@ func ClonePending(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 		ui.Step(stdout, i+1, len(acc.Pending), p.Path)
 		dest := filepath.Join(acc.Folder, filepath.FromSlash(p.Path))
 		if _, err := os.Lstat(filepath.Join(dest, ".git")); err == nil && sameRepo(ctx, exe, dest, p.URL) {
-			ui.Info(stdout, p.Path+" já está clonado.")
+			ui.Info(stdout, i18n.Tr("git.run.cloneDone", i18n.Args{"path": p.Path}))
 			done = append(done, p.Path)
 			continue
 		}
 		err := checkRepoPath(p.Path)
 		if err == nil && ClassifyRemote(acc, p.URL) != RemoteOK {
-			err = fmt.Errorf("%s não é uma URL SSH da conta", RedactURL(p.URL))
+			err = errors.New(i18n.Tr("git.notAccountSSH", i18n.Args{"url": RedactURL(p.URL)}))
 		}
 		if err == nil {
 			dest, err = DestDir(acc, p.Path)
@@ -708,11 +709,11 @@ func ClonePending(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 			}
 			return nil
 		}); err != nil {
-			return fmt.Errorf("salvar config: %w", err)
+			return fmt.Errorf("save config: %w", err)
 		}
 	}
 	if failed > 0 {
-		return fmt.Errorf("%d repositório(s) pendente(s) não puderam ser clonados", failed)
+		return errors.New(i18n.Tr("git.cloneFailed", i18n.Args{"count": failed}))
 	}
 	return nil
 }

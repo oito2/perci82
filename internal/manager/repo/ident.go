@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // gitDirArgs prefixes args with "-C dir" when dir is non-empty.
@@ -43,7 +44,7 @@ func GetCurrentLocalIdentity(ctx context.Context, exe *executor.Executor, dir st
 // credential.helper when no helper is configured for it yet.
 func ApplyLocalIdentityAt(ctx context.Context, exe *executor.Executor, stdout io.Writer, name, email, dir string) error {
 	if name == "" || email == "" {
-		return fmt.Errorf("nome e e-mail não podem ser vazios")
+		return i18n.NewError("repo.identityEmpty")
 	}
 
 	opts := executor.Options{Stdout: stdout, Stderr: stdout}

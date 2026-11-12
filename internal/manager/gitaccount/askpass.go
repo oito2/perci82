@@ -16,6 +16,7 @@
 package gitaccount
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -72,17 +73,17 @@ func RespondAskpass(w io.Writer) int {
 // removes the counter file.
 func (a Askpass) env(secret string, answers int) ([]string, func(), error) {
 	if a.Program == "" {
-		return nil, nil, fmt.Errorf("programa askpass não definido")
+		return nil, nil, errors.New("askpass program not set")
 	}
 	dir, err := os.MkdirTemp("", "perci-askpass-")
 	if err != nil {
-		return nil, nil, fmt.Errorf("criar pasta temporária: %w", err)
+		return nil, nil, fmt.Errorf("create temporary folder: %w", err)
 	}
 	cleanup := func() { _ = os.RemoveAll(dir) }
 	counter := filepath.Join(dir, "counter")
 	if err := os.WriteFile(counter, []byte(strconv.Itoa(answers)), 0o600); err != nil {
 		cleanup()
-		return nil, nil, fmt.Errorf("criar contador: %w", err)
+		return nil, nil, fmt.Errorf("create counter: %w", err)
 	}
 	return []string{
 		"SSH_ASKPASS=" + a.Program,

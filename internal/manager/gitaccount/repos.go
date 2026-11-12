@@ -17,6 +17,7 @@ package gitaccount
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/url"
@@ -31,6 +32,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // skippedDirs are folders Discover never descends into.
@@ -43,10 +45,10 @@ var skippedDirs = []string{"node_modules", "vendor"}
 func Discover(ctx context.Context, root string) ([]string, error) {
 	info, err := os.Stat(root)
 	if err != nil {
-		return nil, fmt.Errorf("pasta da conta: %w", err)
+		return nil, fmt.Errorf("%s: %w", i18n.Tr("git.folderLabel", nil), err)
 	}
 	if !info.IsDir() {
-		return nil, fmt.Errorf("%s não é uma pasta", root)
+		return nil, errors.New(i18n.Tr("git.notAFolder", i18n.Args{"path": root}))
 	}
 
 	var repos []string

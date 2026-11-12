@@ -18,6 +18,7 @@ package gitaccount
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	"github.com/oito2/perci82/internal/config"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // RemoteRepo is one repository of the account on its provider.
@@ -131,22 +133,22 @@ func fetchRepoPage(ctx context.Context, client *http.Client, base string, acc co
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return repoPage{}, fmt.Errorf("consultar %s: %w", acc.Host, err)
+		return repoPage{}, fmt.Errorf("query %s: %w", acc.Host, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if err != nil {
-		return repoPage{}, fmt.Errorf("ler a resposta de %s: %w", acc.Host, err)
+		return repoPage{}, fmt.Errorf("read the answer of %s: %w", acc.Host, err)
 	}
 	switch {
 	case resp.StatusCode == http.StatusUnauthorized:
-		return repoPage{}, fmt.Errorf("%s recusou o token da conta — gere um novo e salve em Configurar Conta", acc.Host)
+		return repoPage{}, errors.New(i18n.Tr("git.tokenRefused", i18n.Args{"host": acc.Host}))
 	case resp.StatusCode == http.StatusNotFound:
-		return repoPage{}, fmt.Errorf("usuário %s não encontrado em %s", acc.Username, acc.Host)
+		return repoPage{}, errors.New(i18n.Tr("git.userNotFound", i18n.Args{"user": acc.Username, "host": acc.Host}))
 	case resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests:
-		return repoPage{}, fmt.Errorf("%s recusou a consulta (limite de requisições?) — tente mais tarde ou salve um token", acc.Host)
+		return repoPage{}, errors.New(i18n.Tr("git.rateLimited", i18n.Args{"host": acc.Host}))
 	case resp.StatusCode != http.StatusOK:
-		return repoPage{}, fmt.Errorf("%s respondeu %s", acc.Host, resp.Status)
+		return repoPage{}, fmt.Errorf("%s answered %s", acc.Host, resp.Status)
 	}
 
 	if acc.Provider == ProviderGitHub {
@@ -166,7 +168,7 @@ func decodeGitHub(body []byte, acc config.GitAccount) (repoPage, error) {
 		} `json:"owner"`
 	}
 	if err := json.Unmarshal(body, &items); err != nil {
-		return repoPage{}, fmt.Errorf("resposta inesperada de %s: %w", acc.Host, err)
+		return repoPage{}, fmt.Errorf("unexpected answer from %s: %w", acc.Host, err)
 	}
 	page := repoPage{count: len(items)}
 	for _, it := range items {
@@ -189,7 +191,7 @@ func decodeGitLab(body []byte, acc config.GitAccount) (repoPage, error) {
 		LastActivityAt    string `json:"last_activity_at"`
 	}
 	if err := json.Unmarshal(body, &items); err != nil {
-		return repoPage{}, fmt.Errorf("resposta inesperada de %s: %w", acc.Host, err)
+		return repoPage{}, fmt.Errorf("unexpected answer from %s: %w", acc.Host, err)
 	}
 	page := repoPage{count: len(items)}
 	for _, it := range items {

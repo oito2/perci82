@@ -17,12 +17,12 @@ package gitaccount
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // tokenService is the "service" attribute of every API token perci
@@ -30,17 +30,17 @@ import (
 const tokenService = "perci-git"
 
 // ErrNoKeyring means secret-tool, the keyring client, is not installed.
-var ErrNoKeyring = errors.New("secret-tool não encontrado — instale o Libsecret Tools em Pré-requisitos")
+var ErrNoKeyring = i18n.NewError("git.noKeyring")
 
 // StoreToken saves the API token of acc in the system keyring, replacing
 // any previous one. The token goes to secret-tool on stdin.
 func StoreToken(ctx context.Context, exe *executor.Executor, acc config.GitAccount, token string) error {
 	token = strings.TrimSpace(token)
 	if token == "" {
-		return errors.New("informe o token")
+		return i18n.NewError("git.noToken")
 	}
 	if strings.ContainsAny(token, " \t\n\r") {
-		return errors.New("o token não pode conter espaços")
+		return i18n.NewError("git.tokenSpaces")
 	}
 	if !exe.CommandAvailable(ctx, "secret-tool") {
 		return ErrNoKeyring
@@ -48,7 +48,7 @@ func StoreToken(ctx context.Context, exe *executor.Executor, acc config.GitAccou
 	opts := executor.Options{Stdin: strings.NewReader(token)}
 	label := "perci: token da conta " + acc.Name
 	if err := exe.Run(ctx, opts, "secret-tool", "store", "--label="+label, "service", tokenService, "account", acc.ID); err != nil {
-		return fmt.Errorf("guardar o token no chaveiro: %w", err)
+		return fmt.Errorf("store the token in the keyring: %w", err)
 	}
 	return nil
 }
@@ -64,7 +64,7 @@ func LookupToken(ctx context.Context, exe *executor.Executor, id string) (string
 		return "", nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("ler o token do chaveiro: %w", err)
+		return "", fmt.Errorf("read the token from the keyring: %w", err)
 	}
 	return strings.TrimSpace(out), nil
 }
@@ -77,7 +77,7 @@ func DeleteToken(ctx context.Context, exe *executor.Executor, id string) error {
 	}
 	err := exe.Run(ctx, executor.Options{}, "secret-tool", "clear", "service", tokenService, "account", id)
 	if err != nil && exitCode(err) != 1 {
-		return fmt.Errorf("remover o token do chaveiro: %w", err)
+		return fmt.Errorf("remove the token from the keyring: %w", err)
 	}
 	return nil
 }

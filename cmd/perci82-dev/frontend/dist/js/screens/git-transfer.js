@@ -48,9 +48,10 @@ let gtImportPlans = null;
 let gtImportPath = "";
 let gtFolders = {};
 
+// GT_STATE_LABELS maps an import state to the message key of its badge.
 const GT_STATE_LABELS = {
-  pending: "já está pendente",
-  present: "já está clonado",
+  pending: "gt.state.pending",
+  present: "gt.state.present",
 };
 
 // gtPicks reads rows into TransferPicks: every checked account with its
@@ -156,7 +157,7 @@ function renderGtExport(items) {
     if (!(a.repos || []).length) {
       const none = document.createElement("p");
       none.className = "text-xs opacity-70 ml-8";
-      none.textContent = "Nenhum repositório com remote nesta conta: só os dados da conta são exportados.";
+      none.textContent = t("gt.noRepos");
       group.appendChild(none);
     }
     gtLink(entry, updateGtExport);
@@ -165,7 +166,7 @@ function renderGtExport(items) {
   });
   const skipped = items.skipped || [];
   showGtNotes(gtExportNote, gtExportNoteText, skipped.length
-    ? ["Repositórios sem remote não são exportados (não há de onde cloná-los): " + skipped.join(", ") + "."]
+    ? [t("gt.skipped", { repos: skipped.join(", ") })]
     : []);
   updateGtExport();
 }
@@ -177,7 +178,7 @@ function updateGtExport() {
 function loadGtExport() {
   btnGtExport.disabled = true;
   App.GetGitRepoExportItems().then(latestOnly("gt-export", renderGtExport))
-    .catch(function (err) { openError("Falha ao listar o que exportar: " + err); });
+    .catch(function (err) { openError(t("transfer.listFailed", { error: err })); });
 }
 
 btnGtExport.addEventListener("click", function () {
@@ -187,9 +188,9 @@ btnGtExport.addEventListener("click", function () {
     if (!path) return; // user cancelled the dialog
     return App.ExportGitRepos(path, picks).then(function () {
       const repos = picks.reduce(function (n, p) { return n + p.repos.length; }, 0);
-      openMessage("Exportado", picks.length + " conta(s) e " + repos + " repositório(s) exportados para:\n" + path, false);
+      openMessage(t("transfer.exported"), t("gt.exportedTo", { accounts: picks.length, repos: repos, path: path }), false);
     });
-  }).catch(function (err) { openError("Falha ao exportar: " + err); });
+  }).catch(function (err) { openError(t("transfer.exportFailed", { error: err })); });
 });
 
 // ---- Importar ---------------------------------------------------------------
@@ -197,7 +198,7 @@ btnGtExport.addEventListener("click", function () {
 // gtImportBadge is the badge of an account of the import plan.
 function gtImportBadge(p) {
   if (p.reason) return "";
-  return p.existingId ? "já cadastrada — mescla com " + p.existingName : "conta nova";
+  return p.existingId ? t("gt.merges", { name: p.existingName }) : t("gt.newAccount");
 }
 
 // renderGtImport fills the Importar checklist with plans (ImportAccount).
@@ -209,19 +210,19 @@ function renderGtImport(plans) {
   plans.forEach(function (p) {
     const group = document.createElement("div");
     group.className = "mb-3";
-    const detail = p.reason ? "Indisponível: " + p.reason : gtAccountDetail(p);
+    const detail = p.reason ? t("transfer.unavailable", { reason: p.reason }) : gtAccountDetail(p);
     const head = gtBox(p.name, detail, gtImportBadge(p), !!p.reason, false);
     if (!p.existingId) {
       const change = document.createElement("button");
       change.className = "btn btn-xs mt-1";
-      change.textContent = "Trocar pasta";
+      change.textContent = t("gt.changeFolder");
       change.addEventListener("click", function (e) {
         e.preventDefault();
         App.PickGitAccountFolder().then(function (folder) {
           if (!folder) return;
           gtFolders[p.name] = folder;
           loadGtImport(gtImportPath);
-        }).catch(function (err) { openError("Falha ao escolher a pasta: " + err); });
+        }).catch(function (err) { openError(t("gt.pickFailed", { error: err })); });
       });
       head.text.appendChild(change);
     }
@@ -231,8 +232,8 @@ function renderGtImport(plans) {
       const repo = (p.repos || [])[i] || {};
       let row;
       if (st.state === "new") row = gtBox(st.path, repo.url, "", !!p.reason, true);
-      else if (st.state === "conflict") row = gtBox(st.path, "Ignorado: " + st.reason, "", true, true);
-      else row = gtBox(st.path, repo.url, GT_STATE_LABELS[st.state] || st.state, true, true);
+      else if (st.state === "conflict") row = gtBox(st.path, t("gt.ignored", { reason: st.reason }), "", true, true);
+      else row = gtBox(st.path, repo.url, GT_STATE_LABELS[st.state] ? t(GT_STATE_LABELS[st.state]) : st.state, true, true);
       group.appendChild(row.row);
       entry.repos.push({ path: st.path, box: row.box });
     });
@@ -253,7 +254,7 @@ function updateGtImport() {
   picks.forEach(function (pick) {
     const plan = gtImportPlans.find(function (p) { return p.name === pick.account; });
     if (plan && !plan.existingId) {
-      notes.push('"' + pick.account + '" é nova: ganha a pasta ' + plan.folder + ", uma chave SSH sem senha e a regra no ~/.gitconfig.");
+      notes.push(t("gt.newNote", { name: pick.account, folder: plan.folder }));
     }
   });
   showGtNotes(gtImportNote, gtImportNoteText, notes);
@@ -285,7 +286,7 @@ function loadGtImport(path) {
     renderGtImport(gtImportPlans);
   })).catch(function (err) {
     resetGtImport();
-    openError("Falha ao ler o arquivo: " + err);
+    openError(t("transfer.readFailed", { error: err }));
   });
 }
 
@@ -294,7 +295,7 @@ btnGtPick.addEventListener("click", function () {
     if (!path) return;
     gtFolders = {};
     loadGtImport(path);
-  }).catch(function (err) { openError("Falha ao selecionar o arquivo: " + err); });
+  }).catch(function (err) { openError(t("transfer.pickFailed", { error: err })); });
 });
 
 btnGtImport.addEventListener("click", function () {
@@ -304,11 +305,9 @@ btnGtImport.addEventListener("click", function () {
   const path = gtImportPath;
   const folders = Object.assign({}, gtFolders);
   const repos = picks.reduce(function (n, p) { return n + p.repos.length; }, 0);
-  const msg = "Importar " + picks.length + " conta(s) e " + repos + " repositório(s).\n\n" +
-    "Contas novas ganham a pasta, uma chave SSH sem senha e a regra no ~/.gitconfig; contas já cadastradas mantêm os dados delas. " +
-    "Os repositórios ficam pendentes na tela de cada conta: nada é clonado agora. Continuar?";
-  openConfirm("Importar repositórios", msg, function () {
-    beginRun("Importar repositórios", function () {
+  const msg = t("gt.importConfirm", { accounts: picks.length, repos: repos });
+  openConfirm(t("gt.importTitle"), msg, function () {
+    beginRun(t("gt.importTitle"), function () {
       return App.ImportGitRepos(path, picks, folders);
     }, { buttons: [btnGtImport] });
   });

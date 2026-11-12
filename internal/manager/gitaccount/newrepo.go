@@ -27,6 +27,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -37,7 +38,7 @@ import (
 func CloneURL(acc config.GitAccount, source string) (string, error) {
 	source = strings.TrimSpace(source)
 	if source == "" {
-		return "", errors.New("informe a URL ou o nome do repositório")
+		return "", i18n.NewError("git.noSource")
 	}
 	if !strings.ContainsAny(source, ":@") {
 		name, err := cleanRepoName(acc, source)
@@ -51,7 +52,7 @@ func CloneURL(acc config.GitAccount, source string) (string, error) {
 		r, _ := ParseRemote(source)
 		return SSHURL(acc, r.Owner, r.Repo), nil
 	}
-	return "", fmt.Errorf("%s não é um repositório de %s em %s", RedactURL(source), acc.Username, acc.Host)
+	return "", errors.New(i18n.Tr("git.notAccountRepo", i18n.Args{"url": RedactURL(source), "user": acc.Username, "host": acc.Host}))
 }
 
 // DestDir resolves rel, a folder relative to acc's folder, into the
@@ -61,19 +62,19 @@ func CloneURL(acc config.GitAccount, source string) (string, error) {
 func DestDir(acc config.GitAccount, rel string) (string, error) {
 	rel = strings.TrimSpace(rel)
 	if rel == "" {
-		return "", errors.New("informe a pasta do repositório")
+		return "", i18n.NewError("git.noRepoFolder")
 	}
 	if filepath.IsAbs(rel) {
-		return "", errors.New("informe a pasta relativa à pasta da conta")
+		return "", i18n.NewError("git.relativeFolder")
 	}
 	dest := filepath.Join(acc.Folder, rel)
 	if dest == acc.Folder || !within(dest, acc.Folder) {
-		return "", fmt.Errorf("a pasta precisa ficar dentro de %s", acc.Folder)
+		return "", errors.New(i18n.Tr("git.folderInside", i18n.Args{"folder": acc.Folder}))
 	}
 
 	for dir := filepath.Dir(dest); ; dir = filepath.Dir(dir) {
 		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
-			return "", fmt.Errorf("%s fica dentro do repositório %s", dest, dir)
+			return "", errors.New(i18n.Tr("git.insideRepo", i18n.Args{"path": dest, "repo": dir}))
 		}
 		if dir == acc.Folder || dir == filepath.Dir(dir) {
 			break
@@ -85,9 +86,9 @@ func DestDir(acc config.GitAccount, rel string) (string, error) {
 	case errors.Is(err, os.ErrNotExist):
 		return dest, nil
 	case err != nil:
-		return "", fmt.Errorf("%s já existe e não é uma pasta", dest)
+		return "", errors.New(i18n.Tr("git.existsNotFolder", i18n.Args{"path": dest}))
 	case len(entries) > 0:
-		return "", fmt.Errorf("%s já existe e não está vazia", dest)
+		return "", errors.New(i18n.Tr("git.existsNotEmpty", i18n.Args{"path": dest}))
 	}
 	return dest, nil
 }
@@ -107,12 +108,12 @@ func Clone(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc co
 	parent := filepath.Dir(dest)
 	created := missingAncestors(parent)
 	if err := os.MkdirAll(parent, 0o755); err != nil {
-		return fmt.Errorf("criar %s: %w", parent, err)
+		return fmt.Errorf("create %s: %w", parent, err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, cloneTimeout)
 	defer cancel()
-	ui.Info(stdout, "Clonando "+url+" em "+dest)
+	ui.Info(stdout, i18n.Tr("git.run.cloning", i18n.Args{"url": url, "path": dest}))
 	opts := executor.Options{Env: env, Stdout: stdout, Stderr: stdout}
 	if err := exe.Run(ctx, opts, "git", "clone", "--progress", "--", url, dest); err != nil {
 		for _, dir := range created { // deepest first; only empty folders go
@@ -120,7 +121,7 @@ func Clone(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc co
 		}
 		return fmt.Errorf("git clone: %w", err)
 	}
-	ui.Success(stdout, "Repositório clonado em "+dest)
+	ui.Success(stdout, i18n.Tr("git.run.cloned", i18n.Args{"path": dest}))
 	return nil
 }
 
@@ -146,7 +147,7 @@ func Init(ctx context.Context, exe *executor.Executor, acc config.GitAccount, de
 		}
 	}
 	if err := os.MkdirAll(dest, 0o755); err != nil {
-		return fmt.Errorf("criar %s: %w", dest, err)
+		return fmt.Errorf("create %s: %w", dest, err)
 	}
 	if err := exe.Run(ctx, executor.Options{}, "git", "init", "-q", "--", dest); err != nil {
 		return fmt.Errorf("git init: %w", err)

@@ -29,6 +29,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // DefaultKeyPath is where the key generated for the account id goes:
@@ -47,12 +48,12 @@ func DefaultKeyPath(id string) (string, error) {
 func GenerateKey(ctx context.Context, exe *executor.Executor, askpass Askpass, path, comment, passphrase string) error {
 	for _, p := range []string{path, path + ".pub"} {
 		if _, err := os.Lstat(p); err == nil {
-			return fmt.Errorf("%s já existe — escolha a chave existente ou outro nome", p)
+			return errors.New(i18n.Tr("git.keyExists", i18n.Args{"path": p}))
 		}
 	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("criar %s: %w", dir, err)
+		return fmt.Errorf("create %s: %w", dir, err)
 	}
 
 	args := []string{"-q", "-t", "ed25519", "-f", path, "-C", comment}
@@ -80,14 +81,14 @@ func GenerateKey(ctx context.Context, exe *executor.Executor, askpass Askpass, p
 // to it (path+".pub").
 func CheckKey(path string) error {
 	if path == "" || !filepath.IsAbs(path) {
-		return errors.New("escolha a chave SSH da conta")
+		return i18n.NewError("git.noKey")
 	}
 	info, err := os.Stat(path)
 	if err != nil {
-		return fmt.Errorf("chave SSH: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("git.keyLabel", nil), err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("%s não é um arquivo de chave", path)
+		return errors.New(i18n.Tr("git.notKeyFile", i18n.Args{"path": path}))
 	}
 	if _, err := PublicKey(path); err != nil {
 		return err
@@ -100,11 +101,11 @@ func CheckKey(path string) error {
 func PublicKey(path string) (string, error) {
 	data, err := os.ReadFile(path + ".pub")
 	if err != nil {
-		return "", fmt.Errorf("chave pública %s.pub: %w", path, err)
+		return "", fmt.Errorf("public key %s.pub: %w", path, err)
 	}
 	line := strings.TrimSpace(string(data))
 	if _, err := Fingerprint(line); err != nil {
-		return "", fmt.Errorf("chave pública %s.pub: %w", path, err)
+		return "", fmt.Errorf("public key %s.pub: %w", path, err)
 	}
 	return line, nil
 }
@@ -117,7 +118,7 @@ func KeyEncrypted(ctx context.Context, exe *executor.Executor, path string) bool
 }
 
 // ErrNoAgent means no SSH agent is reachable in this session.
-var ErrNoAgent = errors.New("nenhum agente SSH ativo nesta sessão")
+var ErrNoAgent = i18n.NewError("git.noAgent")
 
 // AgentHasKey reports whether the session's SSH agent holds the key at
 // path, comparing fingerprints with `ssh-add -l`.
@@ -173,7 +174,7 @@ func UnlockKey(ctx context.Context, exe *executor.Executor, askpass Askpass, pat
 	case 2:
 		return ErrNoAgent
 	}
-	return fmt.Errorf("não foi possível desbloquear a chave (senha incorreta?): %s", strings.TrimSpace(out.String()))
+	return errors.New(i18n.Tr("git.unlockFailed", i18n.Args{"output": strings.TrimSpace(out.String())}))
 }
 
 var (
@@ -213,13 +214,13 @@ func TestConnection(ctx context.Context, exe *executor.Executor, acc config.GitA
 	}
 	switch {
 	case user == "" && strings.Contains(text, "Permission denied"):
-		return "", fmt.Errorf("o servidor recusou a chave — cadastre a chave pública em %s na conta %s", acc.Host, acc.Username)
+		return "", errors.New(i18n.Tr("git.keyRefused", i18n.Args{"host": acc.Host, "user": acc.Username}))
 	case user == "" && strings.Contains(text, "Host key verification failed"):
-		return "", fmt.Errorf("a chave do servidor %s ainda não foi confirmada", acc.Host)
+		return "", errors.New(i18n.Tr("git.hostNotConfirmed", i18n.Args{"host": acc.Host}))
 	case user == "":
-		return "", fmt.Errorf("não foi possível conectar a %s: %s", acc.Host, text)
+		return "", errors.New(i18n.Tr("git.connectFailed", i18n.Args{"host": acc.Host, "error": text}))
 	case !strings.EqualFold(user, acc.Username):
-		return user, fmt.Errorf("a chave pertence ao usuário %s, não a %s", user, acc.Username)
+		return user, errors.New(i18n.Tr("git.keyOtherUser", i18n.Args{"user": user, "want": acc.Username}))
 	}
 	return user, nil
 }

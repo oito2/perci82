@@ -25,6 +25,7 @@ import (
 
 	"github.com/oito2/perci82/internal/dev/nettimeout"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -41,10 +42,10 @@ func Clone(ctx context.Context, exe *executor.Executor, stdout io.Writer, url, d
 	if dir != "" {
 		empty, err := IsEmptyDir(dir)
 		if err != nil {
-			return fmt.Errorf("verificar pasta: %w", err)
+			return fmt.Errorf("check folder: %w", err)
 		}
 		if !empty {
-			return fmt.Errorf("a pasta %s não está vazia — escolha uma pasta vazia para clonar", dir)
+			return errors.New(i18n.Tr("repo.notEmpty", i18n.Args{"path": dir}))
 		}
 	}
 
@@ -54,7 +55,7 @@ func Clone(ctx context.Context, exe *executor.Executor, stdout io.Writer, url, d
 		args = append(args, dir)
 	}
 
-	ui.Info(stdout, "Clonando repositório...")
+	ui.Info(stdout, i18n.Tr("repo.run.cloning", nil))
 	cloneCtx, cancel := nettimeout.Context(ctx)
 	defer cancel()
 	if err := exe.Run(cloneCtx, opts, "git", args...); err != nil {
@@ -68,7 +69,7 @@ func Clone(ctx context.Context, exe *executor.Executor, stdout io.Writer, url, d
 	if target == "" {
 		target = cloneTargetName(url)
 	}
-	ui.Info(stdout, "Aplicando identidade em: "+target)
+	ui.Info(stdout, i18n.Tr("repo.run.identity", i18n.Args{"path": target}))
 	return ApplyLocalIdentityAt(ctx, exe, stdout, name, email, target)
 }
 
@@ -87,7 +88,7 @@ func cloneTargetName(url string) string {
 // them can't be applied (ApplyLocalIdentityAt needs both).
 func checkIdentityPair(name, email string) error {
 	if (name == "") != (email == "") {
-		return fmt.Errorf("informe nome e e-mail juntos (ou deixe os dois vazios para usar a identidade global)")
+		return i18n.NewError("repo.identityPair")
 	}
 	return nil
 }

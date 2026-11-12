@@ -28,6 +28,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -64,7 +65,7 @@ func sshArgs(acc config.GitAccount) ([]string, error) {
 		return nil, err
 	}
 	if strings.ContainsAny(kh, " \t") {
-		return nil, fmt.Errorf("o caminho %s contém espaços, que o ssh não aceita em UserKnownHostsFile", kh)
+		return nil, errors.New(i18n.Tr("git.knownHostsSpaces", i18n.Args{"path": kh}))
 	}
 	return []string{"-i", acc.SSHKey, "-o", "IdentitiesOnly=yes", "-o", "UserKnownHostsFile=" + kh}, nil
 }
@@ -96,12 +97,12 @@ func WriteGitconfig(ctx context.Context, exe *executor.Executor, acc config.GitA
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("criar %s: %w", filepath.Dir(path), err)
+		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
 	}
 
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+acc.ID+".gitconfig.tmp-*")
 	if err != nil {
-		return fmt.Errorf("criar arquivo temporário: %w", err)
+		return fmt.Errorf("create temporary file: %w", err)
 	}
 	tmpName := tmp.Name()
 	if err := tmp.Close(); err != nil {
@@ -125,7 +126,7 @@ func WriteGitconfig(ctx context.Context, exe *executor.Executor, acc config.GitA
 	}
 	if err := os.Rename(tmpName, path); err != nil {
 		_ = os.Remove(tmpName)
-		return fmt.Errorf("gravar %s: %w", path, err)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
 }
@@ -156,14 +157,14 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, prev *
 	}
 	for _, v := range current {
 		if v == path {
-			ui.Info(stdout, "Regra do ~/.gitconfig já existe para "+acc.Folder)
+			ui.Info(stdout, i18n.Tr("git.run.ruleExists", i18n.Args{"folder": acc.Folder}))
 			return nil
 		}
 	}
 	if err := exe.Run(ctx, executor.Options{}, "git", "config", "--global", "--add", "--", key, path); err != nil {
 		return fmt.Errorf("git config --global %s: %w", key, err)
 	}
-	ui.Info(stdout, "Regra adicionada ao ~/.gitconfig: repositórios em "+acc.Folder+" usam a conta "+acc.Name)
+	ui.Info(stdout, i18n.Tr("git.run.ruleAdded", i18n.Args{"folder": acc.Folder, "name": acc.Name}))
 	return nil
 }
 
@@ -178,9 +179,9 @@ func Remove(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc c
 		return err
 	}
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("remover %s: %w", path, err)
+		return fmt.Errorf("remove %s: %w", path, err)
 	}
-	ui.Info(stdout, "Regra da conta "+acc.Name+" removida do ~/.gitconfig")
+	ui.Info(stdout, i18n.Tr("git.run.ruleRemoved", i18n.Args{"name": acc.Name}))
 	return nil
 }
 
@@ -191,11 +192,11 @@ func Forget(ctx context.Context, exe *executor.Executor, stdout io.Writer, accou
 	var errs []error
 	for _, acc := range accounts {
 		if err := Remove(ctx, exe, stdout, acc); err != nil {
-			errs = append(errs, fmt.Errorf("conta %s: %w", acc.Name, err))
+			errs = append(errs, fmt.Errorf("%s: %w", i18n.Tr("git.accountLabel", i18n.Args{"name": acc.Name}), err))
 		}
 		if acc.HasToken {
 			if err := DeleteToken(ctx, exe, acc.ID); err != nil {
-				errs = append(errs, fmt.Errorf("conta %s: remover o token do chaveiro: %w", acc.Name, err))
+				errs = append(errs, fmt.Errorf("%s: remove the token from the keyring: %w", i18n.Tr("git.accountLabel", i18n.Args{"name": acc.Name}), err))
 			}
 		}
 	}

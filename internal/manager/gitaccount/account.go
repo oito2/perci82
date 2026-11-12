@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/config"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // Supported providers.
@@ -118,31 +119,31 @@ func Validate(acc config.GitAccount, others []config.GitAccount) error {
 // folder and the SSH key.
 func validateFields(acc config.GitAccount) error {
 	if acc.Name == "" {
-		return errors.New("informe o nome da conta")
+		return i18n.NewError("git.noName")
 	}
 	if len([]rune(acc.Name)) > maxNameLength {
-		return fmt.Errorf("o nome da conta pode ter no máximo %d caracteres", maxNameLength)
+		return errors.New(i18n.Tr("git.nameTooLong", i18n.Args{"max": maxNameLength}))
 	}
 	if acc.ID == "" || acc.ID != Slug(acc.ID) {
-		return fmt.Errorf("o nome %q precisa ter ao menos uma letra ou número", acc.Name)
+		return errors.New(i18n.Tr("git.nameNoAlnum", i18n.Args{"name": acc.Name}))
 	}
 	if DefaultHost(acc.Provider) == "" {
-		return fmt.Errorf("provedor desconhecido: %q", acc.Provider)
+		return errors.New(i18n.Tr("git.badProvider", i18n.Args{"provider": acc.Provider}))
 	}
 	if !hostPattern.MatchString(acc.Host) {
-		return fmt.Errorf("host inválido: %q", acc.Host)
+		return errors.New(i18n.Tr("git.badHost", i18n.Args{"host": acc.Host}))
 	}
 	if acc.SSHPort < 0 || acc.SSHPort > 65535 {
-		return fmt.Errorf("porta SSH inválida: %d", acc.SSHPort)
+		return errors.New(i18n.Tr("git.badPort", i18n.Args{"port": acc.SSHPort}))
 	}
 	if !usernamePattern.MatchString(acc.Username) {
-		return fmt.Errorf("usuário inválido: %q", acc.Username)
+		return errors.New(i18n.Tr("git.badUser", i18n.Args{"user": acc.Username}))
 	}
 	if acc.GitName == "" || strings.ContainsAny(acc.GitName, "\n\r") {
-		return errors.New("informe o nome usado nos commits")
+		return i18n.NewError("git.noGitName")
 	}
 	if !emailPattern.MatchString(acc.GitEmail) {
-		return fmt.Errorf("e-mail inválido: %q", acc.GitEmail)
+		return errors.New(i18n.Tr("git.badEmail", i18n.Args{"email": acc.GitEmail}))
 	}
 	return nil
 }
@@ -152,10 +153,10 @@ func validateFields(acc config.GitAccount) error {
 func checkClash(acc config.GitAccount, others []config.GitAccount) error {
 	for _, o := range others {
 		if o.ID == acc.ID || strings.EqualFold(o.Name, acc.Name) {
-			return fmt.Errorf("já existe uma conta chamada %q", o.Name)
+			return errors.New(i18n.Tr("git.nameTaken", i18n.Args{"name": o.Name}))
 		}
 		if foldersOverlap(o.Folder, acc.Folder) {
-			return fmt.Errorf("a pasta %s se sobrepõe à pasta da conta %q (%s)", acc.Folder, o.Name, o.Folder)
+			return errors.New(i18n.Tr("git.folderOverlap", i18n.Args{"folder": acc.Folder, "name": o.Name, "other": o.Folder}))
 		}
 	}
 	return nil
@@ -164,14 +165,14 @@ func checkClash(acc config.GitAccount, others []config.GitAccount) error {
 // checkFolder requires an absolute path to an existing directory.
 func checkFolder(folder string) error {
 	if folder == "" || !filepath.IsAbs(folder) {
-		return errors.New("escolha a pasta da conta")
+		return i18n.NewError("git.noFolder")
 	}
 	info, err := os.Stat(folder)
 	if err != nil {
-		return fmt.Errorf("pasta da conta: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("git.folderLabel", nil), err)
 	}
 	if !info.IsDir() {
-		return fmt.Errorf("%s não é uma pasta", folder)
+		return errors.New(i18n.Tr("git.notAFolder", i18n.Args{"path": folder}))
 	}
 	return nil
 }

@@ -129,7 +129,7 @@ func devSections(locale string, accounts []config.GitAccount) []Section {
 		for _, acc := range accounts {
 			sections[i].Items = append(sections[i].Items, MenuItem{
 				Title:     acc.Name,
-				Desc:      "Repositórios da conta " + acc.Name + ".",
+				Desc:      i18n.T(locale, "nav.account.desc", i18n.Args{"name": acc.Name}),
 				ActionID:  "git-account",
 				AccountID: acc.ID,
 				Tab:       acc.Name,
@@ -304,7 +304,7 @@ var devCatalog = []sectionDef{
 			// "contas git" mode (#gitaccounts-container): the account table
 			// and its form, plus the "Identidade padrão" inner tab.
 			Title:    "nav.gitAccounts",
-			Desc:     "Cadastre as contas do GitHub e do GitLab: pasta, identidade dos commits, chave SSH e token.",
+			Desc:     "nav.gitAccounts.desc",
 			ActionID: "git-accounts",
 			Tab:      "nav.tab.accounts",
 		},
@@ -312,7 +312,7 @@ var devCatalog = []sectionDef{
 			// "gerenciar repositórios" mode (#gittransfer-container): the
 			// Exportar checklist, plus the "Importar" inner tab.
 			Title:    "nav.gitTransfer",
-			Desc:     "Exporte as contas e os repositórios para um arquivo e importe-os em outra máquina.",
+			Desc:     "nav.gitTransfer.desc",
 			ActionID: "git-transfer",
 			Tab:      "nav.tab.export",
 		},

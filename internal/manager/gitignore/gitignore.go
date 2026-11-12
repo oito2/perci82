@@ -26,6 +26,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -103,25 +104,25 @@ var stacks = []stack{
 func Generate(stdout io.Writer, dir string) (string, error) {
 	names, err := DetectStacks(dir)
 	if err != nil {
-		return "", fmt.Errorf("detectar tipo de projeto: %w", err)
+		return "", fmt.Errorf("detect the project type: %w", err)
 	}
 
 	if len(names) == 0 {
-		ui.Info(stdout, "Nenhum tipo de projeto reconhecido — usando o .gitignore genérico.")
+		ui.Info(stdout, i18n.Tr("gitignore.run.generic", nil))
 	} else {
-		ui.Info(stdout, "Tipo de projeto detectado: "+strings.Join(names, ", "))
+		ui.Info(stdout, i18n.Tr("gitignore.run.detected", i18n.Args{"types": strings.Join(names, ", ")}))
 	}
 	sections := sectionsFor(names)
 
 	dest := filepath.Join(dir, ".gitignore")
 	existing, err := os.ReadFile(dest)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("ler .gitignore: %w", err)
+		return "", fmt.Errorf("read .gitignore: %w", err)
 	}
 
 	addition, added := buildAddition(string(existing), sections)
 	if added == 0 {
-		ui.Success(stdout, ".gitignore já contém todos os padrões — nada a acrescentar.")
+		ui.Success(stdout, i18n.Tr("gitignore.run.complete", nil))
 		return dest, nil
 	}
 
@@ -135,13 +136,13 @@ func Generate(stdout io.Writer, dir string) (string, error) {
 	content += addition
 
 	if err := fsutil.WriteFileAtomic(dest, []byte(content), 0o644); err != nil {
-		return "", fmt.Errorf("escrever .gitignore: %w", err)
+		return "", fmt.Errorf("write .gitignore: %w", err)
 	}
 
 	if len(existing) == 0 {
-		ui.Success(stdout, ".gitignore criado em "+dest)
+		ui.Success(stdout, i18n.Tr("gitignore.run.created", i18n.Args{"path": dest}))
 	} else {
-		ui.Success(stdout, fmt.Sprintf(".gitignore atualizado em %s (%d padrão(ões) acrescentado(s)).", dest, added))
+		ui.Success(stdout, i18n.Tr("gitignore.run.updated", i18n.Args{"path": dest, "count": added}))
 	}
 	return dest, nil
 }
@@ -151,12 +152,12 @@ func Generate(stdout io.Writer, dir string) (string, error) {
 func Missing(dir string) (int, bool, error) {
 	names, err := DetectStacks(dir)
 	if err != nil {
-		return 0, false, fmt.Errorf("detectar tipo de projeto: %w", err)
+		return 0, false, fmt.Errorf("detect the project type: %w", err)
 	}
 	existing, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
 	exists := err == nil
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return 0, false, fmt.Errorf("ler .gitignore: %w", err)
+		return 0, false, fmt.Errorf("read .gitignore: %w", err)
 	}
 	_, added := buildAddition(string(existing), sectionsFor(names))
 	return added, exists, nil
@@ -186,7 +187,7 @@ func DetectStacks(dir string) ([]string, error) {
 		return nil, err
 	}
 	if !info.IsDir() {
-		return nil, fmt.Errorf("%s não é uma pasta", dir)
+		return nil, errors.New(i18n.Tr("git.notAFolder", i18n.Args{"path": dir}))
 	}
 
 	var names []string

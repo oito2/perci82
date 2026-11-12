@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/manager/gitignore"
 )
 
@@ -68,10 +69,10 @@ const (
 
 // ErrDisabled is returned by Apply and Remove for a row that is not
 // available yet.
-var ErrDisabled = errors.New("este arquivo ainda não está disponível")
+var ErrDisabled = i18n.NewError("repofiles.disabled")
 
 // ErrUnknownRow is returned for a row identifier that does not exist.
-var ErrUnknownRow = errors.New("arquivo desconhecido")
+var ErrUnknownRow = i18n.NewError("repofiles.unknown")
 
 // Options holds the values the generated files depend on.
 type Options struct {
@@ -198,7 +199,7 @@ func rowState(dir, id string, opts Options) (Row, error) {
 	row.NeedsEmail = id == RowConduct || id == RowSupport
 	if id == RowConduct {
 		if exists(filepath.Join(dir, legacyConductPT)) {
-			row.Notes = append(row.Notes, legacyConductPT+" na raiz é de uma versão anterior; o espelho em português agora fica em "+conductPTPath+".")
+			row.Notes = append(row.Notes, i18n.Tr("repofiles.legacyConduct", i18n.Args{"file": legacyConductPT, "path": conductPTPath}))
 		}
 	}
 
@@ -235,7 +236,7 @@ func rowState(dir, id string, opts Options) (Row, error) {
 func licenseRow(dir string, row Row, opts Options) (Row, error) {
 	for _, name := range otherLicenseNames {
 		if exists(filepath.Join(dir, name)) {
-			row.Notes = append(row.Notes, "Também existe "+name+".")
+			row.Notes = append(row.Notes, i18n.Tr("repofiles.alsoExists", i18n.Args{"name": name}))
 		}
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "LICENSE"))
@@ -244,7 +245,7 @@ func licenseRow(dir string, row Row, opts Options) (Row, error) {
 		return row, nil
 	}
 	if err != nil {
-		return Row{}, fmt.Errorf("ler LICENSE: %w", err)
+		return Row{}, fmt.Errorf("read LICENSE: %w", err)
 	}
 	row.License = DetectLicense(string(data))
 	want := opts.License
@@ -252,7 +253,7 @@ func licenseRow(dir string, row Row, opts Options) (Row, error) {
 		want = DefaultLicense
 	}
 	if _, ok := findLicense(want); !ok {
-		return Row{}, fmt.Errorf("licença desconhecida: %q", want)
+		return Row{}, errors.New(i18n.Tr("repofiles.badLicense", i18n.Args{"id": want}))
 	}
 	if row.License == want {
 		row.State = StateCurrent
@@ -283,11 +284,11 @@ func Apply(dir, id string, opts Options) (string, error) {
 		}
 		switch {
 		case !exists:
-			return ".gitignore criado.", nil
+			return i18n.Tr("repofiles.gitignoreCreated", nil), nil
 		case missing == 0:
-			return ".gitignore já contém todos os padrões.", nil
+			return i18n.Tr("repofiles.gitignoreComplete", nil), nil
 		default:
-			return fmt.Sprintf(".gitignore atualizado: %d padrão(ões) acrescentado(s).", missing), nil
+			return i18n.Tr("repofiles.gitignoreUpdated", i18n.Args{"count": missing}), nil
 		}
 	}
 
@@ -298,10 +299,10 @@ func Apply(dir, id string, opts Options) (string, error) {
 	for _, f := range files {
 		path := filepath.Join(dir, f.rel)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return "", fmt.Errorf("criar %s: %w", filepath.Dir(f.rel), err)
+			return "", fmt.Errorf("create %s: %w", filepath.Dir(f.rel), err)
 		}
 		if err := fsutil.WriteGenerated(path, []byte(f.content), 0o644); err != nil {
-			return "", fmt.Errorf("gravar %s: %w", f.rel, err)
+			return "", fmt.Errorf("write %s: %w", f.rel, err)
 		}
 	}
 	return label(id, opts) + " gravado.", nil
@@ -322,7 +323,7 @@ func Remove(dir, id string, opts Options) error {
 	for _, rel := range paths(id, opts) {
 		path := filepath.Join(dir, rel)
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("remover %s: %w", rel, err)
+			return fmt.Errorf("remove %s: %w", rel, err)
 		}
 		removeEmptyParents(dir, rel)
 	}
@@ -419,14 +420,14 @@ func knownRow(id string) bool {
 // folder.
 func check(dir string, opts Options) error {
 	if opts.Provider != ProviderGitHub && opts.Provider != ProviderGitLab {
-		return fmt.Errorf("provedor desconhecido: %q", opts.Provider)
+		return errors.New(i18n.Tr("git.badProvider", i18n.Args{"provider": opts.Provider}))
 	}
 	info, err := os.Stat(dir)
 	if err != nil {
-		return fmt.Errorf("pasta do repositório: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("repofiles.folderLabel", nil), err)
 	}
 	if !info.IsDir() {
-		return fmt.Errorf("%s não é uma pasta", dir)
+		return errors.New(i18n.Tr("git.notAFolder", i18n.Args{"path": dir}))
 	}
 	return nil
 }

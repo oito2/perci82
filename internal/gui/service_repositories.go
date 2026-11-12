@@ -31,6 +31,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/manager/gitaccount"
 	managerrepo "github.com/oito2/perci82/internal/manager/repo"
 )
@@ -180,13 +181,13 @@ func findGitAccount(id string) (config.GitAccount, error) {
 			return acc, nil
 		}
 	}
-	return config.GitAccount{}, fmt.Errorf("conta não encontrada: %q", id)
+	return config.GitAccount{}, errors.New(i18n.Tr("git.accountNotFound", i18n.Args{"id": id}))
 }
 
 // PickGitAccountFolder opens the native folder picker for an account's
 // root folder.
 func (s *RepositoriesService) PickGitAccountFolder() (string, error) {
-	return s.pickFolder("Selecionar pasta da conta")
+	return s.pickFolder(i18n.Tr("git.dialog.folder", nil))
 }
 
 // PickGitAccountKey opens the native file picker, in ~/.ssh, for an
@@ -197,7 +198,7 @@ func (s *RepositoriesService) PickGitAccountKey() (string, error) {
 		dir = filepath.Join(home, ".ssh")
 	}
 	return approvePath(s.wailsApp.Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
-		Title:           "Selecionar chave SSH privada",
+		Title:           i18n.Tr("git.dialog.key", nil),
 		CanChooseFiles:  true,
 		ShowHiddenFiles: true,
 		Directory:       dir,
@@ -237,7 +238,7 @@ func (s *RepositoriesService) saveGitAccount(ctx context.Context, in GitAccountI
 		others = append(others, cfg.GitAccounts[i])
 	}
 	if in.ID != "" && prev == nil {
-		return config.GitAccount{}, fmt.Errorf("conta não encontrada: %q", in.ID)
+		return config.GitAccount{}, errors.New(i18n.Tr("git.accountNotFound", i18n.Args{"id": in.ID}))
 	}
 
 	acc := config.GitAccount{
@@ -258,7 +259,7 @@ func (s *RepositoriesService) saveGitAccount(ctx context.Context, in GitAccountI
 	// A new folder must come from the picker; the current one is kept.
 	if prev == nil || filepath.Clean(prev.Folder) != acc.Folder {
 		if err := requireApprovedPath(acc.Folder); err != nil {
-			return config.GitAccount{}, errors.New("escolha a pasta da conta no seletor")
+			return config.GitAccount{}, i18n.NewError("git.pickFolder")
 		}
 	}
 	if err := gitaccount.Validate(acc, others); err != nil {
@@ -329,16 +330,16 @@ func (s *RepositoriesService) setupKey(ctx context.Context, acc *config.GitAccou
 		path := filepath.Clean(in.KeyPath)
 		if prev == nil || path != prev.SSHKey {
 			if err := requireApprovedPath(in.KeyPath); err != nil {
-				return false, errors.New("escolha a chave SSH no seletor")
+				return false, i18n.NewError("git.pickKey")
 			}
 		}
 		acc.SSHKey, acc.KeyGenerated = path, prev != nil && path == prev.SSHKey && prev.KeyGenerated
 	case keyModeKeep:
 		if prev == nil {
-			return false, errors.New("gere uma chave SSH ou escolha uma existente")
+			return false, i18n.NewError("git.needKey")
 		}
 	default:
-		return false, fmt.Errorf("modo de chave desconhecido: %q", in.KeyMode)
+		return false, fmt.Errorf("unknown key mode: %q", in.KeyMode)
 	}
 	return generated, gitaccount.CheckKey(acc.SSHKey)
 }
@@ -374,7 +375,7 @@ func (s *RepositoriesService) RemoveGitAccount(ctx context.Context, id string) e
 		}
 		if acc.HasToken {
 			if err := gitaccount.DeleteToken(ctx, s.exe, acc.ID); err != nil {
-				return fmt.Errorf("remover o token do chaveiro: %w", err)
+				return fmt.Errorf("remove the token from the keyring: %w", err)
 			}
 		}
 		return config.Update(func(c *config.Config) error {
@@ -422,7 +423,7 @@ func (s *RepositoriesService) TrustGitAccountHostKeys(id string) error {
 	delete(s.scanned, id)
 	s.mu.Unlock()
 	if len(keys) == 0 {
-		return errors.New("verifique a chave do servidor antes de confirmar")
+		return i18n.NewError("git.checkHostFirst")
 	}
 	return gitaccount.TrustHostKeys(acc, keys)
 }
@@ -435,7 +436,7 @@ func (s *RepositoriesService) UnlockGitAccountKey(ctx context.Context, id, passp
 		return err
 	}
 	if passphrase == "" {
-		return errors.New("informe a senha da chave")
+		return i18n.NewError("git.noPassphrase")
 	}
 	return gitaccount.UnlockKey(ctx, s.exe, s.askpass, acc.SSHKey, passphrase)
 }
@@ -459,15 +460,15 @@ func (s *RepositoriesService) requireReady(ctx context.Context, acc config.GitAc
 	if trusted, err := gitaccount.HostTrusted(acc); err != nil {
 		return err
 	} else if !trusted {
-		return fmt.Errorf("confirme a chave do servidor %s em Configurar Conta", acc.Host)
+		return errors.New(i18n.Tr("git.confirmHost", i18n.Args{"host": acc.Host}))
 	}
 	switch s.keyState(ctx, acc.SSHKey) {
 	case keyStateMissing:
-		return fmt.Errorf("a chave %s não foi encontrada", acc.SSHKey)
+		return errors.New(i18n.Tr("git.keyMissing", i18n.Args{"path": acc.SSHKey}))
 	case keyStateLocked:
-		return errors.New("a chave está bloqueada — desbloqueie-a em Configurar Conta")
+		return i18n.NewError("git.keyLocked")
 	case keyStateNoAgent:
-		return errors.New("a chave tem senha e não há agente SSH nesta sessão para desbloqueá-la")
+		return i18n.NewError("git.keyNoAgent")
 	}
 	return nil
 }
@@ -506,7 +507,7 @@ func (s *RepositoriesService) runRepoAction(id, dir string, action repoAction) e
 			return err
 		}
 		if len(repos) == 0 {
-			return errors.New("nenhum repositório para processar")
+			return i18n.NewError("git.noRepos")
 		}
 		return action(ctx, s.exe, stdout, acc, repos)
 	})
@@ -530,7 +531,7 @@ func (s *RepositoriesService) accountRepo(ctx context.Context, id, dir string) (
 		return acc, gitaccount.RepoState{}, err
 	}
 	if dir == "" {
-		return acc, gitaccount.RepoState{}, errors.New("nenhum repositório escolhido")
+		return acc, gitaccount.RepoState{}, i18n.NewError("git.noRepoChosen")
 	}
 	repos, err := gitaccount.SelectRepos(ctx, s.exe, acc, dir)
 	if err != nil {
@@ -598,9 +599,9 @@ func (s *RepositoriesService) ListGitAccountRemoteRepos(ctx context.Context, id 
 		token, err = gitaccount.LookupToken(ctx, s.exe, acc.ID)
 		switch {
 		case err != nil:
-			list.Note = "o token salvo não pôde ser lido do chaveiro (" + err.Error() + "); só os repositórios públicos aparecem"
+			list.Note = i18n.Tr("git.tokenUnreadable", i18n.Args{"error": err.Error()})
 		case token == "":
-			list.Note = "o token não está mais no chaveiro; só os repositórios públicos aparecem — salve-o de novo em Configurar Conta"
+			list.Note = i18n.Tr("git.tokenGone", nil)
 		}
 	}
 	list.Repos, err = gitaccount.ListRemoteRepos(ctx, gitaccount.APIBase(acc), acc, token)
@@ -724,7 +725,7 @@ func (s *RepositoriesService) GetGitRepoExportItems(ctx context.Context) (RepoEx
 // repositories export file.
 func (s *RepositoriesService) PickGitRepoExportPath() (string, error) {
 	return approvePath(s.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
-		Title:    "Exportar repositórios",
+		Title:    i18n.Tr("git.dialog.export", nil),
 		Filename: "perci-repositorios.yaml",
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
 	}).PromptForSingleSelection())
@@ -755,7 +756,7 @@ func (s *RepositoriesService) ExportGitRepos(ctx context.Context, path string, p
 // repositories export file.
 func (s *RepositoriesService) PickGitRepoImportPath() (string, error) {
 	return approvePath(s.wailsApp.Dialog.OpenFile().
-		SetTitle("Selecionar arquivo de repositórios").
+		SetTitle(i18n.Tr("git.dialog.import", nil)).
 		AddFilter("YAML (*.yaml)", "*.yaml;*.yml").
 		PromptForSingleSelection())
 }
@@ -773,7 +774,7 @@ func loadRepoImport(path string, folders map[string]string) (gitaccount.Transfer
 	}
 	for name, folder := range folders {
 		if err := requireApprovedPath(folder); err != nil {
-			return gitaccount.TransferFile{}, fmt.Errorf("escolha a pasta da conta %s no seletor", name)
+			return gitaccount.TransferFile{}, errors.New(i18n.Tr("git.pickFolderOf", i18n.Args{"name": name}))
 		}
 	}
 	return file, nil
@@ -818,13 +819,13 @@ func (s *RepositoriesService) CloneGitAccountPending(id string) error {
 		return err
 	}
 	if len(acc.Pending) == 0 {
-		return errors.New("nenhum repositório pendente")
+		return i18n.NewError("git.noPending")
 	}
 	if err := s.requireReady(ctx, acc); err != nil {
 		return err
 	}
 	if _, err := gitaccount.TestConnection(ctx, s.exe, acc); err != nil {
-		return fmt.Errorf("teste de conexão falhou: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("git.testFailed", nil), err)
 	}
 	return s.runAction(func(stdout io.Writer) error {
 		return gitaccount.ClonePending(ctx, s.exe, stdout, acc)

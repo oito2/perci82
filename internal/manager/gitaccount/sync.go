@@ -28,12 +28,13 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
 // ErrNotAccountRepo means a folder is not one of the repositories listed
 // for an account.
-var ErrNotAccountRepo = errors.New("não é um repositório listado da conta")
+var ErrNotAccountRepo = i18n.NewError("git.notListed")
 
 // SelectRepos returns the repositories listed for acc (ListRepos), or only
 // the one at dir when dir is not empty.
@@ -84,7 +85,7 @@ func gitNet(ctx context.Context, exe *executor.Executor, env []string, dir strin
 	opts := executor.Options{Env: env, Stdout: &out, Stderr: &out}
 	if err := exe.Run(ctx, opts, "git", append([]string{"-C", dir}, args...)...); err != nil {
 		if ctx.Err() != nil {
-			return errors.New("tempo esgotado")
+			return i18n.NewError("git.timeout")
 		}
 		if msg := lastLines(out.String(), 3); msg != "" {
 			return errors.New(msg)
@@ -120,7 +121,7 @@ func Fetch(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc co
 	var failed atomic.Int32
 	err = executor.RunConcurrent(ctx, repos, fetchConcurrency, func(st RepoState) {
 		if st.RemoteClass == RemoteNone {
-			ui.Warning(w, "– "+st.Path+": sem remote, ignorado")
+			ui.Warning(w, "– "+i18n.Tr("git.run.noRemoteSkipped", i18n.Args{"path": st.Path}))
 			return
 		}
 		if err := gitNet(ctx, exe, env, st.Dir, "fetch", "--prune", "origin"); err != nil {
@@ -134,7 +135,7 @@ func Fetch(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc co
 		return err
 	}
 	if n := failed.Load(); n > 0 {
-		return fmt.Errorf("%d repositório(s) não puderam ser verificados", n)
+		return errors.New(i18n.Tr("git.checkFailed", i18n.Args{"count": n}))
 	}
 	return nil
 }
@@ -157,7 +158,7 @@ func Pull(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc con
 		}
 		ui.Step(stdout, i+1, len(repos), st.Path)
 		if reason := pullBlocker(st); reason != "" {
-			ui.Warning(stdout, "– "+st.Path+": "+reason+", ignorado")
+			ui.Warning(stdout, "– "+i18n.Tr("git.run.skipped", i18n.Args{"path": st.Path, "reason": reason}))
 			continue
 		}
 		if err := gitNet(ctx, exe, env, st.Dir, "fetch", "--prune", "origin"); err != nil {
@@ -172,11 +173,10 @@ func Pull(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc con
 			ui.Err(stdout, "✗ "+st.Path+": "+now.Error)
 			continue
 		case now.Behind == 0:
-			ui.Info(stdout, "= "+st.Path+": já está em dia")
+			ui.Info(stdout, "= "+i18n.Tr("git.run.upToDate", i18n.Args{"path": st.Path}))
 			continue
 		case now.Ahead > 0:
-			ui.Warning(stdout, fmt.Sprintf("– %s: divergiu do remoto (%d local, %d remoto) — resolva no terminal, ignorado",
-				st.Path, now.Ahead, now.Behind))
+			ui.Warning(stdout, "– "+i18n.Tr("git.run.diverged", i18n.Args{"path": st.Path, "ahead": now.Ahead, "behind": now.Behind}))
 			continue
 		}
 		if err := gitNet(ctx, exe, env, st.Dir, "merge", "--ff-only", "@{upstream}"); err != nil {
@@ -184,10 +184,10 @@ func Pull(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc con
 			ui.Err(stdout, "✗ "+st.Path+": "+err.Error())
 			continue
 		}
-		ui.Success(stdout, fmt.Sprintf("✓ %s: %d commit(s) baixado(s)", st.Path, now.Behind))
+		ui.Success(stdout, "✓ "+i18n.Tr("git.run.pulled", i18n.Args{"path": st.Path, "count": now.Behind}))
 	}
 	if failed > 0 {
-		return fmt.Errorf("%d repositório(s) não puderam ser atualizados", failed)
+		return errors.New(i18n.Tr("git.pullFailed", i18n.Args{"count": failed}))
 	}
 	return nil
 }
@@ -196,15 +196,15 @@ func Pull(ctx context.Context, exe *executor.Executor, stdout io.Writer, acc con
 func pullBlocker(st RepoState) string {
 	switch {
 	case st.Error != "":
-		return "não foi possível ler o repositório"
+		return i18n.Tr("git.block.unreadable", nil)
 	case st.RemoteClass == RemoteNone:
-		return "sem remote"
+		return i18n.Tr("git.block.noRemote", nil)
 	case st.Detached:
-		return "HEAD solto"
+		return i18n.Tr("git.block.detached", nil)
 	case st.Upstream == "":
-		return "a branch " + st.Branch + " não acompanha uma branch remota"
+		return i18n.Tr("git.block.noUpstream", i18n.Args{"branch": st.Branch})
 	case st.Modified > 0:
-		return "há alterações não commitadas"
+		return i18n.Tr("git.block.modified", nil)
 	}
 	return ""
 }

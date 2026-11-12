@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // ConfigureGlobal sets global git user.name, user.email and, when none is
@@ -30,7 +31,7 @@ import (
 // read as an option. git's own output goes to stdout (the GUI's terminal).
 func ConfigureGlobal(ctx context.Context, exe *executor.Executor, stdout io.Writer, name, email string) error {
 	if name == "" || email == "" {
-		return fmt.Errorf("nome e e-mail não podem ser vazios")
+		return i18n.NewError("repo.identityEmpty")
 	}
 	opts := executor.Options{Stdout: stdout, Stderr: stdout}
 	for _, args := range [][]string{
