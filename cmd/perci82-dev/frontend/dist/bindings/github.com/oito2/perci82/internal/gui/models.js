@@ -657,6 +657,15 @@ export class ContainerFormRequest {
              */
             this["workerCommand"] = "";
         }
+        if (!("disabledTools" in $$source)) {
+            /**
+             * DisabledTools are the tools of the app's command unchecked in the
+             * form (config.AppContainer.DisabledTools).
+             * @member
+             * @type {string[]}
+             */
+            this["disabledTools"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -667,7 +676,11 @@ export class ContainerFormRequest {
      * @returns {ContainerFormRequest}
      */
     static createFrom($$source = {}) {
+        const $$createField14_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("disabledTools" in $$parsedSource) {
+            $$parsedSource["disabledTools"] = $$createField14_0($$parsedSource["disabledTools"]);
+        }
         return new ContainerFormRequest(/** @type {Partial<ContainerFormRequest>} */($$parsedSource));
     }
 }
@@ -748,6 +761,15 @@ export class ContainerRow {
              * @type {boolean}
              */
             this["hasDb"] = false;
+        }
+        if (!("legacyCommands" in $$source)) {
+            /**
+             * LegacyCommands is true for an app that still has the older
+             * <tool>-<app> wrappers instead of its command.
+             * @member
+             * @type {boolean}
+             */
+            this["legacyCommands"] = false;
         }
 
         Object.assign(this, $$source);
@@ -1087,6 +1109,15 @@ export class DockerCreateCatalog {
              */
             this["moodleVersions"] = [];
         }
+        if (!("tools" in $$source)) {
+            /**
+             * Tools maps each app type to the tools of its command's checklist
+             * (appstack.AppTools).
+             * @member
+             * @type {{ [_ in string]?: string[] }}
+             */
+            this["tools"] = {};
+        }
 
         Object.assign(this, $$source);
     }
@@ -1100,6 +1131,7 @@ export class DockerCreateCatalog {
         const $$createField4_0 = $$createType4;
         const $$createField5_0 = $$createType4;
         const $$createField6_0 = $$createType4;
+        const $$createField7_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("phpVersions" in $$parsedSource) {
             $$parsedSource["phpVersions"] = $$createField4_0($$parsedSource["phpVersions"]);
@@ -1109,6 +1141,9 @@ export class DockerCreateCatalog {
         }
         if ("moodleVersions" in $$parsedSource) {
             $$parsedSource["moodleVersions"] = $$createField6_0($$parsedSource["moodleVersions"]);
+        }
+        if ("tools" in $$parsedSource) {
+            $$parsedSource["tools"] = $$createField7_0($$parsedSource["tools"]);
         }
         return new DockerCreateCatalog(/** @type {Partial<DockerCreateCatalog>} */($$parsedSource));
     }
@@ -1873,7 +1908,7 @@ export class RemoteRepoList {
      * @returns {RemoteRepoList}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType10;
+        const $$createField0_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("repos" in $$parsedSource) {
             $$parsedSource["repos"] = $$createField0_0($$parsedSource["repos"]);
@@ -1917,7 +1952,7 @@ export class RepoExportItems {
      * @returns {RepoExportItems}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType12;
+        const $$createField0_0 = $$createType13;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("accounts" in $$parsedSource) {
@@ -2065,8 +2100,8 @@ export class RepoFilesView {
      * @returns {RepoFilesView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType14;
-        const $$createField1_0 = $$createType16;
+        const $$createField0_0 = $$createType15;
+        const $$createField1_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField0_0($$parsedSource["rows"]);
@@ -2129,7 +2164,7 @@ export class Section {
      * @returns {Section}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType18;
+        const $$createField3_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("items" in $$parsedSource) {
             $$parsedSource["items"] = $$createField3_0($$parsedSource["items"]);
@@ -2429,8 +2464,8 @@ export class TransferItems {
      * @returns {TransferItems}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType20;
-        const $$createField4_0 = $$createType22;
+        const $$createField3_0 = $$createType21;
+        const $$createField4_0 = $$createType23;
         const $$createField7_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("apps" in $$parsedSource) {
@@ -2586,17 +2621,18 @@ const $$createType5 = DevFolderApp.createFrom;
 const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = DevFolderRow.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = gitaccount$0.RemoteRepo.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = gitaccount$0.TransferAccount.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = repofiles$0.Row.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = repofiles$0.License.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = MenuItem.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = TransferApp.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = TransferPlugin.createFrom;
-const $$createType22 = $Create.Array($$createType21);
+const $$createType9 = $Create.Map($Create.Any, $$createType4);
+const $$createType10 = gitaccount$0.RemoteRepo.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = gitaccount$0.TransferAccount.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = repofiles$0.Row.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = repofiles$0.License.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = MenuItem.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = TransferApp.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = TransferPlugin.createFrom;
+const $$createType23 = $Create.Array($$createType22);

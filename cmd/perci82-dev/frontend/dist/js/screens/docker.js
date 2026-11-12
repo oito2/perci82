@@ -84,7 +84,7 @@ function renderDockerCreateScreen() {
 btnDcCreate.addEventListener("click", function () {
   if (running) return;
   const kind = dcFinalKind();
-  const req = readContainerFieldsValues("dc", kind);
+  const req = readContainerFieldsValues("dc", kind, __dcCatalog);
   startExecution(t("docker.run.create"));
   App.CreateDockerContainer(req).catch(failRun);
 });
@@ -116,7 +116,7 @@ function openEditModal(row) {
     if (folderEl && row.family === "app") folderEl.disabled = true; // the folder is the container's identity: not editable
 
     btnEditSave.onclick = function () {
-      const req = readContainerFieldsValues("edit", values.kind);
+      const req = readContainerFieldsValues("edit", values.kind, catalog);
       req.folder = values.folder; // the original folder, even though its field is disabled
       editModal.close();
       startExecution(t("docker.run.edit", { name: row.name }));
@@ -196,6 +196,20 @@ function buildDockerRow(row) {
     });
   });
   wrap.appendChild(btnUpdateImage);
+
+  if (row.legacyCommands) {
+    const btnMigrate = iconButton("terminal", t("docker.migrate"));
+    btnMigrate.classList.add("text-warning");
+    btnMigrate.addEventListener("click", function () {
+      if (running) return;
+      openConfirm(t("docker.migrate"), t("docker.migrateConfirm", { name: row.name, folder: row.folder }), function () {
+        if (running) return; // re-checked: the confirm dialog is async
+        startExecution(t("docker.run.migrate", { folder: row.folder }));
+        App.MigrateAppCommand(row.folder).catch(failRun);
+      });
+    });
+    wrap.appendChild(btnMigrate);
+  }
 
   const btnLogs = iconButton("scrollText", t("docker.logs"));
   btnLogs.addEventListener("click", function () { openLogs(row.folder, row.name); });

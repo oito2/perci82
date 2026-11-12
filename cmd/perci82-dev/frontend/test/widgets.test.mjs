@@ -200,3 +200,41 @@ test("Criar Container: the mkcert warning sits above the form only until Nginx e
   assert.equal(alert.innerHTML, "");
   assert.doesNotMatch(ctx.buildContainerFieldsHTML("dc", "nginx", { mkcertReady: false }), /mkcert/);
 });
+
+test("Criar/Editar: the app's command checklist follows the type and the saved choice", () => {
+  const catalog = {
+    moodleVersions: ["5.1+"], phpVersions: ["8.3"], nodeVersions: ["24"], mariadbReady: true,
+    tools: { moodle: ["composer", "phpunit", "phpcs", "moodle-cs"], php: ["composer", "phpunit", "phpcs"] },
+  };
+  const html = ctx.buildContainerFieldsHTML("edit", "moodle", catalog, { moodleVersion: "5.1+", disabledTools: ["moodle-cs"] });
+  assert.match(html, /id="edit-tool-composer" type="checkbox" class="checkbox" checked/);
+  assert.match(html, /id="edit-tool-moodle-cs" type="checkbox" class="checkbox" \/>/);
+  assert.match(html, /moodle-cs \(padrão de código do Moodle no phpcs\)/);
+  assert.doesNotMatch(ctx.buildContainerFieldsHTML("dc", "node", catalog, {}), /-tool-/);
+
+  element("t1-tool-composer").checked = true;
+  element("t1-tool-phpunit").checked = false;
+  element("t1-tool-phpcs").checked = true;
+  assert.deepEqual(Array.from(ctx.readDisabledTools("t1", "php", catalog)), ["phpunit"]);
+  assert.deepEqual(Array.from(ctx.readDisabledTools("t1", "node", catalog)), []);
+});
+
+test("Gerenciar: an app with the old wrappers offers to create its command", async () => {
+  const row = { family: "app", type: "php", name: "Loja", folder: "loja", status: "running", canEdit: true, legacyCommands: true };
+  const tr = ctx.buildDockerRow(row);
+  const all = [];
+  (function walk(el) { (el.children || []).forEach((c) => { all.push(c); walk(c); }); })(tr);
+  const migrate = all.find((el) => el.getAttribute && el.getAttribute("aria-label") === "Criar o comando do app");
+  assert.ok(migrate, "no migrate button");
+  migrate.listeners.click.forEach((fn) => fn());
+  assert.match(element("confirm-modal-message").textContent, /php-loja, composer-loja/);
+  element("btn-confirm-ok").listeners.click.forEach((fn) => fn());
+  await tick();
+  assert.equal(calls.filter((c) => c.name === "MigrateAppCommand" && c.args[0] === "loja").length, 1);
+  evalIn(ctx, "running = false; activeRun = null");
+
+  const plain = ctx.buildDockerRow(Object.assign({}, row, { legacyCommands: false }));
+  const labels = [];
+  (function walk(el) { (el.children || []).forEach((c) => { if (c.getAttribute) labels.push(c.getAttribute("aria-label")); walk(c); }); })(plain);
+  assert.ok(!labels.includes("Criar o comando do app"));
+});

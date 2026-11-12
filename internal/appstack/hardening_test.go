@@ -518,8 +518,8 @@ func TestWrappers_MarkerAndForeignFiles(t *testing.T) {
 	}
 }
 
-// Changing an app's type replaces its wrappers: the old type's are gone.
-func TestUpdateApp_TypeChangeRemovesOldWrappers(t *testing.T) {
+// Changing an app's type rewrites its command for the new type.
+func TestUpdateApp_TypeChangeRewritesTheCommand(t *testing.T) {
 	stackHome(t, lojaApp)
 	fakeStack(t, stackOpts{status: "running"})
 	exe, buf := testExe()
@@ -528,18 +528,15 @@ func TestUpdateApp_TypeChangeRemovesOldWrappers(t *testing.T) {
 	if err := RecreateApp(context.Background(), exe, buf, "loja"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(bin, "php-loja")); err != nil {
-		t.Fatalf("php wrapper missing: %v", err)
+	if b, _ := os.ReadFile(filepath.Join(bin, "loja")); !strings.Contains(string(b), "FALLBACK='php'") {
+		t.Fatalf("PHP command missing:\n%s", b)
 	}
 	node := config.AppContainer{Name: "Loja", Folder: "loja", URL: "loja.localhost", Type: config.AppTypeNode, NodeVersion: "24", DevCommand: "npm run dev", DevPort: 5173}
 	if err := UpdateApp(context.Background(), exe, buf, node); err != nil {
 		t.Fatalf("UpdateApp: %v\n%s", err, buf.String())
 	}
-	if _, err := os.Stat(filepath.Join(bin, "php-loja")); !os.IsNotExist(err) {
-		t.Error("the PHP wrapper survived the change to a Node app")
-	}
-	if _, err := os.Stat(filepath.Join(bin, "npm-loja")); err != nil {
-		t.Errorf("npm wrapper missing: %v", err)
+	if b, _ := os.ReadFile(filepath.Join(bin, "loja")); !strings.Contains(string(b), "FALLBACK='node'") || !strings.Contains(string(b), "CONTS=('/app')") {
+		t.Errorf("the command was not rewritten for a Node app:\n%s", b)
 	}
 }
 

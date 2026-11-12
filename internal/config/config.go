@@ -321,6 +321,12 @@ type AppContainer struct {
 	// regex-validated, passed only through the container's environment/shell,
 	// never interpolated into a host-side command.
 	WorkerCommand string `yaml:"worker_command,omitempty"`
+
+	// DisabledTools lists the tools of the app's command (appstack.AppTools:
+	// "composer", "phpunit", "phpcs", "moodle-cs") turned off in its
+	// checklist; every other tool the app's type offers is on, so an app
+	// saved before the checklist existed has them all.
+	DisabledTools []string `yaml:"disabled_tools,omitempty"`
 }
 
 // Load reads ~/.perci/config.yaml and returns its content — an empty

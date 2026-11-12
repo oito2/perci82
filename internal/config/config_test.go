@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -157,7 +158,7 @@ func TestSaveLoadDockerConfig(t *testing.T) {
 		t.Fatalf("Docker.Apps: got %d entries, want %d", len(got.Docker.Apps), len(want.Docker.Apps))
 	}
 	for i := range want.Docker.Apps {
-		if got.Docker.Apps[i] != want.Docker.Apps[i] {
+		if !reflect.DeepEqual(got.Docker.Apps[i], want.Docker.Apps[i]) {
 			t.Errorf("Docker.Apps[%d]: got %+v, want %+v", i, got.Docker.Apps[i], want.Docker.Apps[i])
 		}
 	}
@@ -208,7 +209,7 @@ func TestSaveLoadNodeAppFields(t *testing.T) {
 		t.Fatalf("Docker.Apps: got %d entries, want %d", len(got.Docker.Apps), len(want.Docker.Apps))
 	}
 	for i := range want.Docker.Apps {
-		if got.Docker.Apps[i] != want.Docker.Apps[i] {
+		if !reflect.DeepEqual(got.Docker.Apps[i], want.Docker.Apps[i]) {
 			t.Errorf("Docker.Apps[%d]: got %+v, want %+v", i, got.Docker.Apps[i], want.Docker.Apps[i])
 		}
 	}

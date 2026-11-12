@@ -193,6 +193,24 @@ RUN set -e; \
     mv phpunit.phar /usr/local/bin/phpunit; \
     chmod +x /usr/local/bin/phpunit
 
+# The Moodle coding standard and the standards it builds on, at fixed
+# versions checked by SHA-256. phpcs knows them only when the app's command
+# passes --runtime-set installed_paths (moodle-cs on in the app's
+# checklist).
+RUN set -e; \
+    cd /tmp; \
+    fetch() { \
+        curl ` + downloadCurlOptions + ` -fsSL "$1" -o standard.tar.gz; \
+        echo "$2  standard.tar.gz" | sha256sum -c -; \
+        mkdir -p "/opt/phpcs-standards/$3"; \
+        tar -xzf standard.tar.gz -C "/opt/phpcs-standards/$3" --strip-components=1 --no-same-owner; \
+        rm standard.tar.gz; \
+    }; \
+    fetch "https://github.com/moodlehq/moodle-cs/archive/refs/tags/v3.7.0.tar.gz" 9e4c4c111137f6630f97f82e37b348d2f2a1ed8db927c1ca5e7edb625e16fc6b moodle-cs; \
+    fetch "https://github.com/PHPCSStandards/PHPCSExtra/archive/refs/tags/1.5.1.tar.gz" ee20b0d5f1f295dba7f37b259283c6c7544b57803600c9b825d10806ad614c1c PHPCSExtra; \
+    fetch "https://github.com/PHPCSStandards/PHPCSUtils/archive/refs/tags/1.2.3.tar.gz" 1bd2198fefb8e9081ce35332127aca50f01cd4106d6f7f6bd28c0d507041d6c9 PHPCSUtils; \
+    chmod -R a+rX /opt/phpcs-standards
+
 RUN usermod -u ${UID} www-data
 WORKDIR /var/www/html
 `

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -83,7 +84,7 @@ func TestExportConfig_RoundTrip(t *testing.T) {
 	if got.Docker.MariaDB != want.Docker.MariaDB {
 		t.Errorf("Docker.MariaDB: got %+v, want %+v", got.Docker.MariaDB, want.Docker.MariaDB)
 	}
-	if len(got.Docker.Apps) != 1 || got.Docker.Apps[0] != want.Docker.Apps[0] {
+	if len(got.Docker.Apps) != 1 || !reflect.DeepEqual(got.Docker.Apps[0], want.Docker.Apps[0]) {
 		t.Errorf("Docker.Apps: got %+v, want %+v", got.Docker.Apps, want.Docker.Apps)
 	}
 }

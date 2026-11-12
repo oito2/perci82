@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -311,6 +312,12 @@ func ValidateApp(app config.AppContainer) error {
 	if reservedFolders[strings.ToLower(app.Folder)] {
 		return errors.New(i18n.Tr("docker.reservedFolder", i18n.Args{"folder": app.Folder}))
 	}
+	offered := AppTools(app.Type)
+	for _, tool := range app.DisabledTools {
+		if !slices.Contains(offered, tool) {
+			return fmt.Errorf("unknown tool for a %s app: %q", app.Type, tool)
+		}
+	}
 	return nil
 }
 
@@ -438,8 +445,8 @@ func ensureMoodleDataDir(stdout io.Writer, dir string) error {
 // CreateApp creates one Container Aplicativo: ensures NetworkName and the
 // right base image (PHP for PHP-family types, Node for AppTypeNode, the
 // PHP+Node combo image for AppTypePHPNode), creates its project folder(s)
-// (+data/log for PHP-family types), starts its container, writes its CLI
-// wrappers, persists app into cfg.Docker.Apps (replacing any existing
+// (+data/log for PHP-family types), starts its container, writes its
+// command (installAppCommand), persists app into cfg.Docker.Apps (replacing any existing
 // entry with the same Folder), and regenerates + reloads Nginx's routing
 // to include it.
 //
@@ -492,8 +499,7 @@ func startAppContainer(ctx context.Context, exe *executor.Executor, stdout io.Wr
 		if err := exe.Run(ctx, runOpts, "docker", args...); err != nil {
 			return nil, fmt.Errorf("create container %s: %w", app.Folder, err)
 		}
-		removeAppWrappers(app.Folder)
-		writeNodeAppWrappers(app.Folder, projectDir, "", stdout)
+		installAppCommand(app, workspace, stdout)
 
 	case config.AppTypePHPNode:
 		apiDir := AppComboAPIDir(workspace, app.Folder)
@@ -511,9 +517,7 @@ func startAppContainer(ctx context.Context, exe *executor.Executor, stdout io.Wr
 		if err := exe.Run(ctx, runOpts, "docker", args...); err != nil {
 			return nil, fmt.Errorf("create container %s: %w", app.Folder, err)
 		}
-		removeAppWrappers(app.Folder)
-		writeAppWrappers(app.Folder, apiDir, stdout)
-		writeNodeAppWrappers(app.Folder, comboAppDir, wrapperUser, stdout)
+		installAppCommand(app, workspace, stdout)
 
 	default:
 		var dataDir string
@@ -533,8 +537,7 @@ func startAppContainer(ctx context.Context, exe *executor.Executor, stdout io.Wr
 		if err := exe.Run(ctx, runOpts, "docker", args...); err != nil {
 			return nil, fmt.Errorf("create container %s: %w", app.Folder, err)
 		}
-		removeAppWrappers(app.Folder)
-		writeAppWrappers(app.Folder, projectDir, stdout)
+		installAppCommand(app, workspace, stdout)
 	}
 
 	var apps []config.AppContainer
@@ -686,5 +689,6 @@ func DeleteApp(ctx context.Context, exe *executor.Executor, stdout io.Writer, fo
 		return fmt.Errorf("%s: %w", i18n.Tr("docker.removedNotSaved", i18n.Args{"name": folder}), err)
 	}
 	removeAppWrappers(folder)
+	removeAppCommand(folder)
 	return ReloadNginxConfig(ctx, exe, stdout, apps)
 }

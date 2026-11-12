@@ -241,7 +241,42 @@ function buildContainerFieldsHTML(prefix, kind, catalog, values) {
       catalog.mariadbReady ? "" : t("docker.field.dbAccessHint")
     );
   }
+  html += toolsFieldsHTML(p, kind, catalog, values);
   return html;
+}
+
+// TOOL_LABELS maps each tool of an app's command to the message key of its
+// checklist label.
+const TOOL_LABELS = {
+  composer: "docker.tools.composer",
+  phpunit: "docker.tools.phpunit",
+  phpcs: "docker.tools.phpcs",
+  "moodle-cs": "docker.tools.moodle-cs",
+};
+
+// toolsFieldsHTML is the checklist of the tools the app's command runs
+// (catalog.tools[kind]), each checked unless values.disabledTools lists
+// it; "" for a type without one.
+function toolsFieldsHTML(p, kind, catalog, values) {
+  const tools = (catalog.tools && catalog.tools[kind]) || [];
+  if (!tools.length) return "";
+  const disabled = values.disabledTools || [];
+  let html = '<p class="label-text font-semibold mt-2" style="grid-column: 1 / -1">' + escHTML(t("docker.tools.title")) +
+    '<br><span class="text-xs opacity-60 font-normal">' + escHTML(t("docker.tools.hint")) + "</span></p>";
+  tools.forEach(function (tool) {
+    html += checkboxFieldHTML(p + "-tool-" + tool, TOOL_LABELS[tool] ? t(TOOL_LABELS[tool]) : tool, disabled.indexOf(tool) < 0, false, "");
+  });
+  return html;
+}
+
+// readDisabledTools returns the tools of kind left unchecked in the form
+// whose field ids start with p.
+function readDisabledTools(p, kind, catalog) {
+  const tools = (catalog && catalog.tools && catalog.tools[kind]) || [];
+  return tools.filter(function (tool) {
+    const box = document.getElementById(p + "-tool-" + tool);
+    return !!box && !box.checked;
+  });
 }
 
 // wireMoodlePHPFilter: "Versão PHP" only shows the versions compatible
@@ -276,7 +311,7 @@ function wireFolderURLAutofill(prefix) {
   });
 }
 
-function readContainerFieldsValues(prefix, kind) {
+function readContainerFieldsValues(prefix, kind, catalog) {
   const p = prefix;
   const get = function (id) { const el = document.getElementById(id); return el ? el.value : ""; };
   const getChecked = function (id) { const el = document.getElementById(id); return !!(el && el.checked); };
@@ -297,6 +332,7 @@ function readContainerFieldsValues(prefix, kind) {
     req.devPort = parseInt(get(p + "-devPort"), 10) || 0;
   }
   if (kind === "php_node") req.workerCommand = get(p + "-workerCommand");
+  req.disabledTools = readDisabledTools(p, kind, catalog);
   return req;
 }
 

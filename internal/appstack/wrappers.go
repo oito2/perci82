@@ -16,18 +16,22 @@
 package appstack
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/dev/localbin"
 	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
-// appTools is the list of tools wrapped per Container Aplicativo, used by
+// appTools is the list of tools of the older per-tool wrappers, written for
 // AppTypeMoodle/AppTypePHP/AppTypeGeneric, whose project root is mounted at
 // /var/www/html.
 var appTools = []string{"php", "phpcs", "phpcbf", "phpunit", "composer"}
@@ -165,4 +169,306 @@ else
     exec docker exec -i "${EXEC_AS[@]}" "${CONTAINER}" %s "${ARGS[@]}"
 fi
 `, appWrapperSingleQuote(container), appWrapperSingleQuote(hostDir), appWrapperSingleQuote(containerDir), execAs, tool, tool)
+}
+
+// The tools of an app's command a checklist turns on or off. phpcs also
+// covers phpcbf; moodle-cs registers the Moodle coding standard with them.
+const (
+	ToolComposer = "composer"
+	ToolPHPUnit  = "phpunit"
+	ToolPHPCS    = "phpcs"
+	ToolMoodleCS = "moodle-cs"
+)
+
+// moodleCSInstalledPaths are the phpcs standards the PHP image keeps in
+// /opt/phpcs-standards (moodle-cs and the PHPCSExtra/PHPCSUtils standards
+// it builds on), registered only by the command of an app with moodle-cs
+// on.
+const moodleCSInstalledPaths = "/opt/phpcs-standards/moodle-cs,/opt/phpcs-standards/PHPCSExtra,/opt/phpcs-standards/PHPCSUtils"
+
+// AppTools returns the checklist tools an app of appType offers: the PHP
+// tools for every type with PHP, plus moodle-cs for Moodle; none for Node.
+func AppTools(appType string) []string {
+	switch appType {
+	case config.AppTypeNode:
+		return nil
+	case config.AppTypeMoodle:
+		return []string{ToolComposer, ToolPHPUnit, ToolPHPCS, ToolMoodleCS}
+	default:
+		return []string{ToolComposer, ToolPHPUnit, ToolPHPCS}
+	}
+}
+
+// ToolEnabled reports whether app's type offers tool and its checklist
+// leaves it on.
+func ToolEnabled(app config.AppContainer, tool string) bool {
+	return slices.Contains(AppTools(app.Type), tool) && !slices.Contains(app.DisabledTools, tool)
+}
+
+// commandMount pairs a host folder with where the app's container sees it.
+type commandMount struct {
+	host, container string
+}
+
+// appCommandSpec is what an app's command needs to know.
+type appCommandSpec struct {
+	container string
+	user      string         // "" runs as the container's own user
+	mounts    []commandMount // the first one is the default working folder
+	fallback  string         // what runs when the first argument is no subcommand
+	reserved  []string       // the subcommands of the app's type
+	enabled   []string       // the subcommands its checklist leaves on
+	phpcsArgs []string       // extra arguments of phpcs and phpcbf
+}
+
+// appCommandSpecFor builds the command of app, whose project root is under
+// workspace.
+func appCommandSpecFor(app config.AppContainer, workspace string) appCommandSpec {
+	spec := appCommandSpec{container: app.Folder, user: wrapperUser, fallback: "php"}
+	phpTools := []string{"composer", "phpunit", "phpcs", "phpcbf"}
+	switch app.Type {
+	case config.AppTypeNode:
+		spec.user, spec.fallback = "", "node"
+		spec.mounts = []commandMount{{AppHTMLDir(workspace, app.Folder), "/app"}}
+		spec.reserved = []string{"npm"}
+	case config.AppTypePHPNode:
+		spec.mounts = []commandMount{
+			{AppComboAPIDir(workspace, app.Folder), "/var/www/html"},
+			{AppComboAppDir(workspace, app.Folder), "/app"},
+		}
+		spec.reserved = append(slices.Clone(phpTools), "npm")
+	default:
+		spec.mounts = []commandMount{{AppHTMLDir(workspace, app.Folder), "/var/www/html"}}
+		spec.reserved = phpTools
+	}
+	for _, sub := range spec.reserved {
+		tool := sub
+		if sub == "phpcbf" {
+			tool = ToolPHPCS
+		}
+		if sub == "npm" || ToolEnabled(app, tool) {
+			spec.enabled = append(spec.enabled, sub)
+		}
+	}
+	if ToolEnabled(app, ToolMoodleCS) {
+		spec.phpcsArgs = []string{"--runtime-set", "installed_paths", moodleCSInstalledPaths}
+	}
+	// A workspace reached through a link is also known by its real path,
+	// which is what `pwd -P` reports inside it.
+	for _, m := range slices.Clone(spec.mounts) {
+		if real, err := filepath.EvalSymlinks(m.host); err == nil && real != m.host {
+			spec.mounts = append(spec.mounts, commandMount{real, m.container})
+		}
+	}
+	return spec
+}
+
+// bashArray returns items as a bash array literal of single-quoted words.
+func bashArray(items []string) string {
+	quoted := make([]string, len(items))
+	for i, it := range items {
+		quoted[i] = appWrapperSingleQuote(it)
+	}
+	return "(" + strings.Join(quoted, " ") + ")"
+}
+
+// buildAppCommandScript is the ~/.local/bin/<app> script of spec. The first
+// argument, when it is one of the type's subcommands, picks the tool (a
+// subcommand the checklist turned off is refused); anything else runs
+// through the fallback (php, or node for a Node app). The working folder
+// inside the container follows the current folder when it is inside the
+// app's project, and arguments that are host paths into it are rewritten
+// to the container's paths. The messages are in the current language.
+func buildAppCommandScript(spec appCommandSpec) string {
+	hosts := make([]string, len(spec.mounts))
+	conts := make([]string, len(spec.mounts))
+	for i, m := range spec.mounts {
+		hosts[i], conts[i] = m.host, m.container
+	}
+	execAs := "()"
+	if spec.user != "" {
+		execAs = "(-u " + appWrapperSingleQuote(spec.user) + " -e HOME=/tmp)"
+	}
+	return `#!/usr/bin/env bash
+` + wrapperMarker + `
+` + appCommandMarker + `
+CONTAINER=` + appWrapperSingleQuote(spec.container) + `
+EXEC_AS=` + execAs + `
+HOSTS=` + bashArray(hosts) + `
+CONTS=` + bashArray(conts) + `
+FALLBACK=` + appWrapperSingleQuote(spec.fallback) + `
+RESERVED=` + bashArray(spec.reserved) + `
+ENABLED=` + bashArray(spec.enabled) + `
+PHPCS_ARGS=` + bashArray(spec.phpcsArgs) + `
+MSG_DISABLED=` + appWrapperSingleQuote(i18n.Tr("appcmd.disabled", i18n.Args{"tool": "{tool}", "app": spec.container})) + `
+MSG_OUTSIDE=` + appWrapperSingleQuote(i18n.Tr("appcmd.outside", i18n.Args{"dir": "{dir}", "app": spec.container})) + `
+
+# map_path prints the container path of the host path $1, failing when $1
+# is outside the app's folders.
+map_path() {
+    local i
+    for i in "${!HOSTS[@]}"; do
+        if [[ "$1" == "${HOSTS[$i]}" || "$1" == "${HOSTS[$i]}/"* ]]; then
+            printf '%s' "${CONTS[$i]}${1#"${HOSTS[$i]}"}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+CMD=("$FALLBACK")
+if [[ $# -gt 0 ]]; then
+    for sub in "${RESERVED[@]}"; do
+        [[ "$1" == "$sub" ]] || continue
+        on=0
+        for e in "${ENABLED[@]}"; do [[ "$e" == "$1" ]] && on=1; done
+        if [[ $on == 0 ]]; then
+            printf '%s\n' "${MSG_DISABLED//\{tool\}/$1}" >&2
+            exit 2
+        fi
+        CMD=("$1")
+        if [[ "$1" == phpcs || "$1" == phpcbf ]]; then CMD+=("${PHPCS_ARGS[@]}"); fi
+        shift
+        break
+    done
+fi
+
+if ! WD=$(map_path "$(pwd -P)") && ! WD=$(map_path "$PWD"); then
+    WD=${CONTS[0]}
+    printf '%s\n' "${MSG_OUTSIDE//\{dir\}/$WD}" >&2
+fi
+
+ARGS=()
+for arg in "$@"; do
+    if mapped=$(map_path "$arg"); then ARGS+=("$mapped"); else ARGS+=("$arg"); fi
+done
+
+TTY=-i
+if [ -t 0 ] && [ -t 1 ]; then TTY=-it; fi
+exec docker exec "$TTY" -w "$WD" "${EXEC_AS[@]}" "$CONTAINER" "${CMD[@]}" "${ARGS[@]}"
+`
+}
+
+// appCommandMarker is the third line of an app's command, telling it apart
+// from the older <tool>-<app> wrappers.
+const appCommandMarker = "# perci-app-command"
+
+// lookPath finds a command on PATH — a variable so tests decide what is
+// installed.
+var lookPath = exec.LookPath
+
+// commandCollision returns the path of an existing command called name that
+// is not a perci wrapper, or "" when ~/.local/bin/<name> can be written.
+func commandCollision(name, localBin string) string {
+	path := filepath.Join(localBin, name)
+	if _, err := os.Lstat(path); err == nil {
+		if isPerciWrapper(path) {
+			return ""
+		}
+		return path
+	}
+	if found, err := lookPath(name); err == nil && found != path {
+		return found
+	}
+	return ""
+}
+
+// installAppCommand writes ~/.local/bin/<app> for app and removes its older
+// <tool>-<app> wrappers. When another command already has that name, the
+// command is not written, a warning says so, and the older wrappers are
+// written instead, so the tools stay reachable.
+func installAppCommand(app config.AppContainer, workspace string, stdout io.Writer) bool {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		ui.Warning(stdout, i18n.Tr("docker.run.noHome", i18n.Args{"error": err.Error()}))
+		return false
+	}
+	localBin := filepath.Join(home, ".local", "bin")
+	if err := os.MkdirAll(localBin, 0o755); err != nil {
+		ui.Warning(stdout, i18n.Tr("docker.run.localBinFailed", i18n.Args{"error": err.Error()}))
+		return false
+	}
+	if other := commandCollision(app.Folder, localBin); other != "" {
+		ui.Warning(stdout, i18n.Tr("appcmd.run.collision", i18n.Args{"name": app.Folder, "path": other}))
+		writeLegacyWrappers(app, workspace, stdout)
+		return false
+	}
+	path := filepath.Join(localBin, app.Folder)
+	// Removed first so a symlink at path is replaced, not followed.
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		ui.Warning(stdout, i18n.Tr("docker.run.wrapperReplaceFailed", i18n.Args{"name": app.Folder, "error": err.Error()}))
+		return false
+	}
+	if err := os.WriteFile(path, []byte(buildAppCommandScript(appCommandSpecFor(app, workspace))), 0o755); err != nil {
+		ui.Warning(stdout, i18n.Tr("docker.run.wrapperFailed", i18n.Args{"name": app.Folder, "error": err.Error()}))
+		return false
+	}
+	removeAppWrappers(app.Folder)
+	ui.Info(stdout, i18n.Tr("appcmd.run.installed", i18n.Args{"name": app.Folder}))
+	localbin.EnsureInPath(stdout)
+	return true
+}
+
+// writeLegacyWrappers writes the older <tool>-<app> wrappers of app.
+func writeLegacyWrappers(app config.AppContainer, workspace string, stdout io.Writer) {
+	switch app.Type {
+	case config.AppTypeNode:
+		writeNodeAppWrappers(app.Folder, AppHTMLDir(workspace, app.Folder), "", stdout)
+	case config.AppTypePHPNode:
+		writeAppWrappers(app.Folder, AppComboAPIDir(workspace, app.Folder), stdout)
+		writeNodeAppWrappers(app.Folder, AppComboAppDir(workspace, app.Folder), wrapperUser, stdout)
+	default:
+		writeAppWrappers(app.Folder, AppHTMLDir(workspace, app.Folder), stdout)
+	}
+}
+
+// removeAppCommand deletes ~/.local/bin/<folder> when it is a perci
+// wrapper.
+func removeAppCommand(folder string) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	if path := filepath.Join(home, ".local", "bin", folder); isPerciWrapper(path) {
+		_ = os.Remove(path)
+	}
+}
+
+// HasLegacyWrappers reports whether folder still has an older <tool>-<app>
+// wrapper perci wrote.
+func HasLegacyWrappers(folder string) bool {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+	for _, tool := range append(slices.Clone(appTools), nodeAppTools...) {
+		if isPerciWrapper(filepath.Join(home, ".local", "bin", tool+"-"+folder)) {
+			return true
+		}
+	}
+	return false
+}
+
+// MigrateAppCommand replaces the older <tool>-<app> wrappers of the app in
+// folder with its command, without recreating its container.
+func MigrateAppCommand(stdout io.Writer, folder string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+	app, found := FindAppByFolder(cfg.Docker.Apps, folder)
+	if !found {
+		return errors.New(i18n.Tr("docker.appNotRegistered", i18n.Args{"app": folder}))
+	}
+	workspace, err := resolveWorkspace(cfg)
+	if err != nil {
+		return err
+	}
+	if !installAppCommand(app, workspace, stdout) {
+		return errors.New(i18n.Tr("appcmd.notMigrated", i18n.Args{"name": folder}))
+	}
+	if ToolEnabled(app, ToolMoodleCS) {
+		ui.Info(stdout, i18n.Tr("appcmd.run.moodleCSRecreate", nil))
+	}
+	return nil
 }

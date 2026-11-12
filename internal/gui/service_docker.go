@@ -58,6 +58,9 @@ type DockerCreateCatalog struct {
 	PHPVersions    []string `json:"phpVersions"`
 	NodeVersions   []string `json:"nodeVersions"`
 	MoodleVersions []string `json:"moodleVersions"`
+	// Tools maps each app type to the tools of its command's checklist
+	// (appstack.AppTools).
+	Tools map[string][]string `json:"tools"`
 }
 
 func (s *DockerService) GetDockerCreateCatalog() DockerCreateCatalog {
@@ -71,7 +74,20 @@ func (s *DockerService) GetDockerCreateCatalog() DockerCreateCatalog {
 		PHPVersions:    appstack.SupportedPHPVersions,
 		NodeVersions:   appstack.SupportedNodeVersions,
 		MoodleVersions: appstack.MoodleVersions(),
+		Tools:          appToolsByType(),
 	}
+}
+
+// appToolsByType returns appstack.AppTools of every app type that has a
+// checklist.
+func appToolsByType() map[string][]string {
+	tools := map[string][]string{}
+	for _, t := range []string{config.AppTypeMoodle, config.AppTypePHP, config.AppTypeGeneric, config.AppTypeNode, config.AppTypePHPNode} {
+		if list := appstack.AppTools(t); len(list) > 0 {
+			tools[t] = list
+		}
+	}
+	return tools
 }
 
 // GetPHPVersionsForMoodleVersion returns the PHP versions valid for a given
@@ -114,6 +130,9 @@ type ContainerFormRequest struct {
 	DevPort        int    `json:"devPort"`
 	PHPMemoryLimit string `json:"phpMemoryLimit"`
 	WorkerCommand  string `json:"workerCommand"`
+	// DisabledTools are the tools of the app's command unchecked in the
+	// form (config.AppContainer.DisabledTools).
+	DisabledTools []string `json:"disabledTools"`
 }
 
 func (r ContainerFormRequest) toAppContainer() config.AppContainer {
@@ -130,6 +149,7 @@ func (r ContainerFormRequest) toAppContainer() config.AppContainer {
 		DevPort:        r.DevPort,
 		PHPMemoryLimit: r.PHPMemoryLimit,
 		WorkerCommand:  r.WorkerCommand,
+		DisabledTools:  r.DisabledTools,
 	}
 }
 
@@ -199,6 +219,9 @@ type ContainerRow struct {
 	DockerError string `json:"dockerError,omitempty"`
 	CanEdit     bool   `json:"canEdit"`
 	HasDB       bool   `json:"hasDb"` // only true for "mariadb" — enables the extra Backup/Restore icons
+	// LegacyCommands is true for an app that still has the older
+	// <tool>-<app> wrappers instead of its command.
+	LegacyCommands bool `json:"legacyCommands"`
 }
 
 // GetContainerRows lists every container registered in config.yaml (the
@@ -228,6 +251,7 @@ func (s *DockerService) GetContainerRows() []ContainerRow {
 	for _, app := range cfg.Docker.Apps {
 		rows = append(rows, ContainerRow{
 			Family: kindApp, Type: app.Type, Name: app.Name, Folder: app.Folder, CanEdit: true,
+			LegacyCommands: appstack.HasLegacyWrappers(app.Folder),
 		})
 	}
 
@@ -269,6 +293,7 @@ func (s *DockerService) GetContainerForEdit(kind, folder string) (ContainerFormR
 			PHPVersion: app.PHPVersion, DBAccess: app.DBAccess, MoodleVersion: app.MoodleVersion,
 			NodeVersion: app.NodeVersion, DevCommand: app.DevCommand, DevPort: app.DevPort,
 			PHPMemoryLimit: app.PHPMemoryLimit, WorkerCommand: app.WorkerCommand,
+			DisabledTools: app.DisabledTools,
 		}, nil
 	}
 	return ContainerFormRequest{}, fmt.Errorf("type without editing: %s", kind)
@@ -713,5 +738,13 @@ func (s *DockerService) RestoreMariaDBContainer(path string) error {
 			return err
 		}
 		return db.Restore(context.Background(), s.exe, stdout, appstack.MariaDBContainerName, cfg.Docker.MariaDB.DBUser, cfg.Docker.MariaDB.DBPass, path)
+	})
+}
+
+// MigrateAppCommand replaces the older <tool>-<app> wrappers of the app in
+// folder with its command, without recreating the container.
+func (s *DockerService) MigrateAppCommand(folder string) error {
+	return s.runAction(func(stdout io.Writer) error {
+		return appstack.MigrateAppCommand(stdout, folder)
 	})
 }

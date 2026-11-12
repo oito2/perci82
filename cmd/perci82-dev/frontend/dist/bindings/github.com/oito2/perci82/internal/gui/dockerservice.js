@@ -149,6 +149,16 @@ export function ImportDockerContainerConfig(path, sel) {
 }
 
 /**
+ * MigrateAppCommand replaces the older <tool>-<app> wrappers of the app in
+ * folder with its command, without recreating the container.
+ * @param {string} folder
+ * @returns {$CancellablePromise<void>}
+ */
+export function MigrateAppCommand(folder) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DockerService.MigrateAppCommand", folder);
+}
+
+/**
  * PickBackupPath opens the native "Salvar Como" dialog for a MariaDB dump,
  * default filename with a timestamp so successive backups don't collide.
  * @returns {$CancellablePromise<string>}
