@@ -48,6 +48,15 @@ type Config struct {
 	// GUITheme.
 	SystemGUITheme string `yaml:"system_gui_theme,omitempty"`
 
+	// Language is Perci82 Dev's language: "system" or a locale ("pt-BR",
+	// "en"; see the i18n package). Any other value, unset included, reads
+	// as "system".
+	Language string `yaml:"language,omitempty"`
+
+	// SystemLanguage is Perci82 System's language, with the same values as
+	// Language.
+	SystemLanguage string `yaml:"system_language,omitempty"`
+
 	// SidebarLogo and AppIcon are the mascot color variants ("blue"/"pink",
 	// see SidebarLogos()/AppIcons()) earlier Perci versions saved for the
 	// sidebar logo and the window icon. They are read only; Update never

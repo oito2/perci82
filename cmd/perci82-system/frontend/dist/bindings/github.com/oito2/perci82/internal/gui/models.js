@@ -7,6 +7,47 @@
 import { Create as $Create } from "/wails/runtime.js";
 
 /**
+ * LanguageState is an application's language: the stored choice and the
+ * locale it resolves to.
+ */
+export class LanguageState {
+    /**
+     * Creates a new LanguageState instance.
+     * @param {Partial<LanguageState>} [$$source = {}] - The source object to create the LanguageState.
+     */
+    constructor($$source = {}) {
+        if (!("choice" in $$source)) {
+            /**
+             * Choice is "system" or a locale.
+             * @member
+             * @type {string}
+             */
+            this["choice"] = "";
+        }
+        if (!("locale" in $$source)) {
+            /**
+             * Locale is the locale the frontend shows ("pt-BR" or "en").
+             * @member
+             * @type {string}
+             */
+            this["locale"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LanguageState instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {LanguageState}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LanguageState(/** @type {Partial<LanguageState>} */($$parsedSource));
+    }
+}
+
+/**
  * MenuCategory is one of the top-level sidebar sections.
  */
 export class MenuCategory {

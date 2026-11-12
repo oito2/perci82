@@ -295,16 +295,25 @@
                "Execução" tab stays hidden here (see selectItem). -->
           <div id="selfconfig-container" class="hidden">
             <div class="mb-8">
-              <h3 class="font-semibold mb-3">Tema</h3>
+              <h3 class="font-semibold mb-3" data-i18n="settings.theme">Tema</h3>
               <div id="cfg-theme-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-xl"></div>
+            </div>
+
+            <!-- Idioma applies (and persists) immediately on select, and
+                 switches the open windows without a restart. -->
+            <div class="max-w-md mb-8">
+              <label class="form-control">
+                <div class="label"><span class="label-text" data-i18n="settings.language">Idioma</span></div>
+                <select id="cfg-language" class="select select-bordered"></select>
+              </label>
             </div>
 
             <div class="max-w-md mb-8">
               <label class="form-control">
-                <div class="label"><span class="label-text">Escopo de instalação Flatpak</span></div>
+                <div class="label"><span class="label-text" data-i18n="settings.flatpakScope">Escopo de instalação Flatpak</span></div>
                 <select id="sc-flatpak" class="select select-bordered">
-                  <option value="system">system (global)</option>
-                  <option value="user">user (usuário)</option>
+                  <option value="system" data-i18n="settings.flatpakScope.system">system (global)</option>
+                  <option value="user" data-i18n="settings.flatpakScope.user">user (usuário)</option>
                 </select>
               </label>
             </div>
@@ -406,6 +415,7 @@
 <!-- App scripts: the bootstrap module (bindings + runtime) first, then classic
      scripts sharing one global scope, in this order. -->
 <script type="module" src="./js/bootstrap.js"></script>
+<script defer src="./js/i18n.js"></script>
 <script defer src="./js/core.js"></script>
 <script defer src="./js/system-core.js"></script>
 <script defer src="./js/screens/checklists.js"></script>

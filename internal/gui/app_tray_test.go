@@ -324,7 +324,7 @@ func newUninstallHome(t *testing.T, onUninstall func() error) (*DevHomeService, 
 	t.Cleanup(func() { uninstallPerci = prev })
 	exe := executor.New(nil, nil)
 	exe.DryRun = true
-	return &DevHomeService{homeCore{serviceBase{exe: exe}}}, &calls
+	return &DevHomeService{homeCore: homeCore{serviceBase{exe: exe}}}, &calls
 }
 
 func registerNginx(t *testing.T) {

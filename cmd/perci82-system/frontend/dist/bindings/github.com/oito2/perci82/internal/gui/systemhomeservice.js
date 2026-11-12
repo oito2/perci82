@@ -13,6 +13,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as i18n$0 from "../i18n/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as theme$0 from "../theme/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -49,6 +52,28 @@ export function GetFlatpakScope() {
 }
 
 /**
+ * GetLanguage returns Perci82 System's language (~/.perci/config.yaml,
+ * field system_language).
+ * @returns {$CancellablePromise<$models.LanguageState>}
+ */
+export function GetLanguage() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetLanguage").then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType2($result);
+    }));
+}
+
+/**
+ * GetLanguageOptions returns the language choices: "system" (labeled by
+ * the frontend), then each supported language under its own name.
+ * @returns {$CancellablePromise<i18n$0.Option[]>}
+ */
+export function GetLanguageOptions() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetLanguageOptions").then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType4($result);
+    }));
+}
+
+/**
  * GetSelfUpdateInfo checks GitHub Releases (internal/selfupdate.
  * LatestRelease) and compares against the running version; RunSelfUpdate
  * redoes the lookup before applying, never trusting this earlier check. A
@@ -60,7 +85,7 @@ export function GetFlatpakScope() {
  */
 export function GetSelfUpdateInfo() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSelfUpdateInfo").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
+        return $$createType5($result);
     }));
 }
 
@@ -81,7 +106,7 @@ export function GetSidebarLogo() {
  */
 export function GetSystemScheme() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSystemScheme").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
+        return $$createType6($result);
     }));
 }
 
@@ -102,7 +127,7 @@ export function GetTheme() {
  */
 export function GetThemeOptions() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetThemeOptions").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType8($result);
     }));
 }
 
@@ -139,6 +164,19 @@ export function SetFlatpakScope(scope) {
 }
 
 /**
+ * SetLanguage persists Perci82 System's language choice (field
+ * system_language; an unknown value is saved as "system") and emits
+ * "language-changed" with the new state to every window.
+ * @param {string} choice
+ * @returns {$CancellablePromise<$models.LanguageState>}
+ */
+export function SetLanguage(choice) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.SetLanguage", choice).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType2($result);
+    }));
+}
+
+/**
  * SetTheme persists Perci82 System's theme choice (field
  * system_gui_theme); an unknown value is saved as "system".
  * @param {string} choice
@@ -151,7 +189,10 @@ export function SetTheme(choice) {
 // Private type creation functions
 const $$createType0 = $models.MenuCategory.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.SelfUpdateInfo.createFrom;
-const $$createType3 = theme$0.SystemScheme.createFrom;
-const $$createType4 = $models.ThemeOption.createFrom;
-const $$createType5 = $Create.Array($$createType4);
+const $$createType2 = $models.LanguageState.createFrom;
+const $$createType3 = i18n$0.Option.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.SelfUpdateInfo.createFrom;
+const $$createType6 = theme$0.SystemScheme.createFrom;
+const $$createType7 = $models.ThemeOption.createFrom;
+const $$createType8 = $Create.Array($$createType7);

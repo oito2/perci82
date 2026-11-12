@@ -165,9 +165,11 @@ function buildMenu(cats, isOpen) {
   });
 }
 
-loadMenu().then(function (cats) {
+// The compact window's first screen is built once the saved language is
+// shown (i18nReady), so its texts come out translated.
+Promise.all([loadMenu(), i18nReady]).then(function (r) {
   if (compactAction) {
-    activateCompactMode(cats);
+    activateCompactMode(r[0]);
   }
 });
 

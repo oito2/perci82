@@ -14,7 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Home :: Visão Geral (dashboard, Atualizar) and Home :: Configurações
-// (theme, sidebar logo), shared by both applications. Each application
+// (theme, language, sidebar logo), shared by both applications. Each application
 // defines renderAppDashboardStats() and renderAppSelfConfig() for its own
 // parts of these screens, and the Desinstalar button's handler.
 //
@@ -98,11 +98,17 @@ function renderThemeGrid(current) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "btn btn-sm justify-start" + (option.id === current ? " btn-active" : "");
-      btn.textContent = option.label;
+      if (option.id === "system") {
+        // Relabeled by applyI18n on a language switch.
+        btn.setAttribute("data-i18n", "settings.system");
+        btn.textContent = t("settings.system");
+      } else {
+        btn.textContent = option.label;
+      }
       btn.addEventListener("click", function () {
         applyTheme(option.id);
         App.SetTheme(option.id).catch(function (err) {
-          openError("Falha ao salvar o tema: " + err);
+          openError(t("settings.themeSaveFailed", { error: err }));
         });
         renderThemeGrid(option.id);
       });
@@ -111,8 +117,43 @@ function renderThemeGrid(current) {
   });
 }
 
+// Idioma — "Definido pelo sistema" or one of the supported languages,
+// each under its own name; a change persists it and switches the
+// interface at once.
+const cfgLanguage = document.getElementById("cfg-language");
+
+function renderLanguageSelect() {
+  Promise.all([App.GetLanguageOptions(), App.GetLanguage()]).then(function (r) {
+    const current = (r[1] && r[1].choice) || "system";
+    cfgLanguage.innerHTML = "";
+    (r[0] || []).forEach(function (option) {
+      const opt = document.createElement("option");
+      opt.value = option.id;
+      if (option.id === "system") {
+        // Relabeled by applyI18n on a language switch.
+        opt.setAttribute("data-i18n", "settings.system");
+        opt.textContent = t("settings.system");
+      } else {
+        opt.textContent = option.label;
+      }
+      cfgLanguage.appendChild(opt);
+    });
+    cfgLanguage.value = current;
+  });
+}
+
+cfgLanguage.addEventListener("change", function () {
+  App.SetLanguage(cfgLanguage.value).then(function (state) {
+    return setLocale(state.locale);
+  }).catch(function (err) {
+    openError(t("settings.languageSaveFailed", { error: err }));
+    renderLanguageSelect();
+  });
+});
+
 function renderSelfConfigScreen() {
   App.GetTheme().then(renderThemeGrid);
+  renderLanguageSelect();
   renderAppSelfConfig();
 }
 

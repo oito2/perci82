@@ -27,6 +27,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"github.com/oito2/perci82/internal/config"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // TrayService binds the system tray / compact window domain. mainWindow
@@ -116,7 +117,29 @@ func (t *TrayService) ensureTray() {
 	_, trayIcon := t.icons()
 	t.tray.SetIcon(trayIcon)
 	t.tray.SetTooltip("Perci82 Dev")
-	t.tray.SetMenu(t.buildTrayMenu())
+	t.tray.SetMenu(t.buildTrayMenu(trayLocale()))
+}
+
+// trayLocale returns the locale of Perci82 Dev's language choice (field
+// language); an unreadable config reads as "system".
+func trayLocale() string {
+	cfg, err := config.Load()
+	if err != nil {
+		return i18n.Resolve(i18n.SystemChoice)
+	}
+	return i18n.Resolve(cfg.Language)
+}
+
+// setLanguage rebuilds the tray menu in locale while the tray icon
+// exists; without one it does nothing.
+func (t *TrayService) setLanguage(locale string) {
+	t.windowMu.Lock()
+	defer t.windowMu.Unlock()
+
+	if t.tray == nil {
+		return
+	}
+	t.tray.SetMenu(t.buildTrayMenu(locale))
 }
 
 // destroyTray undoes ensureTray when the toggle is turned off.
@@ -131,22 +154,22 @@ func (t *TrayService) destroyTray() {
 	t.tray = nil
 }
 
-// buildTrayMenu builds the tray menu — Abrir Aplicativo (shows/focuses the
-// main window, same as the compact window's header button) +
-// Contêineres (opens/focuses the single compact window, already on its
-// tab) + Sair (the only way to quit Perci82 Dev while
-// the tray is enabled, since closing the main window only hides it).
-func (t *TrayService) buildTrayMenu() *application.Menu {
+// buildTrayMenu builds the tray menu, labeled in locale — Abrir
+// Aplicativo (shows/focuses the main window, same as the compact window's
+// header button) + Contêineres (opens/focuses the single compact window,
+// already on its tab) + Sair (the only way to quit Perci82 Dev while the
+// tray is enabled, since closing the main window only hides it).
+func (t *TrayService) buildTrayMenu(locale string) *application.Menu {
 	menu := t.wailsApp.NewMenu()
-	menu.Add("Abrir Aplicativo").OnClick(func(_ *application.Context) {
+	menu.Add(i18n.T(locale, "tray.open", nil)).OnClick(func(_ *application.Context) {
 		t.FocusMainWindow()
 	})
 	menu.AddSeparator()
-	menu.Add("Contêineres").OnClick(func(_ *application.Context) {
+	menu.Add(i18n.T(locale, "tray.containers", nil)).OnClick(func(_ *application.Context) {
 		t.openCompactWindow("docker-manage")
 	})
 	menu.AddSeparator()
-	menu.Add("Sair").OnClick(func(_ *application.Context) {
+	menu.Add(i18n.T(locale, "tray.quit", nil)).OnClick(func(_ *application.Context) {
 		if t.quitBlocked() {
 			return
 		}

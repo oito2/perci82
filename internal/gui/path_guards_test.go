@@ -110,15 +110,17 @@ func TestBoundMethods_RefuseBadPathsBeforeRunning(t *testing.T) {
 		},
 		"BackupMariaDBContainer":  func(b *serviceBase, p string) error { return (&DockerService{*b}).BackupMariaDBContainer(p) },
 		"RestoreMariaDBContainer": func(b *serviceBase, p string) error { return (&DockerService{*b}).RestoreMariaDBContainer(p) },
-		"SetWorkspacePath":        func(b *serviceBase, p string) error { return (&DevHomeService{homeCore{*b}}).SetWorkspacePath(p) },
+		"SetWorkspacePath": func(b *serviceBase, p string) error {
+			return (&DevHomeService{homeCore: homeCore{*b}}).SetWorkspacePath(p)
+		},
 		"RunSelfUninstall": func(b *serviceBase, p string) error {
-			return (&DevHomeService{homeCore{*b}}).RunSelfUninstall(false, false, p, "", "")
+			return (&DevHomeService{homeCore: homeCore{*b}}).RunSelfUninstall(false, false, p, "", "")
 		},
 		"RunSelfUninstall (repositories)": func(b *serviceBase, p string) error {
-			return (&DevHomeService{homeCore{*b}}).RunSelfUninstall(false, false, "", p, "")
+			return (&DevHomeService{homeCore: homeCore{*b}}).RunSelfUninstall(false, false, "", p, "")
 		},
 		"RunSelfUninstall (AI contexts)": func(b *serviceBase, p string) error {
-			return (&DevHomeService{homeCore{*b}}).RunSelfUninstall(false, false, "", "", p)
+			return (&DevHomeService{homeCore: homeCore{*b}}).RunSelfUninstall(false, false, "", "", p)
 		},
 	}
 

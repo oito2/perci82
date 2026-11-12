@@ -1,0 +1,5 @@
+{
+	"settings.flatpakScope": "Flatpak installation scope",
+	"settings.flatpakScope.system": "system (global)",
+	"settings.flatpakScope.user": "user (current user)"
+}

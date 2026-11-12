@@ -119,7 +119,7 @@ func TestActions_ReachTheirDomainCode(t *testing.T) {
 func TestHomeSettings_RoundTripAndFallback(t *testing.T) {
 	isolateActions(t)
 	b, _ := newTestBase(t)
-	dev := &DevHomeService{homeCore{*b}}
+	dev := &DevHomeService{homeCore: homeCore{*b}}
 	sys := &SystemHomeService{homeCore{*b}}
 
 	options := dev.GetThemeOptions()
@@ -164,12 +164,73 @@ func TestHomeSettings_RoundTripAndFallback(t *testing.T) {
 	}
 }
 
+// Each application saves its language under its own key; an unknown value
+// is stored as "system", which follows LANG; every switch emits
+// "language-changed" with the new state, and Perci82 Dev hands the locale
+// to the tray.
+func TestHomeLanguage_RoundTripEventsAndOwnership(t *testing.T) {
+	isolateActions(t)
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANG", "pt_BR.UTF-8")
+	b, rec := newTestBase(t)
+	var trayLocales []string
+	dev := &DevHomeService{homeCore: homeCore{*b}, onLanguageChanged: func(l string) { trayLocales = append(trayLocales, l) }}
+	sys := &SystemHomeService{homeCore{*b}}
+
+	if got := dev.GetLanguage(); got != (LanguageState{Choice: "system", Locale: "pt-BR"}) {
+		t.Errorf("unset Dev language got %+v, want system/pt-BR", got)
+	}
+	if opts := sys.GetLanguageOptions(); len(opts) != 3 || opts[0].ID != "system" {
+		t.Errorf("language options got %+v, want system plus two languages", opts)
+	}
+
+	useApp(t, config.AppDev)
+	state, err := dev.SetLanguage("en")
+	if err != nil || state != (LanguageState{Choice: "en", Locale: "en"}) || dev.GetLanguage() != state {
+		t.Errorf("Dev SetLanguage(en) got %+v (err %v), stored %+v", state, err, dev.GetLanguage())
+	}
+	useApp(t, config.AppSystem)
+	if _, err := sys.SetLanguage("../../etc/passwd"); err != nil {
+		t.Fatal(err)
+	}
+	if got := sys.GetLanguage(); got != (LanguageState{Choice: "system", Locale: "pt-BR"}) {
+		t.Errorf("unknown System language stored as %+v, want system/pt-BR", got)
+	}
+	if got := dev.GetLanguage().Choice; got != "en" {
+		t.Errorf("System's SetLanguage changed the Dev language to %q", got)
+	}
+	cfg, err := config.Load()
+	if err != nil || cfg.Language != "en" || cfg.SystemLanguage != "system" {
+		t.Errorf("config language/system_language got %q/%q (err %v), want en/system", cfg.Language, cfg.SystemLanguage, err)
+	}
+
+	var foreign *config.ForeignKeyError
+	if _, err := dev.SetLanguage("pt-BR"); !errors.As(err, &foreign) {
+		t.Errorf("Dev's SetLanguage under Perci82 System: err = %v, want *config.ForeignKeyError", err)
+	}
+
+	var changed []LanguageState
+	for _, e := range rec.events {
+		if e.name == "language-changed" {
+			changed = append(changed, e.data.(LanguageState))
+		}
+	}
+	want := []LanguageState{{Choice: "en", Locale: "en"}, {Choice: "system", Locale: "pt-BR"}}
+	if !slices.Equal(changed, want) {
+		t.Errorf("language-changed events got %+v, want %+v", changed, want)
+	}
+	if !slices.Equal(trayLocales, []string{"en"}) {
+		t.Errorf("tray locales got %v, want [en]", trayLocales)
+	}
+}
+
 // A theme saved by Perci 1.9 (a daisyUI name) reads as "system" and is
 // left in config.yaml until another choice is saved.
 func TestHomeTheme_Perci19ValueReadsAsSystem(t *testing.T) {
 	isolateActions(t)
 	b, _ := newTestBase(t)
-	dev := &DevHomeService{homeCore{*b}}
+	dev := &DevHomeService{homeCore: homeCore{*b}}
 	useApp(t, config.AppDev)
 	if err := config.Update(func(c *config.Config) error { c.GUITheme = "garden"; return nil }); err != nil {
 		t.Fatal(err)
@@ -291,7 +352,7 @@ func rowsOrNil[T any](rows []T, err error) []T {
 func TestGetters_ListTheirCatalogues(t *testing.T) {
 	isolateActions(t)
 	b, _ := newTestBase(t)
-	home, linux := &DevHomeService{homeCore{*b}}, &LinuxService{*b}
+	home, linux := &DevHomeService{homeCore: homeCore{*b}}, &LinuxService{*b}
 	devSetup, devTools, docker := &DevSetupService{*b}, &DevToolsService{*b}, &DockerService{*b}
 
 	lists := map[string]struct {

@@ -17,8 +17,9 @@
 // context, the way the page loads them into one global scope, with just
 // enough of the browser stubbed for their top-level code to run: every
 // DOM element, the Wails bindings (App/Events/Browser) and xterm are inert
-// stand-ins. Tests then call the scripts' own functions from the returned
-// context. No dependencies: node:vm + a tiny element implementation.
+// stand-ins, and fetch reads the application's files from disk. Tests
+// then call the scripts' own functions from the returned context. No
+// dependencies: node:vm + a tiny element implementation.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -159,6 +160,7 @@ function loadScriptsFrom(distDir, files, { fixtures = {} } = {}) {
   const context = {
     console, URLSearchParams, setTimeout, clearTimeout, Promise,
     App,
+    fetch: (url) => fetchFile(distDir, url),
     Events: { On(name, fn) { (handlers[name] ||= []).push(fn); }, Emit() {} },
     Browser: { OpenURL() {} },
     Clipboard: { SetText: () => Promise.resolve() },
@@ -188,6 +190,17 @@ function loadScriptsFrom(distDir, files, { fixtures = {} } = {}) {
   const emit = (name, data) => (handlers[name] || []).forEach((fn) => fn({ data }));
   const query = (selector, elements) => { queries[selector] = elements; };
   return { ctx: context, calls, element, emit, query };
+}
+
+// fetchFile answers fetch(url) for a page-relative URL ("./i18n/en.json")
+// from the application's own file when it has one, else the shared one,
+// like the overlay the applications serve; a missing file is a 404.
+function fetchFile(distDir, url) {
+  const rel = String(url).replace(/^\.\//, "");
+  const file = [path.join(distDir, rel), path.join(commonDir, rel)].find((f) => fs.existsSync(f));
+  if (!file) return Promise.resolve({ ok: false, status: 404, json: () => Promise.reject(new Error("not found")) });
+  const text = fs.readFileSync(file, "utf8");
+  return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(JSON.parse(text)) });
 }
 
 // resolveScript returns the path of a script (relative to js/): the

@@ -110,13 +110,15 @@ generate-bindings:
 	done
 
 # generate rewrites the files generated from the oito2_ui parity fixtures
-# (internal/gui/web/css/oito2.css); check-generated fails when they are
-# out of date, without writing anything.
+# (internal/gui/web/css/oito2.css and the common message catalogs in
+# internal/gui/web/i18n/oito2/); check-generated fails when they are out
+# of date, without writing anything.
 generate:
-	go generate ./internal/theme
+	go generate ./internal/theme ./internal/i18n
 
 check-generated:
 	go run ./internal/theme/gencss -out internal/gui/web/css/oito2.css -check
+	go run ./internal/i18n/genoito2 -l10n internal/theme/parity/l10n.json -out internal/gui/web/i18n/oito2 -check
 
 # parity-sync copies the oito2_ui fixtures Perci82 uses from a checkout of
 # oito2_ui (default references/oito2_ui; OITO2_UI=<dir> picks another) and

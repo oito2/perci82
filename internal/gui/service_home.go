@@ -27,6 +27,7 @@ import (
 	"github.com/oito2/perci82/internal/appstack"
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	managerai "github.com/oito2/perci82/internal/manager/ai"
 	"github.com/oito2/perci82/internal/manager/gitaccount"
 	"github.com/oito2/perci82/internal/selfupdate"
@@ -56,9 +57,12 @@ type SystemHomeService struct {
 	homeCore
 }
 
-// DevHomeService binds Perci82 Dev's "Home" category.
+// DevHomeService binds Perci82 Dev's "Home" category. onLanguageChanged,
+// set by Run when the tray is bound, receives the locale SetLanguage
+// switched to.
 type DevHomeService struct {
 	homeCore
+	onLanguageChanged func(locale string)
 }
 
 // GetCategories returns Perci82 System's sidebar categories and items.
@@ -116,6 +120,82 @@ func (h *DevHomeService) SetTheme(choice string) error {
 		cfg.GUITheme = choice
 		return nil
 	})
+}
+
+// LanguageState is an application's language: the stored choice and the
+// locale it resolves to.
+type LanguageState struct {
+	// Choice is "system" or a locale.
+	Choice string `json:"choice"`
+	// Locale is the locale the frontend shows ("pt-BR" or "en").
+	Locale string `json:"locale"`
+}
+
+// languageState returns the state of a stored language choice; an unknown
+// value reads as "system".
+func languageState(stored string) LanguageState {
+	choice := i18n.ChoiceOrSystem(stored)
+	return LanguageState{Choice: choice, Locale: i18n.Resolve(choice)}
+}
+
+// GetLanguageOptions returns the language choices: "system" (labeled by
+// the frontend), then each supported language under its own name.
+func (h *homeCore) GetLanguageOptions() []i18n.Option {
+	return i18n.Options()
+}
+
+// GetLanguage returns Perci82 System's language (~/.perci/config.yaml,
+// field system_language).
+func (h *SystemHomeService) GetLanguage() LanguageState {
+	cfg, err := config.Load()
+	if err != nil {
+		return languageState("")
+	}
+	return languageState(cfg.SystemLanguage)
+}
+
+// SetLanguage persists Perci82 System's language choice (field
+// system_language; an unknown value is saved as "system") and emits
+// "language-changed" with the new state to every window.
+func (h *SystemHomeService) SetLanguage(choice string) (LanguageState, error) {
+	state := languageState(choice)
+	if err := config.Update(func(cfg *config.Config) error {
+		cfg.SystemLanguage = state.Choice
+		return nil
+	}); err != nil {
+		return LanguageState{}, err
+	}
+	h.emit("language-changed", state)
+	return state, nil
+}
+
+// GetLanguage returns Perci82 Dev's language (~/.perci/config.yaml, field
+// language).
+func (h *DevHomeService) GetLanguage() LanguageState {
+	cfg, err := config.Load()
+	if err != nil {
+		return languageState("")
+	}
+	return languageState(cfg.Language)
+}
+
+// SetLanguage persists Perci82 Dev's language choice (field language; an
+// unknown value is saved as "system"), emits "language-changed" with the
+// new state to every window and calls onLanguageChanged, when set, with
+// the new locale.
+func (h *DevHomeService) SetLanguage(choice string) (LanguageState, error) {
+	state := languageState(choice)
+	if err := config.Update(func(cfg *config.Config) error {
+		cfg.Language = state.Choice
+		return nil
+	}); err != nil {
+		return LanguageState{}, err
+	}
+	h.emit("language-changed", state)
+	if h.onLanguageChanged != nil {
+		h.onLanguageChanged(state.Locale)
+	}
+	return state, nil
 }
 
 // ThemeOption is one choice of the theme selector.

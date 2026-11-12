@@ -301,18 +301,27 @@
                selectItem). -->
           <div id="selfconfig-container" class="hidden">
             <div class="mb-8">
-              <h3 class="font-semibold mb-3">Tema</h3>
+              <h3 class="font-semibold mb-3" data-i18n="settings.theme">Tema</h3>
               <div id="cfg-theme-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-xl"></div>
             </div>
 
+            <!-- Idioma applies (and persists) immediately on select, and
+                 switches the open windows without a restart. -->
+            <div class="max-w-md mb-8">
+              <label class="form-control">
+                <div class="label"><span class="label-text" data-i18n="settings.language">Idioma</span></div>
+                <select id="cfg-language" class="select select-bordered"></select>
+              </label>
+            </div>
+
             <div class="mb-8 max-w-xl">
-              <h3 class="font-semibold mb-3">Caminho do Workspace</h3>
+              <h3 class="font-semibold mb-3" data-i18n="settings.workspace">Caminho do Workspace</h3>
               <div role="alert" class="alert mb-2 flex-wrap">
                 <div>
                   <h3 id="sc-workspace-alert-title" class="font-bold"></h3>
                   <div id="sc-workspace-alert-desc" class="text-sm opacity-80"></div>
                 </div>
-                <button id="btn-sc-pick-workspace" class="btn btn-sm ml-auto">Selecionar Pasta</button>
+                <button id="btn-sc-pick-workspace" class="btn btn-sm ml-auto" data-i18n="settings.workspace.pick">Selecionar Pasta</button>
               </div>
               <button id="btn-sc-create-workspace" class="btn btn-primary btn-sm hidden">Criar Workspace</button>
             </div>
@@ -322,9 +331,9 @@
             <div class="max-w-xl">
               <label class="label cursor-pointer justify-start gap-3">
                 <input id="sc-tray-enabled" type="checkbox" class="toggle toggle-primary" />
-                <span class="label-text">Mostrar o Perci82 Dev na bandeja do sistema</span>
+                <span class="label-text" data-i18n="settings.tray">Mostrar o Perci82 Dev na bandeja do sistema</span>
               </label>
-              <p class="text-xs opacity-60 mt-1">
+              <p class="text-xs opacity-60 mt-1" data-i18n="settings.trayHelp">
                 Ao ligar: fechar a janela principal passa a escondê-la na bandeja em vez de encerrar o Perci82 Dev
                 (use "Sair" no menu do ícone pra encerrar de vez), e o Perci82 Dev passa a iniciar oculto na bandeja
                 junto com a sessão gráfica. O ícone requer um ambiente com suporte a StatusNotifierItem —
@@ -1232,6 +1241,7 @@
 <!-- App scripts: the bootstrap module (bindings + runtime) first, then classic
      scripts sharing one global scope, in this order. -->
 <script type="module" src="./js/bootstrap.js"></script>
+<script defer src="./js/i18n.js"></script>
 <script defer src="./js/core.js"></script>
 <script defer src="./js/dev-core.js"></script>
 <script defer src="./js/screens/checklists.js"></script>

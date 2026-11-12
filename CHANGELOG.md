@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Perci82 System** (`perci82-system`) and **Perci82 Dev** (`perci82-dev`): two desktop apps split from Perci 1.9.0. System has the Linux screens (post-install, system update, fonts, file templates, Flatpak apps); Dev has the development screens (Desenvolvimento, Docker, Repositórios, Dev Tools) and the system tray.
 - New icons for both apps, under their application IDs `io.github.oito2.perci82.system` and `io.github.oito2.perci82.dev`.
+- Configurações → Idioma in each app chooses between "Definido pelo sistema" (Portuguese when the system language is Portuguese, English otherwise), Português (Brasil) and English, saved per app (`system_language` in Perci82 System, `language` in Perci82 Dev). The switch applies at once, without a restart, including the tray menu of Perci82 Dev. Most screens are still in Portuguese; their translations arrive as each screen is migrated.
 
 ### Changed
 

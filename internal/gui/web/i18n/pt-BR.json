@@ -1,0 +1,7 @@
+{
+	"settings.language": "Idioma",
+	"settings.languageSaveFailed": "Falha ao salvar o idioma: {error}",
+	"settings.system": "Definido pelo sistema",
+	"settings.theme": "Tema",
+	"settings.themeSaveFailed": "Falha ao salvar o tema: {error}"
+}

@@ -138,6 +138,14 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 			tray = t
 		}
 	}
+	// A language switch relabels the tray menu.
+	if tray != nil {
+		for _, s := range services {
+			if h, ok := s.svc.(*DevHomeService); ok {
+				h.onLanguageChanged = tray.setLanguage
+			}
+		}
+	}
 
 	cfg, cfgErr := config.Load()
 	if cfgErr != nil {
