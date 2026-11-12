@@ -111,7 +111,7 @@ func TestApply_WrongChecksumKeepsBinary(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := Apply(context.Background(), dryRunExecutor(&buf), &buf, rel)
-	if err == nil || !strings.Contains(err.Error(), "integridade") {
+	if err == nil || !strings.Contains(err.Error(), "integrity") {
 		t.Fatalf("err = %v, want an integrity failure", err)
 	}
 	if got, _ := os.ReadFile(exe); string(got) != "old" {

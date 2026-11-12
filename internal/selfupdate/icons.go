@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/packaging"
 )
 
@@ -84,7 +85,7 @@ func menuIconsTar(app string) (*bytes.Buffer, error) {
 	for _, size := range packaging.IconSizes {
 		data, err := packaging.Icon(app, size)
 		if err != nil {
-			return nil, fmt.Errorf("ícone %s %dpx: %w", app, size, err)
+			return nil, fmt.Errorf("icon %s %dpx: %w", app, size, err)
 		}
 		rel := packaging.IconRelPath(app, size)
 		for _, dir := range []string{filepath.Dir(filepath.Dir(rel)), filepath.Dir(rel)} {
@@ -110,7 +111,7 @@ func menuIconsTar(app string) (*bytes.Buffer, error) {
 func iconCacheStep() executor.PrivilegedStep {
 	return executor.PrivilegedStep{
 		Soft:        true,
-		WarnMessage: "Não foi possível atualizar o cache de ícones (gtk-update-icon-cache).",
+		WarnMessage: i18n.Tr("selfupdate.iconCacheFailed", nil),
 		Name:        "gtk-update-icon-cache",
 		Args:        []string{"-q", "-t", "-f", hicolorDir},
 	}

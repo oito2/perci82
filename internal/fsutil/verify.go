@@ -38,7 +38,7 @@ func VerifyFile(path string, h hash.Hash, want string) error {
 		return fmt.Errorf("calcular checksum: %w", err)
 	}
 	if got := hex.EncodeToString(h.Sum(nil)); !strings.EqualFold(got, strings.TrimSpace(want)) {
-		return fmt.Errorf("checksum não confere: esperado %s, obtido %s", want, got)
+		return fmt.Errorf("checksum mismatch: expected %s, got %s", want, got)
 	}
 	return nil
 }

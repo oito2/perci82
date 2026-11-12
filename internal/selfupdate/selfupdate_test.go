@@ -312,7 +312,7 @@ func TestDownloadFile_RejectsRedirectToUntrustedHost(t *testing.T) {
 	defer func() { _ = f.Close() }()
 
 	err = downloadFile(context.Background(), srv.URL+"/prci", f)
-	if err == nil || !strings.Contains(err.Error(), "não confiável") {
+	if err == nil || !strings.Contains(err.Error(), "untrusted") {
 		t.Fatalf("expected an untrusted-host error, got %v", err)
 	}
 }
@@ -333,7 +333,7 @@ func TestDownloadFile_RefusesOversizedBody(t *testing.T) {
 	defer func() { _ = f.Close() }()
 
 	err = downloadFile(context.Background(), srv.URL+"/prci", f)
-	if err == nil || !strings.Contains(err.Error(), "maior que") {
+	if err == nil || !strings.Contains(err.Error(), "larger than") {
 		t.Fatalf("expected an explicit size error, got %v", err)
 	}
 }

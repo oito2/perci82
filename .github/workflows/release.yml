@@ -93,6 +93,62 @@ jobs:
           VERSION: ${{ steps.tag.outputs.version }}
         run: make "release-${APP#perci82-}" VERSION="$VERSION"
 
+      # The release notes: the install instructions, then the CHANGELOG.md
+      # section of this version ("## [System 1.2.3] - date" for
+      # system-v1.2.3). A tag without its CHANGELOG section fails here,
+      # before anything is published.
+      - name: Write the release notes
+        env:
+          APP: ${{ steps.tag.outputs.app }}
+          SHORT: ${{ steps.tag.outputs.short }}
+          TITLE: ${{ steps.tag.outputs.title }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          heading="## [${TITLE#Perci82 } ${VERSION#v}]"
+          section=$(awk -v h="$heading" '
+            index($0, h) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found && /^\[[^]]+\]: / { exit }
+            found { print }
+          ' CHANGELOG.md)
+          if [[ -z "${section//[[:space:]]/}" ]]; then
+            echo "::error::CHANGELOG.md has no '${heading}' section"
+            exit 1
+          fi
+          {
+            echo "## ${TITLE} ${VERSION}"
+            echo
+            echo "Linux amd64 only: the app uses Wails v3 with cgo (GTK 4/WebKitGTK 6.0)."
+            echo
+            echo "### Install"
+            echo
+            echo '```bash'
+            echo "curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-${SHORT}.sh | bash"
+            echo '```'
+            echo
+            echo "The installer downloads the newest ${TITLE} release, checks its checksum (and its attestation, when the GitHub CLI is logged in), adds the application menu entry and offers to remove the old Perci, keeping the settings in \`~/.perci\`."
+            echo
+            echo "### Manual install"
+            echo
+            echo "Download \`${APP}-linux-amd64\` and \`checksums.txt\`, check the checksum and install:"
+            echo
+            echo '```bash'
+            echo "sha256sum --ignore-missing -c checksums.txt"
+            echo "sudo install -m 755 -o root -g root ${APP}-linux-amd64 /usr/local/bin/${APP}"
+            echo '```'
+            echo
+            echo "### Verify the provenance"
+            echo
+            echo "The files of this release have a build provenance attestation (SLSA), made by this workflow:"
+            echo
+            echo '```bash'
+            echo "gh attestation verify ${APP}-linux-amd64 --repo oito2/perci82"
+            echo '```'
+            echo
+            echo "### Changes"
+            printf '%s\n' "$section" | sed 's/^### /#### /'
+          } > dist/release-notes.md
+
       - name: Upload artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -101,6 +157,7 @@ jobs:
             dist/${{ steps.tag.outputs.app }}-linux-amd64
             dist/${{ steps.tag.outputs.app }}-menu.tar.gz
             dist/checksums.txt
+            dist/release-notes.md
           if-no-files-found: error
 
   publish:
@@ -137,36 +194,4 @@ jobs:
             dist/${{ needs.build.outputs.app }}-linux-amd64
             dist/${{ needs.build.outputs.app }}-menu.tar.gz
             dist/checksums.txt
-          body: |
-            ## ${{ needs.build.outputs.title }} ${{ needs.build.outputs.version }}
-
-            Só linux/amd64: o aplicativo usa Wails v3 com cgo (GTK4/WebKitGTK 6.0).
-
-            ### Instalação
-
-            ```bash
-            curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-${{ needs.build.outputs.short }}.sh | bash
-            ```
-
-            O instalador baixa a versão mais recente do ${{ needs.build.outputs.title }}, confere o checksum (e a attestation, com o GitHub CLI logado), cria a entrada no menu de aplicativos e oferece remover o Perci antigo, mantendo as configurações em `~/.perci`.
-
-            ### Instalação manual
-
-            Baixe `${{ needs.build.outputs.app }}-linux-amd64` e `checksums.txt`, confira o checksum e instale:
-
-            ```bash
-            sha256sum --ignore-missing -c checksums.txt
-            sudo install -m 755 -o root -g root ${{ needs.build.outputs.app }}-linux-amd64 /usr/local/bin/${{ needs.build.outputs.app }}
-            ```
-
-            ### Verificar a procedência
-
-            Os arquivos desta release têm attestation de build (SLSA), gerada por este workflow:
-
-            ```bash
-            gh attestation verify ${{ needs.build.outputs.app }}-linux-amd64 --repo oito2/perci82
-            ```
-
-            ---
-
-            Veja o [CHANGELOG.md](https://github.com/oito2/perci82/blob/main/CHANGELOG.md) para a lista completa de mudanças.
+          body_path: dist/release-notes.md

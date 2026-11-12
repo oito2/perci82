@@ -25,12 +25,13 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 	"github.com/oito2/perci82/packaging"
 )
 
 // ErrUninstalled is returned by Uninstall after the binary is successfully removed.
-var ErrUninstalled = errors.New("aplicativo desinstalado")
+var ErrUninstalled = errors.New("application uninstalled")
 
 // applicationsDir is where the installers put the application menu
 // entries.
@@ -75,10 +76,10 @@ func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer, ap
 	}
 	currentExe, err := executablePath()
 	if err != nil {
-		return fmt.Errorf("localizar binário: %w", err)
+		return fmt.Errorf("locate binary: %w", err)
 	}
 
-	ui.Info(stdout, "Removendo binário: "+currentExe)
+	ui.Info(stdout, i18n.Tr("selfuninstall.removingBinary", i18n.Args{"path": currentExe}))
 
 	// Everything that cannot be removed without privilege is collected into
 	// ONE privileged batch, so the password is asked at most once: the binary
@@ -87,7 +88,7 @@ func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer, ap
 	var steps []executor.PrivilegedStep
 	binaryNeedsRoot := false
 	if err := os.Remove(currentExe); err != nil {
-		ui.Info(stdout, "Não foi possível remover o binário diretamente ("+err.Error()+"). Será usado privilégio de administrador.")
+		ui.Info(stdout, i18n.Tr("selfuninstall.needsAdmin", i18n.Args{"error": err.Error()}))
 		binaryNeedsRoot = true
 		steps = append(steps, executor.PrivilegedStep{Name: "rm", Args: []string{"-f", "--", currentExe}})
 	}
@@ -113,7 +114,7 @@ func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer, ap
 		steps = append(steps,
 			executor.PrivilegedStep{
 				Soft:        true,
-				WarnMessage: "Falha ao remover a entrada do menu de aplicativos.",
+				WarnMessage: i18n.Tr("selfuninstall.menuFailed", nil),
 				Name:        "rm",
 				Args:        append([]string{"-f", "--"}, privileged...),
 			},
@@ -124,9 +125,9 @@ func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer, ap
 	if len(steps) > 0 {
 		if sudoErr := exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, steps); sudoErr != nil {
 			if binaryNeedsRoot {
-				return fmt.Errorf("remover binário: %w", sudoErr)
+				return fmt.Errorf("remove binary: %w", sudoErr)
 			}
-			ui.Warning(stdout, "Falha ao remover itens que exigem privilégio: "+sudoErr.Error())
+			ui.Warning(stdout, i18n.Tr("selfuninstall.privilegedFailed", i18n.Args{"error": sudoErr.Error()}))
 		}
 	}
 
@@ -134,7 +135,7 @@ func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer, ap
 		removeSettings(stdout, app, opts.DataDirs, filepath.Dir(currentExe))
 	}
 
-	ui.Success(stdout, appName(app)+" desinstalado com sucesso.")
+	ui.Success(stdout, i18n.Tr("selfuninstall.done", i18n.Args{"app": appName(app)}))
 	return ErrUninstalled
 }
 
@@ -145,14 +146,14 @@ func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer, ap
 func removeSettings(stdout io.Writer, app string, dataDirs []string, exeDir string) {
 	empty, err := config.RemoveOwnedKeys(config.App(app))
 	if err != nil {
-		ui.Warning(stdout, "Falha ao remover as configurações: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("selfuninstall.settingsFailed", i18n.Args{"error": err.Error()}))
 		return
 	}
-	ui.Info(stdout, "Configurações do "+appName(app)+" removidas de ~/.perci/config.yaml.")
+	ui.Info(stdout, i18n.Tr("selfuninstall.settingsRemoved", i18n.Args{"app": appName(app)}))
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		ui.Warning(stdout, "Falha ao localizar a pasta pessoal: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("selfuninstall.homeFailed", i18n.Args{"error": err.Error()}))
 		return
 	}
 	for _, dir := range dataDirs {
@@ -160,25 +161,25 @@ func removeSettings(stdout io.Writer, app string, dataDirs []string, exeDir stri
 			continue
 		}
 		if err := os.RemoveAll(filepath.Join(home, ".perci", dir)); err != nil {
-			ui.Warning(stdout, "Falha ao remover ~/.perci/"+dir+": "+err.Error())
+			ui.Warning(stdout, i18n.Tr("selfuninstall.dirFailed", i18n.Args{"dir": "~/.perci/" + dir, "error": err.Error()}))
 			continue
 		}
-		ui.Info(stdout, "~/.perci/"+dir+" removida.")
+		ui.Info(stdout, i18n.Tr("selfuninstall.dirRemoved", i18n.Args{"dir": "~/.perci/" + dir}))
 	}
 
 	if other := installedApp(app, exeDir); other != "" {
-		ui.Info(stdout, "~/.perci mantida: o "+other+" continua instalado.")
+		ui.Info(stdout, i18n.Tr("selfuninstall.keptOther", i18n.Args{"app": other}))
 		return
 	}
 	if !empty {
-		ui.Info(stdout, "~/.perci mantida: o config.yaml ainda tem outras configurações.")
+		ui.Info(stdout, i18n.Tr("selfuninstall.keptConfig", nil))
 		return
 	}
 	if err := config.RemoveDir(); err != nil {
-		ui.Warning(stdout, "Falha ao remover ~/.perci: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("selfuninstall.dirFailed", i18n.Args{"dir": "~/.perci", "error": err.Error()}))
 		return
 	}
-	ui.Info(stdout, "~/.perci removida.")
+	ui.Info(stdout, i18n.Tr("selfuninstall.dirRemoved", i18n.Args{"dir": "~/.perci"}))
 }
 
 // installedApp returns the name of another installed application that

@@ -36,6 +36,7 @@ import (
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 	"github.com/oito2/perci82/internal/version"
 )
@@ -71,7 +72,7 @@ func tagPrefix(app string) string {
 // checkApp returns an error for an app not in Apps.
 func checkApp(app string) error {
 	if !slices.Contains(Apps, app) {
-		return fmt.Errorf("aplicativo desconhecido: %q", app)
+		return fmt.Errorf("unknown application: %q", app)
 	}
 	return nil
 }
@@ -100,7 +101,7 @@ func downloadClient(timeout time.Duration) *http.Client {
 		Timeout:   timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 5 {
-				return fmt.Errorf("redirecionamentos demais ao baixar %s", via[0].URL)
+				return fmt.Errorf("too many redirects downloading %s", via[0].URL)
 			}
 			return validateDownloadURL(req.URL.String())
 		},
@@ -152,31 +153,31 @@ func Run(ctx context.Context, exe *executor.Executor, stdout io.Writer, app stri
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	ui.PrintHeader(stdout, "Atualizar "+appName(app), distro.DisplayName())
-	ui.Info(stdout, "Versão atual: "+version.Version)
+	ui.PrintHeader(stdout, i18n.Tr("selfupdate.header", i18n.Args{"app": appName(app)}), distro.DisplayName())
+	ui.Info(stdout, i18n.Tr("selfupdate.current", i18n.Args{"version": version.Version}))
 
 	if version.Version == "dev" {
-		return errors.New("esta é uma build de desenvolvimento — a atualização automática está desativada")
+		return i18n.NewError("selfupdate.devBuild")
 	}
 
 	rel, err := LatestRelease(ctx, app)
 	if err != nil {
-		return fmt.Errorf("verificar atualizações: %w", err)
+		return fmt.Errorf("check for updates: %w", err)
 	}
 
-	ui.Info(stdout, "Versão disponível: "+rel.Version)
+	ui.Info(stdout, i18n.Tr("selfupdate.latest", i18n.Args{"version": rel.Version}))
 
 	if !IsNewer(rel.Version, version.Version) {
-		ui.Success(stdout, "Você já possui a versão mais recente.")
+		ui.Success(stdout, i18n.Tr("selfupdate.upToDate", nil))
 		return nil
 	}
 
-	ui.Info(stdout, fmt.Sprintf("Baixando %s (%s/%s)...", rel.Version, runtime.GOOS, runtime.GOARCH))
+	ui.Info(stdout, i18n.Tr("selfupdate.downloading", i18n.Args{"version": rel.Version, "platform": runtime.GOOS + "/" + runtime.GOARCH}))
 	if err := Apply(ctx, exe, stdout, rel); err != nil {
-		return fmt.Errorf("atualizar binário: %w", err)
+		return fmt.Errorf("update binary: %w", err)
 	}
 
-	ui.Success(stdout, fmt.Sprintf("%s atualizado para %s com sucesso. Reinicie o programa.", appName(app), rel.Version))
+	ui.Success(stdout, i18n.Tr("selfupdate.done", i18n.Args{"app": appName(app), "version": rel.Version}))
 	return nil
 }
 
@@ -211,7 +212,7 @@ func LatestRelease(ctx context.Context, app string) (*Release, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub API retornou status %d", resp.StatusCode)
+		return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
 	}
 
 	type asset struct {
@@ -225,7 +226,7 @@ func LatestRelease(ctx context.Context, app string) (*Release, error) {
 		Assets     []asset `json:"assets"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxReleasesSize)).Decode(&releases); err != nil {
-		return nil, fmt.Errorf("decodificar resposta: %w", err)
+		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
 	best := -1
@@ -247,7 +248,7 @@ func LatestRelease(ctx context.Context, app string) (*Release, error) {
 		}
 	}
 	if best < 0 {
-		return nil, fmt.Errorf("nenhuma versão do %s foi publicada ainda", appName(app))
+		return nil, errors.New(i18n.Tr("selfupdate.noRelease", i18n.Args{"app": appName(app)}))
 	}
 	rel := releases[best]
 
@@ -262,7 +263,7 @@ func LatestRelease(ctx context.Context, app string) (*Release, error) {
 		}
 	}
 	if downloadURL == "" {
-		return nil, fmt.Errorf("asset '%s' não encontrado na release %s", name, rel.TagName)
+		return nil, fmt.Errorf("asset '%s' not found in release %s", name, rel.TagName)
 	}
 	if err := validateDownloadURL(downloadURL); err != nil {
 		return nil, err
@@ -289,7 +290,7 @@ func resolveChecksum(ctx context.Context, rel *Release) error {
 		return nil
 	}
 	if rel.ChecksumsURL == "" {
-		return fmt.Errorf("'%s' não encontrado na release %s — atualização recusada por segurança (sem checksum para verificar o binário)", checksumsAssetName, rel.Version)
+		return fmt.Errorf("'%s' not found in release %s — update refused (no checksum to verify the binary)", checksumsAssetName, rel.Version)
 	}
 	if err := validateDownloadURL(rel.ChecksumsURL); err != nil {
 		return err
@@ -297,7 +298,7 @@ func resolveChecksum(ctx context.Context, rel *Release) error {
 	name := assetName(rel.App)
 	checksum, err := fetchChecksum(ctx, rel.ChecksumsURL, name)
 	if err != nil {
-		return fmt.Errorf("obter checksum de %s: %w", name, err)
+		return fmt.Errorf("get checksum of %s: %w", name, err)
 	}
 	rel.ChecksumSHA256 = checksum
 	return nil
@@ -311,13 +312,13 @@ func resolveChecksum(ctx context.Context, rel *Release) error {
 func validateDownloadURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return fmt.Errorf("URL de download inválida: %w", err)
+		return fmt.Errorf("invalid download URL: %w", err)
 	}
 	if u.Scheme != "https" {
-		return fmt.Errorf("URL de download deve usar https, obtido %q", u.Scheme)
+		return fmt.Errorf("download URL must use https, got %q", u.Scheme)
 	}
 	if u.Host != trustedDownloadHost && !strings.HasSuffix(u.Host, trustedDownloadHostSuffix) {
-		return fmt.Errorf("host de download não confiável: %q", u.Host)
+		return fmt.Errorf("untrusted download host: %q", u.Host)
 	}
 	return nil
 }
@@ -337,7 +338,7 @@ func fetchChecksum(ctx context.Context, checksumsURL, assetName string) (string,
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("download retornou status %d", resp.StatusCode)
+		return "", fmt.Errorf("download returned status %d", resp.StatusCode)
 	}
 
 	scanner := bufio.NewScanner(io.LimitReader(resp.Body, 1<<20))
@@ -350,7 +351,7 @@ func fetchChecksum(ctx context.Context, checksumsURL, assetName string) (string,
 	if err := scanner.Err(); err != nil {
 		return "", err
 	}
-	return "", fmt.Errorf("nenhuma entrada para '%s' em %s", assetName, checksumsAssetName)
+	return "", fmt.Errorf("no entry for '%s' in %s", assetName, checksumsAssetName)
 }
 
 // Apply downloads the new binary and replaces the current one. It resolves
@@ -362,7 +363,7 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, rel *R
 
 	currentExe, err := executablePath()
 	if err != nil {
-		return fmt.Errorf("localizar binário atual: %w", err)
+		return fmt.Errorf("locate current binary: %w", err)
 	}
 
 	// Download next to the current binary when possible so the final swap is
@@ -377,7 +378,7 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, rel *R
 		sameFS = false
 		tmp, err = os.CreateTemp("", "perci82-*.new")
 		if err != nil {
-			return fmt.Errorf("criar arquivo temporário: %w", err)
+			return fmt.Errorf("create temporary file: %w", err)
 		}
 	}
 	tmpPath := tmp.Name()
@@ -389,19 +390,19 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, rel *R
 	// arbitrary target (TOCTOU), which downloadFile would then follow and
 	// write into, and the later os.Rename would move that symlink
 	// itself into place as currentExe.
-	ui.Info(stdout, "Baixando para "+tmpPath+"...")
+	ui.Info(stdout, i18n.Tr("selfupdate.downloadingTo", i18n.Args{"path": tmpPath}))
 	downloadErr := downloadFile(ctx, rel.DownloadURL, tmp)
 	closeErr := tmp.Close()
 	if downloadErr != nil {
-		return fmt.Errorf("baixar: %w", downloadErr)
+		return fmt.Errorf("download: %w", downloadErr)
 	}
 	if closeErr != nil {
-		return fmt.Errorf("fechar arquivo temporário: %w", closeErr)
+		return fmt.Errorf("close temporary file: %w", closeErr)
 	}
 
-	ui.Info(stdout, "Verificando integridade do binário...")
+	ui.Info(stdout, i18n.Tr("selfupdate.verifying", nil))
 	if err := verifyChecksum(tmpPath, rel.ChecksumSHA256); err != nil {
-		return fmt.Errorf("verificação de integridade falhou: %w", err)
+		return fmt.Errorf("integrity check failed: %w", err)
 	}
 
 	// currentExe's directory is writable by the user (tmp was created right
@@ -414,9 +415,9 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, rel *R
 		if err := os.Rename(tmpPath, currentExe); err == nil {
 			return nil
 		} else if !os.IsPermission(err) {
-			return fmt.Errorf("substituir binário: %w", err)
+			return fmt.Errorf("replace binary: %w", err)
 		}
-		ui.Warning(stdout, "Permissão negada ao substituir o binário. Tentando com privilégios de administrador...")
+		ui.Warning(stdout, i18n.Tr("selfupdate.permissionDenied", nil))
 	}
 
 	// Privileged swap: root copies tmpPath into a root-owned staged file,
@@ -427,7 +428,7 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, rel *R
 		executor.Options{Stdout: stdout, Stderr: stdout},
 		tmpPath, currentExe, strings.ToLower(strings.TrimSpace(rel.ChecksumSHA256)), "0755",
 	); err != nil {
-		return fmt.Errorf("substituir binário: %w", err)
+		return fmt.Errorf("replace binary: %w", err)
 	}
 	return nil
 }
@@ -447,7 +448,7 @@ func downloadFile(ctx context.Context, url string, dest *os.File) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download retornou status %d", resp.StatusCode)
+		return fmt.Errorf("download returned status %d", resp.StatusCode)
 	}
 
 	n, err := io.Copy(dest, io.LimitReader(resp.Body, maxBinarySize+1))
@@ -455,7 +456,7 @@ func downloadFile(ctx context.Context, url string, dest *os.File) error {
 		return err
 	}
 	if n > maxBinarySize {
-		return fmt.Errorf("arquivo maior que %d MiB — download recusado", maxBinarySize>>20)
+		return fmt.Errorf("file larger than %d MiB — download refused", maxBinarySize>>20)
 	}
 	// Flush to disk before the rename: a power loss right after it must not
 	// leave a truncated binary in place.
