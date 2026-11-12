@@ -23,6 +23,7 @@ import (
 
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -50,14 +51,14 @@ type Options struct {
 // Each PrivilegedStep's Announce field is echoed from inside the single
 // privileged shell script, as plain text.
 func Run(ctx context.Context, exe *executor.Executor, stdout io.Writer, opts Options) error {
-	ui.PrintHeader(stdout, "Atualizar Sistema", distro.DisplayName())
+	ui.PrintHeader(stdout, i18n.Tr("update.header", nil), distro.DisplayName())
 
 	family := distro.Detect()
 	if family == distro.Unknown {
-		ui.Err(stdout, "Distribuição não suportada. Gerenciador de pacotes não reconhecido.")
-		return fmt.Errorf("nenhum gerenciador de pacotes suportado encontrado (apt/dnf)")
+		ui.Err(stdout, i18n.Tr("update.unsupported", nil))
+		return errors.New("no supported package manager found (apt/dnf)")
 	}
-	ui.Info(stdout, "Distribuição detectada: "+family)
+	ui.Info(stdout, i18n.Tr("update.detected", i18n.Args{"family": family}))
 
 	steps, err := packageSteps(family, opts.Autoremove)
 	if err != nil {
@@ -71,20 +72,20 @@ func Run(ctx context.Context, exe *executor.Executor, stdout io.Writer, opts Opt
 
 	if hasSnap {
 		steps = append(steps, executor.PrivilegedStep{
-			Announce: "Atualizando Snaps...",
-			Soft:     true, SoftReport: true, WarnMessage: "Falha ao atualizar snaps.",
+			Announce: i18n.Tr("update.snap", nil),
+			Soft:     true, SoftReport: true, WarnMessage: i18n.Tr("update.snapFailed", nil),
 			Name: "snap", Args: []string{"refresh"},
 		})
 	} else {
-		ui.Info(stdout, "Snap não instalado. Etapa ignorada.")
+		ui.Info(stdout, i18n.Tr("update.noSnap", nil))
 	}
 	if hasFlatpak {
 		steps = append(steps, systemFlatpakSteps(opts.Autoremove)...)
 	}
 	if opts.CleanJournal && hasJournal {
 		steps = append(steps, executor.PrivilegedStep{
-			Announce: "Limpando logs antigos do journal...",
-			Soft:     true, SoftReport: true, WarnMessage: "Falha ao limpar journal.",
+			Announce: i18n.Tr("update.journal", nil),
+			Soft:     true, SoftReport: true, WarnMessage: i18n.Tr("update.journalFailed", nil),
 			Name: "journalctl", Args: []string{"--vacuum-time=7d"},
 		})
 	}
@@ -99,25 +100,25 @@ func Run(ctx context.Context, exe *executor.Executor, stdout io.Writer, opts Opt
 		ui.Step(stdout, stepIdx, total, label)
 	}
 
-	nextStep("Atualizando pacotes do sistema...")
-	ui.Info(stdout, "Solicitando autenticação de administrador (uma única vez para as etapas acima)...")
+	nextStep(i18n.Tr("update.packagesStep", nil))
+	ui.Info(stdout, i18n.Tr("update.auth", nil))
 	warned := false
 	if err := exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, steps); err != nil {
 		if !errors.Is(err, executor.ErrCompletedWithWarnings) {
-			ui.Err(stdout, "Falha ao atualizar pacotes: "+err.Error())
+			ui.Err(stdout, i18n.Tr("update.packagesFailed", i18n.Args{"error": err}))
 			return err
 		}
 		warned = true
 	}
 
 	if hasFlatpak {
-		nextStep("Atualizando Flatpaks do usuário...")
+		nextStep(i18n.Tr("update.userFlatpakStep", nil))
 		if err := updateUserFlatpak(ctx, exe, stdout, opts.Autoremove); err != nil {
-			ui.Warning(stdout, "Falha ao atualizar flatpaks do usuário: "+err.Error())
+			ui.Warning(stdout, i18n.Tr("update.userFlatpakFailed", i18n.Args{"error": err}))
 			warned = true
 		}
 	} else {
-		ui.Info(stdout, "Flatpak não instalado. Etapa ignorada.")
+		ui.Info(stdout, i18n.Tr("update.noFlatpak", nil))
 	}
 
 	return finish(stdout, warned)
@@ -127,10 +128,10 @@ func Run(ctx context.Context, exe *executor.Executor, stdout io.Writer, opts Opt
 // the batch or the user's Flatpak update failed — a completion with warnings.
 func finish(stdout io.Writer, warned bool) error {
 	if warned {
-		ui.Warning(stdout, "Atualização concluída com avisos: uma ou mais etapas falharam.")
+		ui.Warning(stdout, i18n.Tr("update.warnings", nil))
 		return executor.ErrCompletedWithWarnings
 	}
-	ui.Success(stdout, "Atualização finalizada com sucesso.")
+	ui.Success(stdout, i18n.Tr("update.done", nil))
 	return nil
 }
 
@@ -144,23 +145,23 @@ func packageSteps(family string, autoremove bool) ([]executor.PrivilegedStep, er
 			return executor.PrivilegedStep{Announce: announce, Env: distro.AptEnv, Name: "apt-get", Args: distro.AptArgs(args...)}
 		}
 		steps := []executor.PrivilegedStep{
-			aptStep("Sincronizando lista de pacotes...", "update"),
-			aptStep("Instalando atualizações...", "full-upgrade", "-y"),
+			aptStep(i18n.Tr("update.aptUpdate", nil), "update"),
+			aptStep(i18n.Tr("update.aptUpgrade", nil), "full-upgrade", "-y"),
 		}
 		if autoremove {
-			steps = append(steps, aptStep("Removendo pacotes desnecessários...", "autoremove", "-y"))
+			steps = append(steps, aptStep(i18n.Tr("update.autoremove", nil), "autoremove", "-y"))
 		}
-		return append(steps, aptStep("Limpando cache APT...", "autoclean", "-y")), nil
+		return append(steps, aptStep(i18n.Tr("update.aptClean", nil), "autoclean", "-y")), nil
 	case distro.Fedora:
 		steps := []executor.PrivilegedStep{
-			{Announce: "Atualizando pacotes DNF...", Name: "dnf", Args: []string{"upgrade", "--refresh", "-y"}},
+			{Announce: i18n.Tr("update.dnfUpgrade", nil), Name: "dnf", Args: []string{"upgrade", "--refresh", "-y"}},
 		}
 		if autoremove {
-			steps = append(steps, executor.PrivilegedStep{Announce: "Removendo pacotes desnecessários...", Soft: true, SoftReport: true, WarnMessage: "Falha no dnf autoremove.", Name: "dnf", Args: []string{"autoremove", "-y"}})
+			steps = append(steps, executor.PrivilegedStep{Announce: i18n.Tr("update.autoremove", nil), Soft: true, SoftReport: true, WarnMessage: i18n.Tr("update.dnfAutoremoveFailed", nil), Name: "dnf", Args: []string{"autoremove", "-y"}})
 		}
 		return steps, nil
 	default:
-		return nil, fmt.Errorf("família de distribuição não suportada: %s", family)
+		return nil, fmt.Errorf("unsupported distribution family: %s", family)
 	}
 }
 
@@ -174,14 +175,14 @@ var flatpakEnv = []string{"TERM=dumb"}
 // reported as a completion with warnings.
 func systemFlatpakSteps(autoremove bool) []executor.PrivilegedStep {
 	steps := []executor.PrivilegedStep{{
-		Announce: "Atualizando Flatpaks do sistema...",
-		Soft:     true, SoftReport: true, WarnMessage: "Falha ao atualizar flatpaks do sistema.",
+		Announce: i18n.Tr("update.systemFlatpak", nil),
+		Soft:     true, SoftReport: true, WarnMessage: i18n.Tr("update.systemFlatpakFailed", nil),
 		Env: flatpakEnv, Name: "flatpak", Args: []string{"update", "--system", "--noninteractive", "-y"},
 	}}
 	if autoremove {
 		steps = append(steps, executor.PrivilegedStep{
-			Announce: "Removendo runtimes Flatpak do sistema sem uso...",
-			Soft:     true, SoftReport: true, WarnMessage: "Falha ao remover flatpaks do sistema não utilizados.",
+			Announce: i18n.Tr("update.systemFlatpakUnused", nil),
+			Soft:     true, SoftReport: true, WarnMessage: i18n.Tr("update.systemFlatpakUnusedFailed", nil),
 			Env: flatpakEnv, Name: "flatpak", Args: []string{"uninstall", "--system", "--unused", "--noninteractive", "-y"},
 		})
 	}

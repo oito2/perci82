@@ -50,7 +50,7 @@ function openMessage(title, message, isError) {
   errorModalMessage.textContent = message;
   showDialog(errorModal);
 }
-function openError(message) { openMessage("Erro", String(message), true); }
+function openError(message) { openMessage(t("oito2.infoDanger"), String(message), true); }
 
 // startExecution is the shared "begin a long-running action" sequence,
 // switching to the Execução tab — used by every runAction-based screen
@@ -102,8 +102,8 @@ function startExecution(label, buttonsToDisable, maxSteps, announceText) {
     buttons: buttons,
   };
   term.clear();
-  term.writeln(announceText || ("Iniciando " + label + "..."));
-  termTitle.textContent = "Executando: " + label + "...";
+  term.writeln(announceText || t("term.starting", { label: label }));
+  termTitle.textContent = t("term.running", { label: label + "..." });
   termProgress.value = 0;
   termProgress.max = maxSteps || 1;
   selectTab("terminal");

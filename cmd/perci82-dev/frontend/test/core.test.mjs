@@ -277,7 +277,7 @@ test("the update check shows a failure instead of staying on Verificando", async
   ctx.loadSelfUpdateStatus(true);
   await tick();
   await tick();
-  assert.match(element("su-status").textContent, /Falha ao verificar atualizações: Error: offline/);
+  assert.match(element("su-status").textContent, /Não foi possível verificar atualizações: Error: offline/);
   assert.equal(evalIn(ctx, "selfUpdateCheckedAt"), 0);
 });
 

@@ -21,6 +21,7 @@ import (
 
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // Action is one post-install step, applied on its own from the
@@ -30,9 +31,13 @@ import (
 type Action struct {
 	// ID is stable within a Profile — referenced by DependsOn and by the
 	// GUI when the user submits their selection (internal/gui).
-	ID          string
+	ID string
+	// Label and Description are message keys; LabelText and
+	// DescriptionText return them in the current language, with Args
+	// filling their placeholders.
 	Label       string
 	Description string
+	Args        i18n.Args
 
 	// DependsOn is another Action's ID in the same Profile, or "" for
 	// none. This action can only be applied once DependsOn counts as
@@ -49,6 +54,20 @@ type Action struct {
 	Run func(ctx context.Context, exe *executor.Executor, stdout io.Writer) error
 }
 
+// LabelText returns the action's label in the current language.
+func (a Action) LabelText() string {
+	return i18n.Tr(a.Label, a.Args)
+}
+
+// DescriptionText returns the action's description in the current
+// language, "" when it has none.
+func (a Action) DescriptionText() string {
+	if a.Description == "" {
+		return ""
+	}
+	return i18n.Tr(a.Description, a.Args)
+}
+
 // Profile is one supported OS/DE/version combination — 11 combos in
 // total: Linux Mint Cinnamon, Linux Mint XFCE, Ubuntu 24.04, Ubuntu 26.04,
 // Ubuntu Budgie 24.04, Ubuntu Budgie 26.04, Fedora 44 (KDE and GNOME share
@@ -56,7 +75,7 @@ type Action struct {
 // Lite, Pop!_OS 24.04 COSMIC.
 type Profile struct {
 	ID      string // e.g. "mint-cinnamon", "ubuntu-2404" — stable, used by the GUI
-	Label   string // e.g. "Linux Mint Cinnamon" — used in "Pós instalação do <Label>"
+	Label   string // e.g. "Linux Mint Cinnamon" — the distribution's own name, shown as is
 	Actions []Action
 }
 

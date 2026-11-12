@@ -25,6 +25,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/sets"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -92,7 +93,7 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, toInst
 		switch {
 		case installSet[app.FlatID]:
 			step++
-			ui.Step(stdout, step, total, "Instalando "+app.Name+"...")
+			ui.Step(stdout, step, total, i18n.Tr("apps.installing", i18n.Args{"name": app.Label()}))
 			if scope == "--system" {
 				privSteps = append(privSteps, installStep(app.FlatID, scope))
 				if len(app.FlatpakOverride) > 0 {
@@ -103,10 +104,10 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, toInst
 			jobs = append(jobs, unprivilegedAppJob{app: app, scope: scope})
 		case uninstallSet[app.FlatID]:
 			step++
-			ui.Step(stdout, step, total, "Desinstalando "+app.Name+"...")
+			ui.Step(stdout, step, total, i18n.Tr("apps.uninstalling", i18n.Args{"name": app.Label()}))
 			appScope, ok := scopeMap[app.FlatID]
 			if !ok {
-				ui.Warning(stdout, app.Name+" não está instalado, ignorando.")
+				ui.Warning(stdout, i18n.Tr("apps.notInstalled", i18n.Args{"name": app.Label()}))
 				continue
 			}
 			if appScope == "--system" {
@@ -121,23 +122,23 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, toInst
 		syncOut := executor.NewSyncWriter(stdout)
 		runErr := executor.RunConcurrent(ctx, jobs, 4, func(j unprivilegedAppJob) {
 			var err error
-			verb := "instalar"
+			failure := "apps.installFailed"
 			if j.remove {
-				verb = "desinstalar"
+				failure = "apps.uninstallFailed"
 				err = uninstallOne(ctx, exe, syncOut, j.app.FlatID, j.scope)
 			} else {
 				err = installOne(ctx, exe, syncOut, appByID, j.scope, j.app.FlatID)
 			}
 			if err != nil {
-				ui.Warning(syncOut, fmt.Sprintf("Falha ao %s %s: %v", verb, j.app.Name, err))
+				ui.Warning(syncOut, i18n.Tr(failure, i18n.Args{"name": j.app.Label(), "error": err}))
 				failedMu.Lock()
-				failed = append(failed, j.app.Name)
+				failed = append(failed, j.app.Label())
 				failedMu.Unlock()
 			}
 		})
 		if runErr != nil {
-			ui.Warning(stdout, "Execução paralela interrompida: "+runErr.Error())
-			failed = append(failed, "(interrompido)")
+			ui.Warning(stdout, i18n.Tr("apps.interrupted", i18n.Args{"error": runErr}))
+			failed = append(failed, i18n.Tr("apps.interruptedItem", nil))
 		}
 	}
 
@@ -156,10 +157,10 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, toInst
 func applyResult(failed []string, batchErr error) error {
 	var failedErr error
 	if len(failed) > 0 {
-		failedErr = fmt.Errorf("%d aplicativo(s) com falha: %s", len(failed), strings.Join(failed, ", "))
+		failedErr = errors.New(i18n.Tr("apps.failed", i18n.Args{"count": len(failed), "names": strings.Join(failed, ", ")}))
 	}
 	if batchErr != nil && !errors.Is(batchErr, executor.ErrCompletedWithWarnings) {
-		batchErr = fmt.Errorf("lote de operações privilegiadas falhou: %w", batchErr)
+		batchErr = fmt.Errorf("privileged batch failed: %w", batchErr)
 	}
 	return errors.Join(failedErr, batchErr)
 }
@@ -170,8 +171,8 @@ func applyResult(failed []string, batchErr error) error {
 // immediately.
 func installStep(id, scope string) executor.PrivilegedStep {
 	return executor.PrivilegedStep{
-		Announce: "Instalando: " + id,
-		Soft:     true, SoftReport: true, WarnMessage: "Falha ao instalar " + id + ".",
+		Announce: i18n.Tr("apps.installingID", i18n.Args{"id": id}),
+		Soft:     true, SoftReport: true, WarnMessage: i18n.Tr("apps.installIDFailed", i18n.Args{"id": id}),
 		Name: "flatpak", Args: []string{"install", "--noninteractive", scope, "-y", "flathub", id},
 		Env: []string{"TERM=dumb"},
 	}
@@ -180,16 +181,16 @@ func installStep(id, scope string) executor.PrivilegedStep {
 func overrideStep(id, scope string, overrideArgs []string) executor.PrivilegedStep {
 	args := append([]string{"override", scope, id}, overrideArgs...)
 	return executor.PrivilegedStep{
-		Announce: "Aplicando override do " + id + "...",
-		Soft:     true, SoftReport: true, WarnMessage: "Override do " + id + " falhou.",
+		Announce: i18n.Tr("apps.override", i18n.Args{"id": id}),
+		Soft:     true, SoftReport: true, WarnMessage: i18n.Tr("apps.overrideFailed", i18n.Args{"id": id}),
 		Name: "flatpak", Args: args,
 	}
 }
 
 func uninstallStep(id, scope string) executor.PrivilegedStep {
 	return executor.PrivilegedStep{
-		Announce: "Desinstalando: " + id,
-		Soft:     true, SoftReport: true, WarnMessage: "Falha ao desinstalar " + id + ".",
+		Announce: i18n.Tr("apps.uninstallingID", i18n.Args{"id": id}),
+		Soft:     true, SoftReport: true, WarnMessage: i18n.Tr("apps.uninstallIDFailed", i18n.Args{"id": id}),
 		Name: "flatpak", Args: []string{"uninstall", "--noninteractive", scope, "-y", id},
 		Env: []string{"TERM=dumb"},
 	}

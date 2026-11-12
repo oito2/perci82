@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/sets"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -57,17 +58,17 @@ func Apply[T any](
 		switch {
 		case installSet[name]:
 			step++
-			ui.Step(stdout, step, total, "Instalando "+name+"...")
+			ui.Step(stdout, step, total, i18n.Tr("checklist.installing", i18n.Args{"name": name}))
 			if err := install(item); err != nil {
-				ui.Warning(stdout, fmt.Sprintf("Falha ao instalar %s: %v", name, err))
-				errs = append(errs, fmt.Errorf("instalar %s: %w", name, err))
+				ui.Warning(stdout, i18n.Tr("checklist.installFailed", i18n.Args{"name": name, "error": err}))
+				errs = append(errs, fmt.Errorf("%s: %w", i18n.Tr("checklist.install", i18n.Args{"name": name}), err))
 			}
 		case removeSet[name]:
 			step++
-			ui.Step(stdout, step, total, "Removendo "+name+"...")
+			ui.Step(stdout, step, total, i18n.Tr("checklist.removing", i18n.Args{"name": name}))
 			if err := remove(item); err != nil {
-				ui.Warning(stdout, fmt.Sprintf("Falha ao remover %s: %v", name, err))
-				errs = append(errs, fmt.Errorf("remover %s: %w", name, err))
+				ui.Warning(stdout, i18n.Tr("checklist.removeFailed", i18n.Args{"name": name, "error": err}))
+				errs = append(errs, fmt.Errorf("%s: %w", i18n.Tr("checklist.remove", i18n.Args{"name": name}), err))
 			}
 		}
 	}

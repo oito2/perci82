@@ -65,7 +65,9 @@ type Section struct {
 }
 
 // sectionDef is a section of a static catalog: label, item titles, tabs
-// and groups are message keys of the i18n catalog.
+// and groups are message keys of the i18n catalog, and so are the item
+// descriptions, buttons and notes that have one (any other text is shown
+// as is).
 type sectionDef struct {
 	id    string
 	label string
@@ -78,6 +80,17 @@ func (d sectionDef) translate(locale string) Section {
 	s := Section{ID: d.id, Label: i18n.T(locale, d.label, nil), Icon: d.icon}
 	for _, it := range d.items {
 		it.Title = i18n.T(locale, it.Title, nil)
+		it.Desc = i18n.T(locale, it.Desc, nil)
+		if it.Button != "" {
+			it.Button = i18n.T(locale, it.Button, nil)
+		}
+		if len(it.Notes) > 0 {
+			notes := make([]string, len(it.Notes))
+			for i, n := range it.Notes {
+				notes[i] = i18n.T(locale, n, nil)
+			}
+			it.Notes = notes
+		}
 		if it.Tab != "" {
 			it.Tab = i18n.T(locale, it.Tab, nil)
 		}
@@ -150,7 +163,7 @@ func settingsSection(desc string) sectionDef {
 
 // systemCatalog is Perci82 System's static catalog.
 var systemCatalog = []sectionDef{
-	overviewSection("Veja o sistema detectado e a versão do Perci82 System."),
+	overviewSection("nav.overview.systemDesc"),
 	{id: "postinstall", label: "nav.postinstall", icon: "wand", items: []MenuItem{{
 		// "checklist com dependência" mode (#postinstall-container); Desc
 		// and Button stay empty.
@@ -160,39 +173,35 @@ var systemCatalog = []sectionDef{
 	}}},
 	{id: "update", label: "nav.update", icon: "refreshCw", items: []MenuItem{{
 		// Simple mode (#simple-container) with the "Sistema" status bar.
-		Title: "nav.update.title",
-		Desc: "Executa o processo de atualização do seu SO.\n" +
-			"- Atualiza os pacotes da sua distribuição\n" +
-			"- Atualiza os pacotes Snap (se disponível)\n" +
-			"- Atualiza os pacotes Flatpak, do usuário e do sistema (se disponível)\n" +
-			"\nApós a atualização...",
+		Title:    "nav.update.title",
+		Desc:     "nav.update.desc",
 		ActionID: "system-update",
-		Button:   "Executar atualização",
+		Button:   "nav.update.button",
 		Tab:      "nav.tab.items",
 	}}},
 	{id: "fonts", label: "nav.fonts", icon: "type", items: []MenuItem{{
 		// "checklist simples" mode (#multiselect-container): the checkbox
 		// reflects the current state, with no dependency between items.
 		Title:    "nav.fonts.title",
-		Desc:     "Selecione as fontes que deseja instalar. Para desinstalar, remova a seleção.",
+		Desc:     "nav.fonts.desc",
 		ActionID: "fonts",
 		Tab:      "nav.tab.items",
 	}}},
 	{id: "templates", label: "nav.templates", icon: "fileText", items: []MenuItem{{
 		// "checklist simples" mode, same as fonts.
 		Title:    "nav.templates.title",
-		Desc:     "Selecione os templates de arquivos que deseja instalar. Para desinstalar, remova a seleção.",
+		Desc:     "nav.templates.desc",
 		ActionID: "templates",
 		Tab:      "nav.tab.items",
 	}}},
 	{id: "flatpaks", label: "nav.flatpaks", icon: "package", items: []MenuItem{{
 		// "checklist simples" mode, same as fonts.
 		Title:    "nav.flatpaks",
-		Desc:     "Selecione aplicativos que deseja instalar. Para desinstalar, remova a seleção.",
+		Desc:     "nav.flatpaks.desc",
 		ActionID: "flatpak-apps",
 		Tab:      "nav.tab.items",
 	}}},
-	settingsSection("Idioma, tema e escopo de instalação do Flatpak."),
+	settingsSection("nav.settings.systemDesc"),
 }
 
 // devCatalog is Perci82 Dev's static catalog; devSections adds the Git

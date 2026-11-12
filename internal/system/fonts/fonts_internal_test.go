@@ -181,7 +181,7 @@ func TestDownloadScript_PinnedChecksum(t *testing.T) {
 	}
 
 	home, err = runDownload(t, Font{Name: "T", Dir: "test-font", URL: srv.URL + "/Test.zip", ChecksumSHA256: strings.Repeat("0", 64)})
-	if err == nil || !strings.Contains(err.Error(), "não confere") {
+	if err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
 		t.Fatalf("err = %v, want a checksum mismatch", err)
 	}
 	if _, statErr := os.Stat(filepath.Join(home, ".local", "share", "fonts", "perci")); !os.IsNotExist(statErr) {
@@ -204,8 +204,8 @@ func TestDownloadScript_ChecksumsFile(t *testing.T) {
 		t.Fatalf("listed archive refused: %v", err)
 	}
 	_, err := runDownload(t, Font{Name: "T", Dir: "t", URL: srv.URL + "/Test.zip", ChecksumsURL: srv.URL + "/other.txt"})
-	if err == nil || !strings.Contains(err.Error(), "não encontrado") {
-		t.Errorf("err = %v, want 'checksum ... não encontrado'", err)
+	if err == nil || !strings.Contains(err.Error(), "no checksum for") {
+		t.Errorf("err = %v, want 'no checksum for ...'", err)
 	}
 }
 
@@ -215,8 +215,8 @@ func TestDownloadScript_NoTTFFails(t *testing.T) {
 	srv := fontServer(t, map[string][]byte{"Empty.zip": archive})
 	sum := sha256.Sum256(archive)
 	home, err := runDownload(t, Font{Name: "T", Dir: "t", URL: srv.URL + "/Empty.zip", ChecksumSHA256: hex.EncodeToString(sum[:])})
-	if err == nil || !strings.Contains(err.Error(), "nenhuma fonte .ttf") {
-		t.Fatalf("err = %v, want 'nenhuma fonte .ttf encontrada'", err)
+	if err == nil || !strings.Contains(err.Error(), "no .ttf font") {
+		t.Fatalf("err = %v, want 'no .ttf font found'", err)
 	}
 	if _, statErr := os.Stat(filepath.Join(home, ".local", "share", "fonts", "perci")); !os.IsNotExist(statErr) {
 		t.Error("an empty archive left a font folder behind")

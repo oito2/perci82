@@ -106,7 +106,7 @@ func TestRunPostinstallAction_Refusals(t *testing.T) {
 	cases := map[string]string{
 		"trim":    "já aplicado",
 		"drivers": `aplique antes "Repositórios"`,
-		"nope":    "desconhecido",
+		"nope":    "unknown post-install item",
 	}
 	for id, want := range cases {
 		_, done := runPostinstallAction(t, id)

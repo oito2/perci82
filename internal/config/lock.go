@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 const (
@@ -96,9 +98,9 @@ type ActionBusyError struct {
 
 func (e *ActionBusyError) Error() string {
 	if e.Holder == "" {
-		return "outra ação de um aplicativo Perci82 está em andamento — aguarde ela terminar"
+		return i18n.Tr("config.actionBusy", nil)
 	}
-	return "outra ação do " + e.Holder.DisplayName() + " está em andamento — aguarde ela terminar"
+	return i18n.Tr("config.actionBusyBy", i18n.Args{"app": e.Holder.DisplayName()})
 }
 
 // LockActions takes the exclusive action.lock for app without waiting,

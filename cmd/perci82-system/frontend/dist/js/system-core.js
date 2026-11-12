@@ -34,9 +34,11 @@ const dashboardSystemLabel = document.getElementById("dashboard-system-label");
 const scFlatpak = document.getElementById("sc-flatpak");
 
 // getPostinstallProfile memoizes App.GetPostinstallProfile — the detected
-// distribution can't change while Perci runs, and three screens read it.
-// A failed call isn't cached.
+// distribution can't change while the application runs, and three screens
+// read it. A failed call isn't cached, and a language switch drops it (its
+// labels are translated).
 let postinstallProfilePromise = null;
+onLocaleChange(function () { postinstallProfilePromise = null; });
 function getPostinstallProfile() {
   if (!postinstallProfilePromise) {
     postinstallProfilePromise = App.GetPostinstallProfile().catch(function (err) {

@@ -22,7 +22,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { FakeElement } from "./harness.mjs";
-import { LOCALES, appDistDirs, layers, placeholders, readCatalog, usedKeys } from "./i18n-catalog.mjs";
+import { LOCALES, appDistDirs, layers, literals, placeholders, readCatalog, usedKeys } from "./i18n-catalog.mjs";
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -57,10 +57,10 @@ export function registerI18nTests({ distDir, evalIn, loadScripts, scriptOrder })
   });
 
   test("i18n: no unused key in the application or shared catalogs", () => {
-    const own = usedKeys(distDir);
+    const own = new Set([...usedKeys(distDir), ...literals(distDir)]);
     const unusedOwn = Object.keys(catalogsOf(dirs.app)[LOCALES[0]]).filter((k) => !own.has(k));
     assert.deepEqual(unusedOwn, [], "application catalog");
-    const anyApp = new Set(appDistDirs().flatMap((d) => [...usedKeys(d)]));
+    const anyApp = new Set(appDistDirs().flatMap((d) => [...usedKeys(d), ...literals(d)]));
     const unusedShared = Object.keys(catalogsOf(dirs.shared)[LOCALES[0]]).filter((k) => !anyApp.has(k));
     assert.deepEqual(unusedShared, [], "shared catalog");
   });

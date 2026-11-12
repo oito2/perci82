@@ -131,7 +131,7 @@ function renderMultiselectScreen(item) {
         .filter(function (it) { return it.installed && it.removeWarning && !checkboxes[it.id].checked; })
         .map(function (it) { return it.removeWarning; });
       if (warnings.length) {
-        openConfirm("Confirmar remoção", warnings.join("\n\n"), run);
+        openConfirm(t("checklist.confirmRemoval"), warnings.join("\n\n"), run);
         return;
       }
       run();

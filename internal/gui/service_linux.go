@@ -17,6 +17,7 @@ package gui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/config"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/system/apps"
 	"github.com/oito2/perci82/internal/system/fonts"
 	"github.com/oito2/perci82/internal/system/postinstall"
@@ -62,7 +64,7 @@ type PostinstallActionInfo struct {
 
 // PostinstallProfileInfo is what the frontend needs to render "Linux ::
 // Pós-instalação" — either Supported (with the item list) or not (shows
-// "Seu Sistema Operacional não é suportado pelo Perci").
+// that the system is not supported).
 type PostinstallProfileInfo struct {
 	Supported bool                    `json:"supported"`
 	Label     string                  `json:"label,omitempty"`
@@ -84,7 +86,7 @@ func (l *LinuxService) GetPostinstallProfile() PostinstallProfileInfo {
 	actions := make([]PostinstallActionInfo, len(profile.Actions))
 	for i, act := range profile.Actions {
 		actions[i] = PostinstallActionInfo{
-			ID: act.ID, Label: act.Label, Description: act.Description, DependsOn: act.DependsOn,
+			ID: act.ID, Label: act.LabelText(), Description: act.DescriptionText(), DependsOn: act.DependsOn,
 		}
 	}
 	return PostinstallProfileInfo{Supported: true, Label: profile.Label, Actions: actions}
@@ -135,23 +137,23 @@ func (l *LinuxService) RunPostinstallAction(actionID string) error {
 	return l.runAction(func(stdout io.Writer) error {
 		profile := detectPostinstallProfile()
 		if profile == nil {
-			return fmt.Errorf("sistema operacional não suportado")
+			return errors.New(i18n.Tr("linux.unsupported", nil))
 		}
 		act, ok := profile.Action(actionID)
 		if !ok {
-			return fmt.Errorf("item de pós-instalação desconhecido: %q", actionID)
+			return fmt.Errorf("unknown post-install item %q", actionID)
 		}
 		status := l.postinstallStatus(profile)
 		if status[act.ID] {
-			return fmt.Errorf("%s: já aplicado", act.Label)
+			return errors.New(i18n.Tr("linux.alreadyApplied", i18n.Args{"item": act.LabelText()}))
 		}
 		if act.DependsOn != "" && !status[act.DependsOn] {
 			dep, _ := profile.Action(act.DependsOn)
-			return fmt.Errorf("%s: aplique antes %q", act.Label, dep.Label)
+			return errors.New(i18n.Tr("linux.applyFirst", i18n.Args{"item": act.LabelText(), "dependency": dep.LabelText()}))
 		}
-		ui.Step(stdout, 1, 1, act.Label)
+		ui.Step(stdout, 1, 1, act.LabelText())
 		if err := act.Run(context.Background(), l.exe, stdout); err != nil {
-			return fmt.Errorf("%s: %w", act.Label, err)
+			return fmt.Errorf("%s: %w", act.LabelText(), err)
 		}
 		if act.Applied != nil {
 			return nil
@@ -235,7 +237,7 @@ func (l *LinuxService) templatesChecklist() (checklistCatalog[templates.Template
 	return checklistCatalog[templates.Template]{
 		items:   templates.Catalogue,
 		idOf:    func(t templates.Template) string { return t.Filename },
-		labelOf: func(t templates.Template) string { return t.Label },
+		labelOf: func(t templates.Template) string { return t.Label() },
 		installed: func() map[string]bool {
 			return templates.PresentNames(dir)
 		},
@@ -274,7 +276,7 @@ func (l *LinuxService) flatpakAppsChecklist() checklistCatalog[apps.App] {
 	return checklistCatalog[apps.App]{
 		items:   apps.Catalogue,
 		idOf:    func(a apps.App) string { return a.FlatID },
-		labelOf: func(a apps.App) string { return a.Name },
+		labelOf: func(a apps.App) string { return a.Label() },
 		installed: func() map[string]bool {
 			return apps.InstalledIDs(context.Background(), l.exe)
 		},

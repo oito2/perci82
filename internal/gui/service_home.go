@@ -148,8 +148,9 @@ func (h *SystemHomeService) GetLanguage() LanguageState {
 }
 
 // SetLanguage persists Perci82 System's language choice (field
-// system_language; an unknown value is saved as "system") and emits
-// "language-changed" with the new state to every window.
+// system_language; an unknown value is saved as "system"), makes the
+// messages built in Go follow it and emits "language-changed" with the
+// new state to every window.
 func (h *SystemHomeService) SetLanguage(choice string) (LanguageState, error) {
 	state := languageState(choice)
 	if err := config.Update(func(cfg *config.Config) error {
@@ -158,6 +159,7 @@ func (h *SystemHomeService) SetLanguage(choice string) (LanguageState, error) {
 	}); err != nil {
 		return LanguageState{}, err
 	}
+	i18n.SetLocale(state.Locale)
 	h.emit("language-changed", state)
 	return state, nil
 }
@@ -173,9 +175,9 @@ func (h *DevHomeService) GetLanguage() LanguageState {
 }
 
 // SetLanguage persists Perci82 Dev's language choice (field language; an
-// unknown value is saved as "system"), emits "language-changed" with the
-// new state to every window and calls onLanguageChanged, when set, with
-// the new locale.
+// unknown value is saved as "system"), makes the messages built in Go
+// follow it, emits "language-changed" with the new state to every window
+// and calls onLanguageChanged, when set, with the new locale.
 func (h *DevHomeService) SetLanguage(choice string) (LanguageState, error) {
 	state := languageState(choice)
 	if err := config.Update(func(cfg *config.Config) error {
@@ -184,6 +186,7 @@ func (h *DevHomeService) SetLanguage(choice string) (LanguageState, error) {
 	}); err != nil {
 		return LanguageState{}, err
 	}
+	i18n.SetLocale(state.Locale)
 	h.emit("language-changed", state)
 	if h.onLanguageChanged != nil {
 		h.onLanguageChanged(state.Locale)

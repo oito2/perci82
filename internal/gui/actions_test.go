@@ -30,6 +30,7 @@ import (
 	"github.com/oito2/perci82/internal/dev/prereqs"
 	"github.com/oito2/perci82/internal/dev/sdks"
 	"github.com/oito2/perci82/internal/dev/terminal"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/system/apps"
 	"github.com/oito2/perci82/internal/system/templates"
 	"github.com/oito2/perci82/internal/theme"
@@ -170,6 +171,7 @@ func TestHomeLanguage_RoundTripEventsAndOwnership(t *testing.T) {
 	t.Setenv("LC_ALL", "")
 	t.Setenv("LC_MESSAGES", "")
 	t.Setenv("LANG", "pt_BR.UTF-8")
+	t.Cleanup(func() { i18n.SetLocale(i18n.PtBR) })
 	b, rec := newTestBase(t)
 	var trayLocales []string
 	dev := &DevHomeService{homeCore: homeCore{*b}, onLanguageChanged: func(l string) { trayLocales = append(trayLocales, l) }}
@@ -219,6 +221,9 @@ func TestHomeLanguage_RoundTripEventsAndOwnership(t *testing.T) {
 	}
 	if !slices.Equal(trayLocales, []string{"en"}) {
 		t.Errorf("tray locales got %v, want [en]", trayLocales)
+	}
+	if got := i18n.Locale(); got != i18n.PtBR {
+		t.Errorf("Go messages locale got %q, want pt-BR after System switched to system/pt-BR", got)
 	}
 }
 

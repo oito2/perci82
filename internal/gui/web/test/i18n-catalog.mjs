@@ -72,6 +72,17 @@ export function usedKeys(distDir) {
   return keys;
 }
 
+// literals returns every double-quoted string literal of the scripts the
+// page of distDir loads — a key passed through a variable still counts as
+// used.
+export function literals(distDir) {
+  const found = new Set();
+  for (const file of scriptFiles(distDir)) {
+    for (const m of fs.readFileSync(file, "utf8").matchAll(/"([^"\\\n]*)"/g)) found.add(m[1]);
+  }
+  return found;
+}
+
 // placeholders returns the sorted {name} placeholders of msg.
 export function placeholders(msg) {
   return [...msg.matchAll(/\{([A-Za-z0-9_]+)\}/g)].map((m) => m[1]).sort();

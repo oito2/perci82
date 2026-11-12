@@ -27,7 +27,7 @@
 window.addEventListener("unhandledrejection", function (ev) {
   ev.preventDefault();
   const reason = ev.reason;
-  openError("Erro inesperado: " + ((reason && reason.message) || reason));
+  openError(t("error.unexpected", { error: (reason && reason.message) || reason }));
 });
 
 
@@ -108,7 +108,10 @@ const term = new Terminal({
 });
 const terminalEl = document.getElementById("terminal");
 term.open(terminalEl);
-term.writeln("Nenhuma ação em execução.");
+// The idle line waits for the saved language.
+i18nReady.then(function () {
+  if (!activeRun) term.writeln(t("term.idle"));
+});
 
 // FitAddon sizes the terminal to its panel
 // instead of xterm's fixed 80x24. The observer also fires when the
@@ -172,7 +175,7 @@ function flushLog() {
 Events.On("step", function (ev) {
   if (!activeRun) return;
   const step = ev.data;
-  termTitle.textContent = "Executando: " + step.label;
+  termTitle.textContent = t("term.running", { label: step.label });
   termProgress.value = step.index;
   termProgress.max = step.total;
 });
@@ -190,19 +193,11 @@ Events.On("action-done", function (ev) {
 Events.On("quit-blocked", function () {
   if (activeRun) {
     selectTab("terminal");
-    openMessage(
-      "Ação em andamento",
-      "O aplicativo não será fechado enquanto uma ação está em execução. Aguarde ela terminar na aba Execução.",
-      false
-    );
+    openMessage(t("quit.title"), t("quit.message"), false);
     return;
   }
   if (compactAction) return;
-  openMessage(
-    "Ação em andamento",
-    "O aplicativo não será fechado enquanto uma ação está em execução na janela da bandeja. Aguarde ela terminar.",
-    false
-  );
+  openMessage(t("quit.title"), t("quit.messageTray"), false);
 });
 
 // failRun ends this window's run when the backend refused to start it
@@ -226,8 +221,8 @@ function finishRun(result) {
   activeRun = null;
   running = false;
   term.writeln("");
-  term.writeln(result.ok ? "--- concluído com sucesso ---" : "--- falhou: " + result.error + " ---");
-  termTitle.textContent = result.ok ? "Concluído." : "Falhou.";
+  term.writeln(result.ok ? t("term.doneLine") : t("term.failedLine", { error: result.error }));
+  termTitle.textContent = result.ok ? t("term.done") : t("term.failed");
   if (result.ok) termProgress.value = termProgress.max;
   run.buttons.forEach(function (b) { b.disabled = false; });
   // An update that ended outside Visão Geral leaves its status stale: the

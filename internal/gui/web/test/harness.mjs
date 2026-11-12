@@ -187,6 +187,17 @@ function loadScriptsFrom(distDir, files, { fixtures = {} } = {}) {
   for (const f of files) {
     vm.runInContext(fs.readFileSync(resolveScript(distDir, f), "utf8"), context, { filename: f });
   }
+  // The page loads its catalogs asynchronously; the tests start with the
+  // pt-BR ones already in place, as the page shows once i18nReady resolves.
+  if (files.includes("i18n.js")) {
+    const messages = {};
+    for (const dir of ["i18n/oito2", "i18n", "i18n/app"]) {
+      const file = [path.join(distDir, dir, "pt-BR.json"), path.join(commonDir, dir, "pt-BR.json")].find((f) => fs.existsSync(f));
+      if (file) Object.assign(messages, JSON.parse(fs.readFileSync(file, "utf8")));
+    }
+    context.__preloadedMessages = messages;
+    vm.runInContext("i18nMessages = __preloadedMessages;", context);
+  }
   const emit = (name, data) => (handlers[name] || []).forEach((fn) => fn({ data }));
   const query = (selector, elements) => { queries[selector] = elements; };
   return { ctx: context, calls, element, emit, query };

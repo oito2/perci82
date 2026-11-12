@@ -52,15 +52,15 @@ function buildPostinstallRow(act, applied, labels) {
   btn.id = "pi-apply-" + act.id;
   const blocked = !!act.dependsOn && !applied[act.dependsOn];
   if (applied[act.id]) {
-    btn.textContent = "Aplicado";
+    btn.textContent = t("postinstall.applied");
     btn.disabled = true;
   } else {
-    btn.textContent = "Aplicar";
+    btn.textContent = t("postinstall.apply");
     btn.disabled = blocked;
     if (blocked) {
       const hint = document.createElement("p");
       hint.className = "text-sm text-warning";
-      hint.textContent = "Requer: " + (labels[act.dependsOn] || act.dependsOn);
+      hint.textContent = t("postinstall.requires", { item: labels[act.dependsOn] || act.dependsOn });
       textWrap.appendChild(hint);
     }
     btn.addEventListener("click", function () {
@@ -88,7 +88,7 @@ function renderPostinstallScreen() {
       return;
     }
     postinstallSupported.classList.remove("hidden");
-    postinstallTitle.textContent = "Pós instalação do " + profile.label;
+    postinstallTitle.textContent = t("postinstall.title", { system: profile.label });
 
     const actions = profile.actions || [];
     const labels = {};
@@ -112,7 +112,7 @@ function renderPostinstallScreen() {
 function loadSimpleSystemStat() {
   simpleSystemLabel.textContent = "—";
   getPostinstallProfile().then(function (profile) {
-    simpleSystemLabel.textContent = (profile && profile.supported) ? profile.label : "Não identificado";
+    simpleSystemLabel.textContent = (profile && profile.supported) ? profile.label : t("shell.unknownSystem");
   });
 }
 
@@ -138,19 +138,19 @@ function updateExecutarButton() {
   const item = window.__selectedItem;
   if (!item) {
     btnExecutar.disabled = true;
-    btnExecutar.textContent = "Executar";
-    executarHint.textContent = "Selecione um item para continuar.";
+    btnExecutar.textContent = t("action.run");
+    executarHint.textContent = t("action.selectItem");
     return;
   }
   if (!item.actionId) {
     btnExecutar.disabled = true;
-    btnExecutar.textContent = item.button || "Executar";
-    executarHint.textContent = "Esta tela ainda não foi implementada.";
+    btnExecutar.textContent = item.button || t("action.run");
+    executarHint.textContent = t("action.notImplemented");
     return;
   }
   btnExecutar.disabled = running;
-  btnExecutar.textContent = item.button || "Executar";
-  executarHint.textContent = running ? "Executando — acompanhe na aba Execução." : "";
+  btnExecutar.textContent = item.button || t("action.run");
+  executarHint.textContent = running ? t("action.runningHint") : "";
 }
 
 btnExecutar.addEventListener("click", function () {
@@ -158,7 +158,7 @@ btnExecutar.addEventListener("click", function () {
   if (!item || !item.actionId || running) return;
   const fn = ACTIONS[item.actionId];
   if (!fn) {
-    executarHint.textContent = "actionId '" + item.actionId + "' sem função registrada em ACTIONS.";
+    executarHint.textContent = t("action.noHandler", { id: item.actionId });
     return;
   }
 

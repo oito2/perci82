@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // allProfiles lists every Profile this package declares — kept in sync by
@@ -331,7 +332,11 @@ func runSwapScript(t *testing.T, prepare func(dir, swap, fstab string)) (out, ca
 		}
 	}
 	script := strings.NewReplacer("/swapfile", swap, "/etc/fstab", fstab).Replace(swapfileScript)
-	cmd := exec.Command("bash", "-c", script)
+	args := []string{"-c", script, "bash"}
+	for _, key := range swapfileMessages {
+		args = append(args, i18n.Tr(key, nil))
+	}
+	cmd := exec.Command("bash", args...)
 	cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	b, err := cmd.CombinedOutput()
 	data, _ := os.ReadFile(log)
@@ -376,4 +381,25 @@ func TestSwapfileScript_Behaviour(t *testing.T) {
 			t.Errorf("the swap must be deactivated, calls: %q", calls)
 		}
 	})
+}
+
+// Every action's label and description is a message key translated in
+// both languages, with no placeholder left unfilled.
+func TestProfiles_TextsAreTranslated(t *testing.T) {
+	for _, locale := range i18n.Locales() {
+		cat := i18n.Catalog(locale)
+		for _, p := range allProfiles() {
+			for _, a := range p.Actions {
+				for _, key := range []string{a.Label, a.Description} {
+					if _, ok := cat[key]; !ok {
+						t.Errorf("%s %s/%s: %q is not a message key", locale, p.ID, a.ID, key)
+						continue
+					}
+					if text := i18n.T(locale, key, a.Args); strings.Contains(text, "{") {
+						t.Errorf("%s %s/%s: %q left a placeholder: %s", locale, p.ID, a.ID, key, text)
+					}
+				}
+			}
+		}
+	}
 }

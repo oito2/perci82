@@ -43,28 +43,38 @@ function renderDashboardStats() {
 // (the "Verificar novamente" button, after an update) always does.
 const SELF_UPDATE_RECHECK_MS = 10 * 60 * 1000;
 let selfUpdateCheckedAt = 0;
+// selfUpdateState is what the status line shows: { key, args } of its
+// message — kept so a language switch rewrites it without a new check.
+let selfUpdateState = { key: "dashboard.checking", args: null };
+function showSelfUpdateState(key, args) {
+  selfUpdateState = { key: key, args: args || null };
+  suStatus.textContent = t(key, args);
+}
 function loadSelfUpdateStatus(force) {
   if (!force && selfUpdateCheckedAt && Date.now() - selfUpdateCheckedAt < SELF_UPDATE_RECHECK_MS) return;
   selfUpdateCheckedAt = Date.now();
-  suStatus.textContent = "Verificando...";
+  showSelfUpdateState("dashboard.checking");
   btnSuUpdate.disabled = true;
   App.GetSelfUpdateInfo().then(function (info) {
     if (info.error) {
       selfUpdateCheckedAt = 0; // retried on the next visit
-      suStatus.textContent = "Não foi possível verificar atualizações: " + info.error;
+      showSelfUpdateState("dashboard.checkFailed", { error: info.error });
       return;
     }
     if (info.updateAvailable) {
-      suStatus.textContent = "Existe uma nova versão do " + document.title + " disponível (" + info.latestVersion + ").";
+      showSelfUpdateState("dashboard.updateAvailable", { app: document.title, version: info.latestVersion });
       btnSuUpdate.disabled = false;
     } else {
-      suStatus.textContent = "O " + document.title + " está atualizado.";
+      showSelfUpdateState("dashboard.upToDate", { app: document.title });
     }
   }).catch(function (err) {
     selfUpdateCheckedAt = 0;
-    suStatus.textContent = "Falha ao verificar atualizações: " + err;
+    showSelfUpdateState("dashboard.checkFailed", { error: err });
   });
 }
+
+// A language switch rewrites the status line in the new language.
+onLocaleChange(function () { suStatus.textContent = t(selfUpdateState.key, selfUpdateState.args); });
 
 btnSuCheck.addEventListener("click", function () {
   if (running) return;
@@ -74,10 +84,10 @@ btnSuCheck.addEventListener("click", function () {
 btnSuUpdate.addEventListener("click", function () {
   if (running) return;
   dashboardRunningAction = "self-update";
-  beginRun("Atualizar " + document.title, function () { return App.RunSelfUpdate(); }, {
+  beginRun(t("dashboard.updateRun", { app: document.title }), function () { return App.RunSelfUpdate(); }, {
     buttons: [btnSuUpdate, btnSuCheck],
     maxSteps: 1,
-    announce: "Iniciando atualização do " + document.title + "...",
+    announce: t("dashboard.updateStarting", { app: document.title }),
   });
 });
 

@@ -150,12 +150,20 @@ Promise.all([loadMenu(), i18nReady]).then(function (r) {
   selectSection(0);
 });
 
-// A language switch relabels the tabs, the side list and the titles; the
-// first locale shown at startup needs no reload (GetSections already
+// A language switch relabels the tabs, the side list and the titles, then
+// renders the open screen again so the texts built in Go come in the new
+// language (skipped while an action runs, to keep its screen as it is);
+// the first locale shown at startup needs no reload (GetSections already
 // labels in the saved language).
 let menuLocale = null;
 onLocaleChange(function (locale) {
-  if (menuLocale !== null && locale !== menuLocale) loadMenu();
+  if (menuLocale !== null && locale !== menuLocale) {
+    loadMenu().then(function () {
+      const item = window.__selectedItem;
+      const screen = item && screenFor(item);
+      if (screen && !running) screen.render(item);
+    });
+  }
   menuLocale = locale;
 });
 
@@ -225,7 +233,7 @@ function selectItem(section, item, sectionIdx, itemIdx) {
 
   const screen = screenFor(item);
   if (!screen) {
-    openError("Tela sem registro: " + item.actionId);
+    openError(t("shell.noScreen", { id: item.actionId }));
     return;
   }
   screen.el.classList.remove("hidden");

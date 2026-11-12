@@ -31,6 +31,7 @@ import (
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/dev/localbin"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // serviceBase is embedded by value in every domain service struct,
@@ -82,13 +83,13 @@ func approvePath(path string, err error) (string, error) {
 // dialog in this session.
 func requireApprovedPath(path string) error {
 	if path == "" {
-		return fmt.Errorf("nenhum arquivo selecionado")
+		return errors.New(i18n.Tr("path.noneSelected", nil))
 	}
 	approvedPaths.Lock()
 	_, ok := approvedPaths.set[filepath.Clean(path)]
 	approvedPaths.Unlock()
 	if !ok {
-		return fmt.Errorf("caminho não escolhido no seletor de arquivos: %s", path)
+		return errors.New(i18n.Tr("path.notPicked", i18n.Args{"path": path}))
 	}
 	return nil
 }
@@ -100,11 +101,11 @@ func requireApprovedPath(path string) error {
 // empty value would write project files or a git repo there.
 func requireFolder(p string) error {
 	if !filepath.IsAbs(p) {
-		return fmt.Errorf("selecione uma pasta válida (recebido: %q)", p)
+		return errors.New(i18n.Tr("path.invalidFolder", i18n.Args{"path": p}))
 	}
 	info, err := os.Stat(p)
 	if err != nil || !info.IsDir() {
-		return fmt.Errorf("pasta inválida: %s", p)
+		return errors.New(i18n.Tr("path.notAFolder", i18n.Args{"path": p}))
 	}
 	return nil
 }
@@ -300,7 +301,7 @@ func privilegedGate() (func(), error) {
 // errActionRunning is returned (synchronously, to the one caller) when
 // another action is still in progress — never announced through
 // "action-done", which every window receives.
-var errActionRunning = errors.New("outra ação já está em execução — aguarde ela terminar")
+var errActionRunning = i18n.NewError("action.running")
 
 // runAction runs fn on its own goroutine (the "Executar" button click must
 // not block the UI), with its output going to the terminal via eventWriter,
@@ -350,7 +351,7 @@ func runExclusive(fn func() error) error {
 func runRecovered(fn func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("erro interno: %v", r)
+			err = fmt.Errorf("internal error: %v", r)
 		}
 	}()
 	return fn()

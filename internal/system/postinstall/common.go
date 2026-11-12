@@ -27,6 +27,7 @@ import (
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/system/apps"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -76,7 +77,7 @@ func flatpakSetupAndInstall(ctx context.Context, exe *executor.Executor, stdout 
 		return err
 	}
 	steps = append(steps, executor.PrivilegedStep{
-		Announce: "Instalando " + strings.Join(appIDs, ", ") + "...",
+		Announce: i18n.Tr("pi.run.installing", i18n.Args{"names": strings.Join(appIDs, ", ")}),
 		Env:      []string{"TERM=dumb"},
 		Name:     "flatpak",
 		Args:     append([]string{"install", "--noninteractive", "--system", "-y", "flathub"}, appIDs...),
@@ -103,7 +104,7 @@ const (
 // A 99-lumina.conf file is removed when present, so it never applies
 // alongside the perci one.
 func configureSysctl(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-	ui.Info(stdout, "Aplicando configurações de kernel (sysctl)...")
+	ui.Info(stdout, i18n.Tr("pi.run.sysctl", nil))
 	conf := "vm.swappiness=10\nfs.inotify.max_user_watches=524288\n"
 	path := sysctlConfPath
 	script := fmt.Sprintf(`set -Eeuo pipefail
@@ -123,9 +124,9 @@ func acceptEulaAndAptInstall(ctx context.Context, exe *executor.Executor, stdout
 	pipeEula := "printf '%s\\n' " + executor.ShellQuote(eulaSelection) + " | debconf-set-selections"
 	installArgs := distro.AptArgs(append([]string{"install", "-y", "--"}, pkgs...)...)
 	return exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, []executor.PrivilegedStep{
-		{Announce: "Pré-aceitando EULA das fontes Microsoft...", Name: "bash", Args: []string{"-c", pipeEula}},
+		{Announce: i18n.Tr("pi.run.eula", nil), Name: "bash", Args: []string{"-c", pipeEula}},
 		{
-			Announce: "Instalando " + strings.Join(pkgs, ", ") + "...",
+			Announce: i18n.Tr("pi.run.installing", i18n.Args{"names": strings.Join(pkgs, ", ")}),
 			Env:      distro.AptEnv,
 			Name:     "apt-get", Args: installArgs,
 		},
@@ -330,8 +331,27 @@ func stripNewline(s string) string {
 // removes the file again (and deactivates it), so a later run is not fooled
 // into "already exists", and is returned as an error.
 func setupSwapfile(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-	ui.Info(stdout, "Configurando swapfile...")
-	return exe.Run(ctx, executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}, "bash", "-c", swapfileScript)
+	ui.Info(stdout, i18n.Tr("pi.run.swap", nil))
+	args := []string{"-c", swapfileScript, "bash"}
+	for _, key := range swapfileMessages {
+		args = append(args, i18n.Tr(key, nil))
+	}
+	return exe.Run(ctx, executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}, "bash", args...)
+}
+
+// swapfileMessages are the message keys swapfileScript prints, passed to
+// it translated as its positional parameters $1..$10, in this order.
+var swapfileMessages = []string{
+	"pi.swap.symlink",
+	"pi.swap.active",
+	"pi.swap.exists",
+	"pi.swap.btrfsFailed",
+	"pi.swap.createFailed",
+	"pi.swap.chmodFailed",
+	"pi.swap.mkswapFailed",
+	"pi.swap.swaponFailed",
+	"pi.swap.fstabFailed",
+	"pi.swap.done",
 }
 
 // swapfileScript is setupSwapfile's privileged part — one password prompt.
@@ -339,26 +359,26 @@ func setupSwapfile(ctx context.Context, exe *executor.Executor, stdout io.Writer
 // cannot be written the swap is deactivated and the file removed.
 const swapfileScript = `set -Eeuo pipefail
 if [ -L /swapfile ]; then
-  echo "/swapfile é um link simbólico — abortando." >&2
+  echo "$1" >&2
   exit 1
 fi
 if [ -n "$(swapon --noheadings --show=NAME 2>/dev/null)" ]; then
-  echo "O sistema já tem swap ativo — nada a fazer."
+  echo "$2"
   exit 0
 fi
 if [ -e /swapfile ]; then
-  echo "/swapfile já existe, mas não está ativo — verifique-o manualmente." >&2
+  echo "$3" >&2
   exit 1
 fi
 if [ "$(findmnt -no FSTYPE / 2>/dev/null || true)" = btrfs ]; then
-  btrfs filesystem mkswapfile --size 4g /swapfile || { echo "Falha ao criar swapfile (btrfs)." >&2; rm -f -- /swapfile; exit 1; }
+  btrfs filesystem mkswapfile --size 4g /swapfile || { echo "$4" >&2; rm -f -- /swapfile; exit 1; }
 else
-  fallocate -l 4G /swapfile || { echo "Falha ao criar swapfile." >&2; rm -f -- /swapfile; exit 1; }
-  chmod 600 /swapfile || { echo "Falha ao definir permissões do swapfile." >&2; rm -f -- /swapfile; exit 1; }
-  mkswap /swapfile || { echo "Falha ao formatar swapfile." >&2; rm -f -- /swapfile; exit 1; }
+  fallocate -l 4G /swapfile || { echo "$5" >&2; rm -f -- /swapfile; exit 1; }
+  chmod 600 /swapfile || { echo "$6" >&2; rm -f -- /swapfile; exit 1; }
+  mkswap /swapfile || { echo "$7" >&2; rm -f -- /swapfile; exit 1; }
 fi
-swapon /swapfile || { echo "Falha ao ativar swapfile." >&2; rm -f -- /swapfile; exit 1; }
+swapon /swapfile || { echo "$8" >&2; rm -f -- /swapfile; exit 1; }
 grep -qE '^[[:space:]]*/swapfile[[:space:]]' /etc/fstab || printf '/swapfile none swap sw 0 0\n' >> /etc/fstab \
-  || { echo "Falha ao atualizar /etc/fstab." >&2; swapoff /swapfile || true; rm -f -- /swapfile; exit 1; }
-echo "Swapfile de 4 GB criado e ativado."
+  || { echo "$9" >&2; swapoff /swapfile || true; rm -f -- /swapfile; exit 1; }
+echo "${10}"
 `

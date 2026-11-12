@@ -77,7 +77,7 @@ func RunConcurrent[T any](ctx context.Context, items []T, limit int, fn func(T))
 			defer func() {
 				if r := recover(); r != nil {
 					mu.Lock()
-					errs = append(errs, fmt.Errorf("erro interno: %v", r))
+					errs = append(errs, fmt.Errorf("internal error: %v", r))
 					mu.Unlock()
 				}
 			}()

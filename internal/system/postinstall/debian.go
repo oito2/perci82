@@ -21,6 +21,7 @@ import (
 
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -57,34 +58,34 @@ func enableUbuntuComponents(ctx context.Context, exe *executor.Executor, stdout 
 		})
 	}
 	if len(steps) == 0 {
-		ui.Info(stdout, "universe e multiverse já estão habilitados.")
+		ui.Info(stdout, i18n.Tr("pi.run.reposEnabled", nil))
 		return nil
 	}
 	return exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, steps)
 }
 
 func actEnableUbuntuComponents() Action {
-	return Action{ID: "enable-repos", Label: "Habilitar repositórios universe e multiverse",
-		Description: "Adiciona os componentes universe e multiverse do Ubuntu, necessários para a maioria dos pacotes abaixo.",
+	return Action{ID: "enable-repos", Label: "pi.enableRepos",
+		Description: "pi.enableRepos.desc",
 		Applied:     (*Probe).ubuntuComponentsEnabled,
 		Run:         enableUbuntuComponents}
 }
 
 func actUpdateIndex(dependsOn string) Action {
-	return Action{ID: "update-index", Label: "Atualizar lista de pacotes",
-		Description: "Sincroniza o índice de pacotes (apt-get update) com os repositórios habilitados.",
+	return Action{ID: "update-index", Label: "pi.updateIndex",
+		Description: "pi.updateIndex.desc",
 		DependsOn:   dependsOn,
 		Run: func(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-			return aptStep(ctx, exe, stdout, "Atualizando lista de pacotes...", "update")
+			return aptStep(ctx, exe, stdout, i18n.Tr("pi.run.updateIndex", nil), "update")
 		}}
 }
 
 func actAptUpgrade(dependsOn string) Action {
-	return Action{ID: "upgrade-system", Label: "Atualizar pacotes do sistema",
-		Description: "Atualiza todos os pacotes já instalados para a versão mais recente (apt-get full-upgrade).",
+	return Action{ID: "upgrade-system", Label: "pi.upgrade",
+		Description: "pi.upgrade.desc",
 		DependsOn:   dependsOn,
 		Run: func(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-			return aptStep(ctx, exe, stdout, "Atualizando pacotes instalados...", "full-upgrade", "-y")
+			return aptStep(ctx, exe, stdout, i18n.Tr("pi.run.upgrade", nil), "full-upgrade", "-y")
 		}}
 }
 
@@ -99,11 +100,11 @@ const (
 // actBackportsBudgie adds the backports-budgie PPA, refreshes the package
 // index and applies the upgrades, in one privileged batch.
 func actBackportsBudgie(dependsOn string) Action {
-	return Action{ID: "backports-budgie", Label: "Aplicar backports-budgie",
-		Description: "Adiciona o PPA " + backportsBudgiePPA + " (versões estáveis mais recentes dos componentes do Budgie, mantidas pela equipe do Ubuntu Budgie), atualiza a lista de pacotes e aplica as atualizações (apt-get full-upgrade). Troca componentes centrais do desktop, como budgie-extras, labwc e wlroots: crie um snapshot no Timeshift antes.",
-		DependsOn:   dependsOn,
-		Applied:     func(*Probe) bool { return aptSourceEnabled(backportsBudgieURI) },
-		Run:         applyBackportsBudgie}
+	return Action{ID: "backports-budgie", Label: "pi.backportsBudgie",
+		Description: "pi.backportsBudgie.desc", Args: i18n.Args{"ppa": backportsBudgiePPA},
+		DependsOn: dependsOn,
+		Applied:   func(*Probe) bool { return aptSourceEnabled(backportsBudgieURI) },
+		Run:       applyBackportsBudgie}
 }
 
 // applyBackportsBudgie runs add-apt-repository, apt-get update and apt-get
@@ -111,9 +112,9 @@ func actBackportsBudgie(dependsOn string) Action {
 // keeps the current configuration files.
 func applyBackportsBudgie(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
 	steps := []executor.PrivilegedStep{
-		{Announce: "Adicionando o PPA backports-budgie...", Name: "add-apt-repository", Args: []string{"-y", "-n", backportsBudgiePPA}},
-		{Announce: "Atualizando lista de pacotes...", Name: "apt-get", Env: distro.AptEnv, Args: distro.AptArgs("update")},
-		{Announce: "Aplicando as atualizações do Budgie...", Name: "apt-get", Env: distro.AptEnv, Args: distro.AptArgs("full-upgrade", "-y")},
+		{Announce: i18n.Tr("pi.run.addPPA", nil), Name: "add-apt-repository", Args: []string{"-y", "-n", backportsBudgiePPA}},
+		{Announce: i18n.Tr("pi.run.updateIndex", nil), Name: "apt-get", Env: distro.AptEnv, Args: distro.AptArgs("update")},
+		{Announce: i18n.Tr("pi.run.budgieUpgrade", nil), Name: "apt-get", Env: distro.AptEnv, Args: distro.AptArgs("full-upgrade", "-y")},
 	}
 	return exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, steps)
 }
@@ -132,15 +133,15 @@ func actAptInstall(id, label, description, dependsOn string, acceptMSFontsEULA b
 }
 
 func actSysctl() Action {
-	return Action{ID: "apply-sysctl", Label: "Aplicar ajustes de kernel",
-		Description: "Reduz a troca de memória (swappiness) e aumenta o limite de observadores de arquivo (inotify).",
+	return Action{ID: "apply-sysctl", Label: "pi.sysctl",
+		Description: "pi.sysctl.desc",
 		Applied:     (*Probe).sysctlConfigured,
 		Run:         configureSysctl}
 }
 
 func actSwap() Action {
-	return Action{ID: "setup-swap", Label: "Configurar swapfile",
-		Description: "Cria e ativa um swapfile de 4 GB, se o sistema ainda não tiver nenhum swap ativo.",
+	return Action{ID: "setup-swap", Label: "pi.swap",
+		Description: "pi.swap.desc",
 		Applied:     (*Probe).swapActive,
 		Run: func(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
 			return setupSwapfile(ctx, exe, stdout)
@@ -148,21 +149,21 @@ func actSwap() Action {
 }
 
 func actTRIM() Action {
-	return Action{ID: "enable-trim", Label: "Ativar TRIM para SSDs",
-		Description: "Habilita o serviço fstrim.timer, que mantém discos SSD saudáveis a longo prazo.",
+	return Action{ID: "enable-trim", Label: "pi.trim",
+		Description: "pi.trim.desc",
 		Applied:     (*Probe).trimEnabled,
 		Run: func(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-			return step(ctx, exe, stdout, "Ativando TRIM para SSDs...", "systemctl", "enable", "--now", "fstrim.timer")
+			return step(ctx, exe, stdout, i18n.Tr("pi.run.trim", nil), "systemctl", "enable", "--now", "fstrim.timer")
 		}}
 }
 
 func actAptVAAPIIntel(dependsOn string) Action {
-	return Action{ID: "vaapi-intel", Label: "Driver de vídeo Intel (VA-API)",
-		Description: "Instala a aceleração de vídeo por hardware para GPUs Intel. Marque só se sua GPU for Intel.",
+	return Action{ID: "vaapi-intel", Label: "pi.vaapiIntel",
+		Description: "pi.vaapiIntel.desc",
 		DependsOn:   dependsOn,
 		Applied:     func(p *Probe) bool { return p.debInstalled("intel-media-va-driver") },
 		Run: func(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-			ui.Info(stdout, "Instalando drivers VA-API para Intel...")
+			ui.Info(stdout, i18n.Tr("pi.run.vaapiIntel", nil))
 			return aptInstall(ctx, exe, stdout, "intel-media-va-driver")
 		}}
 }
@@ -171,12 +172,12 @@ func actAptVAAPIIntel(dependsOn string) Action {
 // Ubuntu 24.04 and a virtual one provided by mesa-libgallium on 26.04; apt
 // resolves either.
 func actAptVAAPIAMD(dependsOn string) Action {
-	return Action{ID: "vaapi-amd", Label: "Driver de vídeo AMD (VA-API)",
-		Description: "Instala a aceleração de vídeo por hardware para GPUs AMD. Marque só se sua GPU for AMD.",
+	return Action{ID: "vaapi-amd", Label: "pi.vaapiAMD",
+		Description: "pi.vaapiAMD.desc",
 		DependsOn:   dependsOn,
 		Applied:     func(p *Probe) bool { return p.debInstalled("mesa-va-drivers") },
 		Run: func(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-			ui.Info(stdout, "Instalando drivers VA-API para AMD...")
+			ui.Info(stdout, i18n.Tr("pi.run.vaapiAMD", nil))
 			return aptInstall(ctx, exe, stdout, "mesa-va-drivers")
 		}}
 }
@@ -204,15 +205,15 @@ func actFlatpakApps(label, description string, appIDs ...string) Action {
 }
 
 func actUbuntuDrivers(dependsOn string) Action {
-	return Action{ID: "detect-drivers", Label: "Detectar drivers adicionais",
-		Description: "Roda ubuntu-drivers autoinstall para instalar drivers proprietários recomendados (ex. NVIDIA).",
+	return Action{ID: "detect-drivers", Label: "pi.drivers",
+		Description: "pi.drivers.desc",
 		DependsOn:   dependsOn,
 		Run: func(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-			return step(ctx, exe, stdout, "Detectando drivers adicionais...", "ubuntu-drivers", "autoinstall")
+			return step(ctx, exe, stdout, i18n.Tr("pi.run.drivers", nil), "ubuntu-drivers", "autoinstall")
 		}}
 }
 
-const flatpakSetupDescription = "Garante o Flatpak instalado, adiciona o repositório Flathub e instala VLC e um app de atalhos web."
+const flatpakSetupDescription = "pi.flatpakSetup.desc"
 
 // flatpakWebAppsDescription describes actFlatpakApps with flatpakWebAppsOnly.
-const flatpakWebAppsDescription = "Garante o Flatpak instalado, adiciona o repositório Flathub e instala um app de atalhos web."
+const flatpakWebAppsDescription = "pi.flatpakWebApps.desc"

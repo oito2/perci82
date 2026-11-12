@@ -25,7 +25,7 @@ var sha256Hex = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
 
 // verifyStagedScript checks $2 against the SHA-256 in $1 and deletes $2 on
 // mismatch. Positional parameters keep both values out of the script text.
-const verifyStagedScript = `printf '%s  %s\n' "$1" "$2" | sha256sum -c --status - || { rm -f -- "$2"; echo "checksum não confere: $2" >&2; exit 1; }`
+const verifyStagedScript = `printf '%s  %s\n' "$1" "$2" | sha256sum -c --status - || { rm -f -- "$2"; echo "checksum mismatch: $2" >&2; exit 1; }`
 
 // finalizeStagedScript sets mode $1 on the staged file $2 and renames it onto
 // $3; when either command fails, the staged file is deleted so no root-owned
@@ -46,7 +46,7 @@ const finalizeStagedScript = `chmod "$1" -- "$2" && mv -f -T -- "$2" "$3" || { r
 // copy, and only then sets the final mode and renames it over dest.
 func PrivilegedInstallSteps(src, dest, sha256, mode string) ([]PrivilegedStep, error) {
 	if !sha256Hex.MatchString(sha256) {
-		return nil, fmt.Errorf("checksum SHA-256 inválido: %q", sha256)
+		return nil, fmt.Errorf("invalid SHA-256 checksum: %q", sha256)
 	}
 	staged := dest + ".perci-new"
 	return []PrivilegedStep{

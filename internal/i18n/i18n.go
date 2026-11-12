@@ -27,6 +27,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 //go:generate go run ./genoito2 -l10n ../theme/parity/l10n.json -out ../gui/web/i18n/oito2
@@ -116,6 +117,51 @@ func Resolve(choice string) string {
 		return l
 	}
 	return Detect(os.Getenv)
+}
+
+// Args holds the values of a message's {name} placeholders.
+type Args = map[string]any
+
+// current is the locale Tr uses: the running application's language,
+// Brazilian Portuguese until SetLocale is called.
+var current atomic.Value
+
+// SetLocale makes Tr use locale; an unsupported value is ignored.
+func SetLocale(locale string) {
+	if l := Normalize(locale); l != "" {
+		current.Store(l)
+	}
+}
+
+// Locale returns the locale Tr uses.
+func Locale() string {
+	if l, ok := current.Load().(string); ok {
+		return l
+	}
+	return PtBR
+}
+
+// Tr returns the message key in the current locale (Locale), with its
+// placeholders filled from args — T with the running application's
+// language.
+func Tr(key string, args Args) string {
+	return T(Locale(), key, args)
+}
+
+// Error is an error whose message is a catalog message, written in the
+// current locale each time it is read. Values made with NewError are
+// comparable sentinels (errors.Is).
+type Error struct {
+	key string
+}
+
+// NewError returns an error whose message is the message key.
+func NewError(key string) *Error {
+	return &Error{key: key}
+}
+
+func (e *Error) Error() string {
+	return Tr(e.key, nil)
 }
 
 // placeholder matches a {name} placeholder of a catalog message.

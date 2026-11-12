@@ -26,6 +26,7 @@ import (
 
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/sets"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -156,7 +157,7 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, toInst
 		switch {
 		case installSet[f.Name]:
 			step++
-			ui.Step(stdout, step, total, "Instalando "+f.Name+"...")
+			ui.Step(stdout, step, total, i18n.Tr("fonts.installing", i18n.Args{"name": f.Name}))
 			if f.packaged() {
 				if s, ok := pkgFontStep(stdout, f, family, false); ok {
 					privSteps = append(privSteps, s)
@@ -166,7 +167,7 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, toInst
 			urlJobs = append(urlJobs, urlFontJob{font: f})
 		case removeSet[f.Name]:
 			step++
-			ui.Step(stdout, step, total, "Removendo "+f.Name+"...")
+			ui.Step(stdout, step, total, i18n.Tr("fonts.removing", i18n.Args{"name": f.Name}))
 			if f.packaged() {
 				if s, ok := pkgFontStep(stdout, f, family, true); ok {
 					privSteps = append(privSteps, s)
@@ -186,23 +187,23 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, toInst
 		syncOut := executor.NewSyncWriter(stdout)
 		runErr := executor.RunConcurrent(ctx, urlJobs, 4, func(j urlFontJob) {
 			var err error
-			verb := "instalar"
+			failure := "fonts.installFailed"
 			if j.remove {
-				verb = "remover"
+				failure = "fonts.removeFailed"
 				err = remove(ctx, exe, syncOut, j.font)
 			} else {
 				err = install(ctx, exe, syncOut, j.font)
 			}
 			if err != nil {
-				ui.Warning(syncOut, fmt.Sprintf("Falha ao %s %s: %v", verb, j.font.Name, err))
+				ui.Warning(syncOut, i18n.Tr(failure, i18n.Args{"name": j.font.Name, "error": err}))
 				failedMu.Lock()
 				failed = append(failed, j.font.Name)
 				failedMu.Unlock()
 			}
 		})
 		if runErr != nil {
-			ui.Warning(stdout, "Execução paralela interrompida: "+runErr.Error())
-			failed = append(failed, "(interrompido)")
+			ui.Warning(stdout, i18n.Tr("fonts.interrupted", i18n.Args{"error": runErr}))
+			failed = append(failed, i18n.Tr("fonts.interruptedItem", nil))
 		}
 	}
 
@@ -210,16 +211,16 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, toInst
 	if len(privSteps) > 0 {
 		if batchErr = exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, privSteps); batchErr != nil &&
 			!errors.Is(batchErr, executor.ErrCompletedWithWarnings) {
-			ui.Warning(stdout, "Falha no lote de pacotes de fontes: "+batchErr.Error())
+			ui.Warning(stdout, i18n.Tr("fonts.batchFailed", i18n.Args{"error": batchErr}))
 		}
 	}
 
-	ui.Info(stdout, "Atualizando cache de fontes...")
+	ui.Info(stdout, i18n.Tr("fonts.cache", nil))
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "fc-cache", "-f"); err != nil {
 		return err
 	}
 	if len(failed) > 0 {
-		return fmt.Errorf("%d fonte(s) com falha: %s", len(failed), strings.Join(failed, ", "))
+		return errors.New(i18n.Tr("fonts.failed", i18n.Args{"count": len(failed), "names": strings.Join(failed, ", ")}))
 	}
 	return batchErr
 }
@@ -233,16 +234,17 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, toInst
 func pkgFontStep(stdout io.Writer, f Font, family string, remove bool) (executor.PrivilegedStep, bool) {
 	pkg := f.pkgFor(family)
 	if pkg == "" {
-		ui.Warning(stdout, f.Name+" não tem pacote conhecido nesta distribuição. Instale manualmente.")
+		ui.Warning(stdout, i18n.Tr("fonts.noPackage", i18n.Args{"name": f.Name}))
 		return executor.PrivilegedStep{}, false
 	}
-	verb, warn := "Instalando", "Falha ao instalar "+f.Name+"."
+	announce, warn := "fonts.installingPackage", "fonts.installPackageFailed"
 	if remove {
-		verb, warn = "Removendo", "Falha ao remover "+f.Name+"."
+		announce, warn = "fonts.removingPackage", "fonts.removePackageFailed"
 	}
+	args := i18n.Args{"name": f.Name, "package": pkg}
 	s := executor.PrivilegedStep{
-		Announce: verb + " " + f.Name + " (" + pkg + ")...",
-		Soft:     true, SoftReport: true, WarnMessage: warn,
+		Announce: i18n.Tr(announce, args),
+		Soft:     true, SoftReport: true, WarnMessage: i18n.Tr(warn, args),
 	}
 	switch {
 	case family == distro.Debian && !remove:
@@ -262,10 +264,10 @@ func pkgFontStep(stdout io.Writer, f Font, family string, remove bool) (executor
 // printed here.
 func install(ctx context.Context, exe *executor.Executor, stdout io.Writer, f Font) error {
 	if f.URL == "" {
-		return fmt.Errorf("fonte %q: URL de download não configurada", f.Name)
+		return fmt.Errorf("font %q: no download URL", f.Name)
 	}
 	if f.Dir == "" || strings.ContainsAny(f.Dir, "/.") {
-		return fmt.Errorf("fonte %q: pasta de instalação inválida", f.Name)
+		return fmt.Errorf("font %q: invalid install folder", f.Name)
 	}
 	return installFromURL(ctx, exe, stdout, f)
 }
@@ -285,7 +287,7 @@ fi
 // Apply's batch, and the step announcement is Apply's ui.Step call.
 func remove(ctx context.Context, exe *executor.Executor, stdout io.Writer, f Font) error {
 	if f.Dir == "" || strings.ContainsAny(f.Dir, "/.") {
-		return fmt.Errorf("fonte %q: pasta de instalação inválida", f.Name)
+		return fmt.Errorf("font %q: invalid install folder", f.Name)
 	}
 	return exe.Run(ctx,
 		executor.Options{
@@ -309,7 +311,7 @@ func archiveKind(url string) (archiveName, extractCmd string) {
 // requireTool is a script line failing with a clear message when tool is
 // missing, instead of a bare "command not found" after the download.
 func requireTool(tool string) string {
-	return `command -v ` + tool + ` >/dev/null || { echo "` + tool + ` não encontrado — instale o pacote ` + tool + ` e tente de novo" >&2; exit 1; }
+	return `command -v ` + tool + ` >/dev/null || { echo "` + tool + ` not found — install the ` + tool + ` package and try again" >&2; exit 1; }
 `
 }
 
@@ -345,12 +347,12 @@ func downloadScript(f Font) (script string, env []string) {
 		checksumCmd = `
 EXPECTED_SUM=$(curl -fsSL --connect-timeout 10 --max-time 600 "$PERCI_CHECKSUMS_URL" | awk -v f="$PERCI_ARCHIVE" '$2 == f { print $1 }')
 if [ -z "$EXPECTED_SUM" ]; then
-	echo "checksum de $PERCI_ARCHIVE não encontrado em $PERCI_CHECKSUMS_URL" >&2
+	echo "no checksum for $PERCI_ARCHIVE in $PERCI_CHECKSUMS_URL" >&2
 	exit 1
 fi
 ACTUAL_SUM=$(sha256sum "$TMP/$PERCI_ARCHIVE" | cut -d ' ' -f1)
 if [ "$EXPECTED_SUM" != "$ACTUAL_SUM" ]; then
-	echo "checksum de $PERCI_ARCHIVE não confere: esperado $EXPECTED_SUM, obtido $ACTUAL_SUM" >&2
+	echo "checksum mismatch for $PERCI_ARCHIVE: expected $EXPECTED_SUM, got $ACTUAL_SUM" >&2
 	exit 1
 fi
 `
@@ -360,7 +362,7 @@ fi
 		checksumCmd = `
 ACTUAL_SUM=$(sha256sum "$TMP/$PERCI_ARCHIVE" | cut -d ' ' -f1)
 if [ "$PERCI_EXPECTED_SHA256" != "$ACTUAL_SUM" ]; then
-	echo "checksum de $PERCI_ARCHIVE não confere: esperado $PERCI_EXPECTED_SHA256, obtido $ACTUAL_SUM" >&2
+	echo "checksum mismatch for $PERCI_ARCHIVE: expected $PERCI_EXPECTED_SHA256, got $ACTUAL_SUM" >&2
 	exit 1
 fi
 `
@@ -374,7 +376,7 @@ curl -fsSL --connect-timeout 10 --max-time 600 "$PERCI_URL" -o "$TMP/$PERCI_ARCH
 %s%s
 count=$(find "$TMP" -maxdepth 3 -name "*.ttf" | wc -l)
 if [ "$count" -eq 0 ]; then
-	echo "nenhuma fonte .ttf encontrada em $PERCI_ARCHIVE" >&2
+	echo "no .ttf font found in $PERCI_ARCHIVE" >&2
 	exit 1
 fi
 dest="%s/perci/$PERCI_FONT_DIR"

@@ -148,39 +148,39 @@
           <div id="dashboard-container">
             <div class="stats stats-vertical sm:stats-horizontal shadow mb-8 w-full bg-base-200">
               <div class="stat">
-                <div class="stat-title">Sistema</div>
+                <div class="stat-title" data-i18n="shell.system">Sistema</div>
                 <div id="dashboard-system-label" class="stat-value text-base">—</div>
               </div>
               <div class="stat">
-                <div class="stat-title">Versão instalada</div>
+                <div class="stat-title" data-i18n="dashboard.version">Versão instalada</div>
                 <div id="dashboard-version" class="stat-value text-base">—</div>
               </div>
             </div>
 
             <!-- "Atualizar" (ActionID "self-update"). -->
             <div class="mb-8">
-              <h3 class="font-semibold mb-3">Atualizar Perci82 System</h3>
-              <p id="su-status" class="opacity-80 mb-4">Verificando...</p>
+              <h3 class="font-semibold mb-3" data-i18n="dashboard.updateTitle">Atualizar Perci82 System</h3>
+              <p id="su-status" class="opacity-80 mb-4" data-i18n="dashboard.checking">Verificando...</p>
               <div class="flex gap-2">
-                <button id="btn-su-check" class="btn btn-outline">Verificar Novamente</button>
-                <button id="btn-su-update" class="btn btn-primary" disabled>Atualizar</button>
+                <button id="btn-su-check" class="btn btn-outline" data-i18n="dashboard.checkAgain">Verificar Novamente</button>
+                <button id="btn-su-update" class="btn btn-primary" disabled data-i18n="dashboard.update">Atualizar</button>
               </div>
             </div>
 
             <!-- "Desinstalar" (ActionID "self-uninstall"): the "Também remover
                  configurações" checkbox, then the "Desinstalar" button. -->
             <div>
-              <h3 class="font-semibold mb-3">Desinstalar Perci82 System</h3>
+              <h3 class="font-semibold mb-3" data-i18n="dashboard.uninstallTitle">Desinstalar Perci82 System</h3>
               <div class="alert alert-warning mb-4">
-                <span>Esta ação remove o binário do Perci82 System do seu sistema. É irreversível.</span>
+                <span data-i18n="dashboard.uninstallWarning">Esta ação remove o binário do Perci82 System do seu sistema. É irreversível.</span>
               </div>
               <div class="flex flex-col gap-2 mb-4 max-w-md">
                 <label class="label cursor-pointer justify-start gap-2">
                   <input id="su2-remove-config" type="checkbox" class="checkbox" />
-                  <span class="label-text">Também remover as configurações do Perci82 System</span>
+                  <span class="label-text" data-i18n="dashboard.uninstallRemoveConfig">Também remover as configurações do Perci82 System</span>
                 </label>
               </div>
-              <button id="btn-su2-uninstall" class="btn btn-outline btn-error">Desinstalar</button>
+              <button id="btn-su2-uninstall" class="btn btn-outline btn-error" data-i18n="dashboard.uninstall">Desinstalar</button>
             </div>
           </div>
 
@@ -193,32 +193,26 @@
                  always visible here, with no actionId check. -->
             <div class="stats shadow mb-6 bg-base-200">
               <div class="stat">
-                <div class="stat-title">Sistema</div>
+                <div class="stat-title" data-i18n="shell.system">Sistema</div>
                 <div id="simple-system-label" class="stat-value text-base">—</div>
               </div>
             </div>
 
-            <p id="content-desc" class="opacity-80 mb-6" style="white-space: pre-line;">
-              Escolha uma categoria na barra lateral, depois um item, para ver a descrição aqui.
-            </p>
+            <p id="content-desc" class="opacity-80 mb-6" style="white-space: pre-line;"></p>
             <!-- Optional cleanups of "Atualizar Sistema" (update.Options),
                  unchecked by default. -->
             <div class="flex flex-col gap-2 mb-6">
               <label class="flex items-center gap-3 cursor-pointer">
                 <input id="su-opt-journal" type="checkbox" class="checkbox checkbox-sm" />
-                <span>Limpar logs do journal com mais de 7 dias</span>
+                <span data-i18n="update.cleanJournal">Limpar logs do journal com mais de 7 dias</span>
               </label>
               <label class="flex items-center gap-3 cursor-pointer">
                 <input id="su-opt-autoremove" type="checkbox" class="checkbox checkbox-sm" />
-                <span>Remover pacotes órfãos (autoremove) e runtimes Flatpak sem uso</span>
+                <span data-i18n="update.autoremove">Remover pacotes órfãos (autoremove) e runtimes Flatpak sem uso</span>
               </label>
             </div>
-            <button id="btn-executar" class="btn btn-primary" disabled>
-              Executar
-            </button>
-            <p id="executar-hint" class="text-xs opacity-50 mt-2">
-              Selecione um item para continuar.
-            </p>
+            <button id="btn-executar" class="btn btn-primary" disabled data-i18n="action.run">Executar</button>
+            <p id="executar-hint" class="text-xs opacity-50 mt-2"></p>
           </div>
 
           <!-- "self-config" mode (Home :: Configurações): Tema applies (and
@@ -262,11 +256,11 @@
                mode instead of the simple one above. -->
           <div id="postinstall-container" class="hidden">
             <div id="postinstall-unsupported" class="hidden">
-              <p class="opacity-80">Seu Sistema Operacional não é suportado pelo Perci82 System</p>
+              <p class="opacity-80" data-i18n="postinstall.unsupported">Seu sistema operacional não é suportado pelo Perci82 System.</p>
             </div>
             <div id="postinstall-supported" class="hidden">
-              <p id="postinstall-title" class="font-semibold mb-1">Pós instalação do —</p>
-              <p class="opacity-80 mb-4">Aplique abaixo cada item da pós instalação</p>
+              <p id="postinstall-title" class="font-semibold mb-1"></p>
+              <p class="opacity-80 mb-4" data-i18n="postinstall.intro">Aplique abaixo cada item da pós-instalação.</p>
               <ul id="postinstall-actions" class="space-y-4 mb-4"></ul>
             </div>
           </div>
@@ -280,9 +274,7 @@
             <p id="multiselect-intro" class="opacity-80 mb-4" style="white-space: pre-line;"></p>
             <ul id="multiselect-items" class="space-y-2 mb-4"></ul>
             <div class="flex gap-2">
-              <button id="btn-executar-multiselect" class="btn btn-primary">
-                Executar
-              </button>
+              <button id="btn-executar-multiselect" class="btn btn-primary" data-i18n="action.run">Executar</button>
               <!-- Optional extra buttons (e.g. "Aplicar Starship" and
                    "Remover Starship" in "Aplicativos: Terminais") — built
                    per screen from MULTISELECT_SCREENS[actionId].extras;
@@ -298,7 +290,7 @@
           <span data-i18n="shell.execution">Execução</span>
         </label>
         <div id="panel-terminal" class="tab-content o2-panel flex flex-col">
-          <div id="term-title" role="status" aria-live="polite" class="text-sm opacity-70 mb-2 flex-none">Executando: —</div>
+          <div id="term-title" role="status" aria-live="polite" class="text-sm opacity-70 mb-2 flex-none"></div>
           <progress id="term-progress" class="progress w-full mb-3 flex-none" value="0" max="100"></progress>
           <div id="terminal" class="flex-1 min-h-0"></div>
         </div>
@@ -314,25 +306,25 @@
      buildContainerFieldsHTML, same form rendering as Criar). -->
 <dialog id="confirm-modal" class="modal">
   <div class="modal-box">
-    <h3 id="confirm-modal-title" class="font-bold text-lg mb-2">Confirmar</h3>
+    <h3 id="confirm-modal-title" class="font-bold text-lg mb-2" data-i18n="modal.confirm">Confirmar</h3>
     <p id="confirm-modal-message" class="opacity-80" style="white-space: pre-line;"></p>
     <div class="modal-action">
-      <form method="dialog"><button class="btn">Cancelar</button></form>
-      <button id="btn-confirm-ok" type="button" class="btn btn-primary">Sim</button>
+      <form method="dialog"><button class="btn" data-i18n="oito2.cancel">Cancelar</button></form>
+      <button id="btn-confirm-ok" type="button" class="btn btn-primary" data-i18n="modal.yes">Sim</button>
     </div>
   </div>
-  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+  <form method="dialog" class="modal-backdrop"><button data-i18n="oito2.close">fechar</button></form>
 </dialog>
 
 <dialog id="error-modal" class="modal">
   <div class="modal-box">
-    <h3 class="font-bold text-lg mb-2 text-error">Erro</h3>
+    <h3 class="font-bold text-lg mb-2 text-error" data-i18n="oito2.infoDanger">Erro</h3>
     <p id="error-modal-message" class="opacity-80" style="white-space: pre-line;"></p>
     <div class="modal-action">
-      <form method="dialog"><button class="btn">Fechar</button></form>
+      <form method="dialog"><button class="btn" data-i18n="oito2.close">Fechar</button></form>
     </div>
   </div>
-  <form method="dialog" class="modal-backdrop"><button>fechar</button></form>
+  <form method="dialog" class="modal-backdrop"><button data-i18n="oito2.close">fechar</button></form>
 </dialog>
 
 <script src="./vendor/xterm/xterm.js"></script>

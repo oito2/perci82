@@ -16,8 +16,9 @@
 package config
 
 import (
-	"fmt"
 	"slices"
+
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // App identifies the Perci82 application running in this process. Each
@@ -102,7 +103,7 @@ type ForeignKeyError struct {
 }
 
 func (e *ForeignKeyError) Error() string {
-	return fmt.Sprintf("o %s não grava a configuração %q", e.App.DisplayName(), e.Key)
+	return i18n.Tr("config.foreignKey", i18n.Args{"app": e.App.DisplayName(), "key": e.Key})
 }
 
 // checkOwnership returns a *ForeignKeyError for the first key of changed

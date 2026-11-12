@@ -27,31 +27,38 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/sets"
 	"github.com/oito2/perci82/internal/ui"
 )
 
-// Template describes a file template managed by perci.gnl.
+// Template describes a file template managed by Perci82 System.
 type Template struct {
-	Label    string
+	// LabelKey is the message key of the name shown to the user.
+	LabelKey string
 	Filename string
 }
 
-// Catalogue lists all templates managed by perci.gnl.
+// Label returns the template's name in the current language.
+func (t Template) Label() string {
+	return i18n.Tr(t.LabelKey, nil)
+}
+
+// Catalogue lists all templates managed by Perci82 System.
 var Catalogue = []Template{
-	{Label: "Documento Word (.docx)", Filename: "Documento.docx"},
-	{Label: "Planilha Excel (.xlsx)", Filename: "Planilha.xlsx"},
-	{Label: "Apresentação PowerPoint (.pptx)", Filename: "Apresentacao.pptx"},
-	{Label: "Documento LibreOffice (.odt)", Filename: "Documento.odt"},
-	{Label: "Planilha LibreOffice (.ods)", Filename: "Planilha.ods"},
-	{Label: "Texto (.txt)", Filename: "Texto.txt"},
-	{Label: "Markdown (.md)", Filename: "Documento.md"},
-	{Label: "HTML (.html)", Filename: "HTML.html"},
-	{Label: "CSS (.css)", Filename: "Estilo.css"},
-	{Label: "JavaScript (.js)", Filename: "Script.js"},
-	{Label: "Python (.py)", Filename: "Script.py"},
-	{Label: "PHP (.php)", Filename: "PHP.php"},
-	{Label: "Shell (.sh)", Filename: "Shell.sh"},
+	{LabelKey: "templates.docx", Filename: "Documento.docx"},
+	{LabelKey: "templates.xlsx", Filename: "Planilha.xlsx"},
+	{LabelKey: "templates.pptx", Filename: "Apresentacao.pptx"},
+	{LabelKey: "templates.odt", Filename: "Documento.odt"},
+	{LabelKey: "templates.ods", Filename: "Planilha.ods"},
+	{LabelKey: "templates.txt", Filename: "Texto.txt"},
+	{LabelKey: "templates.md", Filename: "Documento.md"},
+	{LabelKey: "templates.html", Filename: "HTML.html"},
+	{LabelKey: "templates.css", Filename: "Estilo.css"},
+	{LabelKey: "templates.js", Filename: "Script.js"},
+	{LabelKey: "templates.py", Filename: "Script.py"},
+	{LabelKey: "templates.php", Filename: "PHP.php"},
+	{LabelKey: "templates.sh", Filename: "Shell.sh"},
 }
 
 // Dir returns the user templates directory: the one xdg-user-dir reports
@@ -109,33 +116,33 @@ func Apply(stdout io.Writer, dir string, toCreate, toRemove []string) error {
 			continue
 		}
 		step++
-		ui.Step(stdout, step, total, "Criando "+t.Filename+"...")
+		ui.Step(stdout, step, total, i18n.Tr("templates.creating", i18n.Args{"file": t.Filename}))
 		dest := filepath.Join(dir, t.Filename)
 		if err := create(dest, t); errors.Is(err, fs.ErrExist) {
-			ui.Info(stdout, t.Filename+" já existe, mantido.")
+			ui.Info(stdout, i18n.Tr("templates.exists", i18n.Args{"file": t.Filename}))
 		} else if err != nil {
-			ui.Warning(stdout, fmt.Sprintf("Falha ao criar %s: %v", t.Filename, err))
+			ui.Warning(stdout, i18n.Tr("templates.createFailed", i18n.Args{"file": t.Filename, "error": err}))
 			failed = append(failed, t.Filename)
 		}
 	}
 	for _, filename := range toRemove {
 		step++
-		ui.Step(stdout, step, total, "Removendo "+filename+"...")
+		ui.Step(stdout, step, total, i18n.Tr("templates.removing", i18n.Args{"file": filename}))
 		// toRemove comes from the frontend: only a plain file name inside
 		// dir is accepted, never a path that leaves it.
 		if filename == "" || filename == "." || filename == ".." || filepath.Base(filename) != filename {
-			ui.Warning(stdout, "Nome de modelo inválido, ignorado: "+filename)
+			ui.Warning(stdout, i18n.Tr("templates.invalidName", i18n.Args{"file": filename}))
 			failed = append(failed, filename)
 			continue
 		}
 		dest := filepath.Join(dir, filename)
 		if err := os.Remove(dest); err != nil && !os.IsNotExist(err) {
-			ui.Warning(stdout, fmt.Sprintf("Falha ao remover %s: %v", filename, err))
+			ui.Warning(stdout, i18n.Tr("templates.removeFailed", i18n.Args{"file": filename, "error": err}))
 			failed = append(failed, filename)
 		}
 	}
 	if len(failed) > 0 {
-		return fmt.Errorf("%d modelo(s) com falha: %s", len(failed), strings.Join(failed, ", "))
+		return errors.New(i18n.Tr("templates.failed", i18n.Args{"count": len(failed), "names": strings.Join(failed, ", ")}))
 	}
 	return nil
 }

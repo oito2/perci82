@@ -51,7 +51,7 @@ func ansiColor(rgb, text string) string {
 func PrintHeader(w io.Writer, title, distroLabel string) {
 	left := ansiColor(colorAccent, "◈ ") +
 		ansiColor(colorMuted, "perci") +
-		ansiColor(colorPrimary, ".gnl") +
+		ansiColor(colorPrimary, "82") +
 		ansiColor(colorMuted, "  │  ") +
 		ansiColor(colorMuted, version.Version)
 	if distroLabel != "" {

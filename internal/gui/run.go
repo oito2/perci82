@@ -34,6 +34,7 @@ import (
 	"github.com/oito2/perci82/internal/dev/localbin"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/gui/web"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/manager/gitaccount"
 	"github.com/oito2/perci82/internal/theme"
 	"github.com/oito2/perci82/internal/ui"
@@ -149,8 +150,19 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 
 	cfg, cfgErr := config.Load()
 	if cfgErr != nil {
-		fmt.Fprintln(stderr, "aviso: não foi possível ler as configurações, usando os padrões:", cfgErr)
+		fmt.Fprintln(stderr, "warning: could not read the settings, using the defaults:", cfgErr)
 	}
+	// Messages built in Go (progress lines, labels sent to the frontend)
+	// follow the application's language.
+	language := ""
+	if cfgErr == nil {
+		language = cfg.Language
+		if p.App == config.AppSystem {
+			language = cfg.SystemLanguage
+		}
+	}
+	i18n.SetLocale(i18n.Resolve(language))
+
 	trayOn := tray != nil && cfgErr == nil && cfg.TrayEnabled
 	// The tray's autostart entry launches the binary with hiddenFlag: on
 	// login the application starts in the tray only. Honored only while the
@@ -204,7 +216,7 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 		}
 	}
 	if first == nil {
-		fmt.Fprintln(stderr, "erro ao iniciar o "+p.Name+": nenhum serviço registrado")
+		fmt.Fprintln(stderr, "error starting "+p.Name+": no service registered")
 		return 1
 	}
 
@@ -272,7 +284,7 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 		// Rewritten on every start while the tray is on, so an entry with an
 		// outdated format or pointing at a moved binary is brought up to date.
 		if err := writeAutostartDesktopFile(); err != nil {
-			fmt.Fprintln(stderr, "aviso: não foi possível atualizar o autostart da bandeja:", err)
+			fmt.Fprintln(stderr, "warning: could not update the tray autostart entry:", err)
 		}
 	}
 
@@ -289,7 +301,7 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 	})
 
 	if err := wailsApp.Run(); err != nil {
-		fmt.Fprintln(stderr, "erro ao iniciar o "+p.Name+":", err)
+		fmt.Fprintln(stderr, "error starting "+p.Name+":", err)
 		return 1
 	}
 	return 0

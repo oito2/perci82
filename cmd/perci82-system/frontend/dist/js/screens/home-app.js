@@ -23,7 +23,7 @@
 // renderAppDashboardStats fills the "Sistema" stat of Visão Geral.
 function renderAppDashboardStats() {
   getPostinstallProfile().then(function (profile) {
-    dashboardSystemLabel.textContent = (profile && profile.supported) ? profile.label : "Não identificado";
+    dashboardSystemLabel.textContent = (profile && profile.supported) ? profile.label : t("shell.unknownSystem");
   });
 }
 
@@ -32,18 +32,16 @@ function renderAppDashboardStats() {
 btnSu2Uninstall.addEventListener("click", function () {
   if (running) return;
   const removeConfig = su2RemoveConfig.checked;
-  let message = "O binário do Perci82 System será removido do sistema.";
-  message += removeConfig
-    ? "\nAs configurações do Perci82 System também serão removidas."
-    : "\nAs configurações serão mantidas.";
-  message += "\n\nEsta ação não pode ser desfeita.";
-  openConfirm("Desinstalar o Perci82 System?", message, function () {
+  const message = t("uninstall.binary") + "\n" +
+    (removeConfig ? t("uninstall.removeConfig") : t("uninstall.keepConfig")) +
+    "\n\n" + t("uninstall.irreversible");
+  openConfirm(t("uninstall.confirmTitle"), message, function () {
     if (running || activeRun) return;
     dashboardRunningAction = "self-uninstall";
-    beginRun("Desinstalar", function () { return App.RunSelfUninstall(removeConfig); }, {
+    beginRun(t("dashboard.uninstall"), function () { return App.RunSelfUninstall(removeConfig); }, {
       buttons: [btnSu2Uninstall],
       maxSteps: 1,
-      announce: "Desinstalando o Perci82 System...",
+      announce: t("uninstall.starting"),
     });
   });
 });
@@ -52,7 +50,7 @@ btnSu2Uninstall.addEventListener("click", function () {
 // with no "Salvar" button at all.
 scFlatpak.addEventListener("change", function () {
   App.SetFlatpakScope(scFlatpak.value).catch(function (err) {
-    openError("Falha ao salvar o escopo do Flatpak: " + err);
+    openError(t("settings.flatpakScopeSaveFailed", { error: err }));
   });
 });
 

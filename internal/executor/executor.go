@@ -29,6 +29,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // Options configures a single command invocation.
@@ -195,7 +197,7 @@ type PrivilegedStep struct {
 // PrivilegedStep.Env for per-step variables.
 func (e *Executor) RunSudoSequence(ctx context.Context, opts Options, steps []PrivilegedStep) error {
 	if len(opts.Env) > 0 {
-		return errors.New("RunSudoSequence: opts.Env não é suportado, use PrivilegedStep.Env")
+		return errors.New("RunSudoSequence: opts.Env is not supported, use PrivilegedStep.Env")
 	}
 	if len(steps) == 0 {
 		return nil
@@ -235,7 +237,7 @@ func (e *Executor) RunSudoSequence(ctx context.Context, opts Options, steps []Pr
 
 // ErrCompletedWithWarnings means a RunSudoSequence batch ran to the end but
 // at least one SoftReport step failed (its warning is in the output).
-var ErrCompletedWithWarnings = errors.New("concluído com avisos: um ou mais itens falharam (veja a saída acima)")
+var ErrCompletedWithWarnings error = i18n.NewError("exec.completedWithWarnings")
 
 // softReportExitCode is the batch script's exit status when only
 // SoftReport steps failed — an unusual value, so a real command's own

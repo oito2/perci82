@@ -17,6 +17,7 @@ package apps
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -24,6 +25,7 @@ import (
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -92,7 +94,7 @@ const flathubRepoURL = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 func FlatpakSetupSteps(ctx context.Context, exe *executor.Executor) (privileged []executor.PrivilegedStep, userRemoteAdd *executor.PrivilegedStep, err error) {
 	scope := config.FlatpakFlag()
 	remoteAdd := executor.PrivilegedStep{
-		Announce: "Configurando repositório Flathub...",
+		Announce: i18n.Tr("apps.flathub", nil),
 		Env:      []string{"TERM=dumb"},
 		Name:     "flatpak",
 		Args:     []string{"remote-add", scope, "--if-not-exists", "flathub", flathubRepoURL},
@@ -102,15 +104,15 @@ func FlatpakSetupSteps(ctx context.Context, exe *executor.Executor) (privileged 
 		switch distro.Detect() {
 		case distro.Debian:
 			privileged = append(privileged, executor.PrivilegedStep{
-				Announce: "Instalando Flatpak...",
+				Announce: i18n.Tr("apps.installFlatpak", nil),
 				Env:      distro.AptEnv,
 				Name:     "apt-get",
 				Args:     distro.AptArgs("install", "-y", "--", "flatpak"),
 			})
 		case distro.Fedora:
-			privileged = append(privileged, executor.PrivilegedStep{Announce: "Instalando Flatpak...", Name: "dnf", Args: []string{"install", "-y", "--", "flatpak"}})
+			privileged = append(privileged, executor.PrivilegedStep{Announce: i18n.Tr("apps.installFlatpak", nil), Name: "dnf", Args: []string{"install", "-y", "--", "flatpak"}})
 		default:
-			return nil, nil, fmt.Errorf("instale o flatpak manualmente nesta distribuição")
+			return nil, nil, errors.New(i18n.Tr("apps.installFlatpakByHand", nil))
 		}
 	}
 	if scope == "--system" {
@@ -132,7 +134,7 @@ func EnsureFlatpak(ctx context.Context, exe *executor.Executor, stdout io.Writer
 func runFlatpakSetup(ctx context.Context, exe *executor.Executor, stdout io.Writer, privileged []executor.PrivilegedStep, userRemoteAdd *executor.PrivilegedStep) error {
 	if len(privileged) > 0 {
 		if err := exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, privileged); err != nil {
-			return fmt.Errorf("preparar flatpak: %w", err)
+			return fmt.Errorf("prepare flatpak: %w", err)
 		}
 	}
 	if userRemoteAdd != nil {
@@ -145,7 +147,7 @@ func runFlatpakSetup(ctx context.Context, exe *executor.Executor, stdout io.Writ
 // installOne installs a single Flatpak app and applies its FlatpakOverride
 // (if any).
 func installOne(ctx context.Context, exe *executor.Executor, stdout io.Writer, appByID map[string]App, scope, id string) error {
-	ui.Info(stdout, "Instalando: "+id)
+	ui.Info(stdout, i18n.Tr("apps.installingID", i18n.Args{"id": id}))
 	if err := exe.Run(ctx,
 		executor.Options{RequiresSudo: scope == "--system", Stdout: stdout, Stderr: stdout, Env: []string{"TERM=dumb"}},
 		"flatpak", "install", "--noninteractive", scope, "-y", "flathub", id,
@@ -158,7 +160,7 @@ func installOne(ctx context.Context, exe *executor.Executor, stdout io.Writer, a
 			executor.Options{RequiresSudo: scope == "--system", Stdout: stdout, Stderr: stdout},
 			"flatpak", overrideArgs...,
 		); err != nil {
-			ui.Warning(stdout, fmt.Sprintf("Override do %s falhou: %v", id, err))
+			ui.Warning(stdout, i18n.Tr("apps.overrideFailedWith", i18n.Args{"id": id, "error": err}))
 		}
 	}
 	return nil

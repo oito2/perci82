@@ -55,15 +55,15 @@ func ubuntuActions() []Action {
 		actAptUpgrade("update-index"),
 		// ubuntuPackages includes ubuntu-restricted-extras (codecs), which
 		// pulls in the Microsoft fonts — hence the EULA.
-		actAptInstall("install-essentials", "Instalar pacotes essenciais e codecs",
-			"Codecs restritos (ubuntu-restricted-extras), GNOME Tweaks, ferramentas de compilação, Timeshift e utilitários de linha de comando comuns.",
+		actAptInstall("install-essentials", "pi.essentialsCodecs",
+			"pi.ubuntuEssentials.desc",
 			"update-index", true, ubuntuPackages...),
 		actSysctl(),
 		actSwap(),
 		actTRIM(),
 		actAptVAAPIIntel("enable-repos"),
 		actAptVAAPIAMD("enable-repos"),
-		actFlatpakEssentials("Configurar Flatpak", flatpakSetupDescription),
+		actFlatpakEssentials("pi.flatpakSetup", flatpakSetupDescription),
 		actUbuntuDrivers("enable-repos"),
 	}
 }
@@ -80,7 +80,7 @@ var ubuntuBudgiePackages = slices.DeleteFunc(slices.Clone(ubuntuPackages), func(
 
 // ubuntuBudgieActions is the checklist for Ubuntu Budgie: ubuntuActions
 // with ubuntuBudgiePackages, and flatpakApps as the Flathub apps of the
-// Flatpak step. backports adds "Aplicar backports-budgie" after the
+// Flatpak step. backports adds "pi.backportsBudgie" after the
 // system upgrade, for the releases the PPA publishes to.
 func ubuntuBudgieActions(flatpakApps []string, flatpakDescription string, backports bool) []Action {
 	actions := []Action{
@@ -92,15 +92,15 @@ func ubuntuBudgieActions(flatpakApps []string, flatpakDescription string, backpo
 		actions = append(actions, actBackportsBudgie("update-index"))
 	}
 	return append(actions,
-		actAptInstall("install-essentials", "Instalar pacotes essenciais e codecs",
-			"Codecs restritos (ubuntu-restricted-extras), ferramentas de compilação, Timeshift e utilitários de linha de comando comuns.",
+		actAptInstall("install-essentials", "pi.essentialsCodecs",
+			"pi.budgieEssentials.desc",
 			"update-index", true, ubuntuBudgiePackages...),
 		actSysctl(),
 		actSwap(),
 		actTRIM(),
 		actAptVAAPIIntel("enable-repos"),
 		actAptVAAPIAMD("enable-repos"),
-		actFlatpakApps("Configurar Flatpak", flatpakDescription, flatpakApps...),
+		actFlatpakApps("pi.flatpakSetup", flatpakDescription, flatpakApps...),
 		actUbuntuDrivers("enable-repos"),
 	)
 }

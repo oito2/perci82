@@ -127,7 +127,7 @@ func TestT(t *testing.T) {
 }
 
 // keyUse matches a literal message key passed to T.
-var keyUse = regexp.MustCompile(`i18n\.T\([^,()]+,\s*"([^"]+)"`)
+var keyUse = regexp.MustCompile(`i18n\.(?:T\([^,()]+,|Tr\()\s*"([^"]+)"`)
 
 // navKey matches a literal key of the section catalog (internal/gui),
 // whose fields are translated later.
@@ -222,5 +222,22 @@ func TestCatalogs(t *testing.T) {
 func TestCatalogUnsupportedLocale(t *testing.T) {
 	if got := Catalog("fr"); got != nil {
 		t.Errorf("got %v, want nil", got)
+	}
+}
+
+func TestSetLocaleAndTr(t *testing.T) {
+	orig := Locale()
+	t.Cleanup(func() { SetLocale(orig) })
+	SetLocale(En)
+	if got := Tr("tray.quit", nil); got != "Quit" {
+		t.Errorf("Tr in en got %q, want Quit", got)
+	}
+	SetLocale("fr")
+	if Locale() != En {
+		t.Errorf("an unsupported locale changed the current one to %q", Locale())
+	}
+	SetLocale(PtBR)
+	if got := Tr("tray.quit", nil); got != "Sair" {
+		t.Errorf("Tr in pt-BR got %q, want Sair", got)
 	}
 }

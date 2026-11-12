@@ -1,5 +1,24 @@
 {
+	"dashboard.uninstallRemoveConfig": "Também remover as configurações do Perci82 System",
+	"dashboard.uninstallTitle": "Desinstalar Perci82 System",
+	"dashboard.uninstallWarning": "Esta ação remove o binário do Perci82 System do seu sistema. É irreversível.",
+	"dashboard.updateTitle": "Atualizar Perci82 System",
+	"postinstall.applied": "Aplicado",
+	"postinstall.apply": "Aplicar",
+	"postinstall.intro": "Aplique abaixo cada item da pós-instalação.",
+	"postinstall.requires": "Requer: {item}",
+	"postinstall.title": "Pós-instalação do {system}",
+	"postinstall.unsupported": "Seu sistema operacional não é suportado pelo Perci82 System.",
 	"settings.flatpakScope": "Escopo de instalação",
 	"settings.flatpakScope.system": "system (global)",
-	"settings.flatpakScope.user": "user (usuário)"
+	"settings.flatpakScope.user": "user (usuário)",
+	"settings.flatpakScopeSaveFailed": "Falha ao salvar o escopo do Flatpak: {error}",
+	"uninstall.binary": "O binário do Perci82 System será removido do sistema.",
+	"uninstall.confirmTitle": "Desinstalar o Perci82 System?",
+	"uninstall.irreversible": "Esta ação não pode ser desfeita.",
+	"uninstall.keepConfig": "As configurações serão mantidas.",
+	"uninstall.removeConfig": "As configurações do Perci82 System também serão removidas.",
+	"uninstall.starting": "Desinstalando o Perci82 System...",
+	"update.autoremove": "Remover pacotes órfãos (autoremove) e runtimes Flatpak sem uso",
+	"update.cleanJournal": "Limpar logs do journal com mais de 7 dias"
 }

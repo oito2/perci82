@@ -56,17 +56,17 @@ var poposProfile = Profile{
 	Actions: []Action{
 		actAptUpgrade(""),
 		// Same ubuntu-restricted-extras as Ubuntu/Zorin, so the same EULA.
-		actAptInstall("install-codecs", "Instalar codecs multimídia",
-			"Instala ubuntu-restricted-extras e gstreamer1.0-plugins-bad (recomendação oficial da System76 para Pop!_OS).",
+		actAptInstall("install-codecs", "pi.codecs",
+			"pi.popCodecs.desc",
 			"", true, "ubuntu-restricted-extras", "gstreamer1.0-plugins-bad"),
-		actAptInstall("install-essentials", "Instalar pacotes essenciais",
-			"Ferramentas de compilação, Timeshift e utilitários de linha de comando comuns.",
+		actAptInstall("install-essentials", "pi.essentials",
+			"pi.popEssentials.desc",
 			"", false, poposPackages...),
 		actSysctl(),
 		actTRIM(),
 		actAptVAAPIIntel(""),
 		actAptVAAPIAMD(""),
-		actFlatpakEssentials("Instalar Flatpaks essenciais",
-			"Instala VLC e um app de atalhos web via Flathub (já vem pré-configurado no Pop!_OS)."),
+		actFlatpakEssentials("pi.flatpakEssentials",
+			"pi.popFlatpak.desc"),
 	},
 }

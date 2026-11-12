@@ -20,12 +20,13 @@ import (
 	"io"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
 // uninstallOne uninstalls a single Flatpak app from the given scope.
 func uninstallOne(ctx context.Context, exe *executor.Executor, stdout io.Writer, id, scope string) error {
-	ui.Info(stdout, "Desinstalando: "+id)
+	ui.Info(stdout, i18n.Tr("apps.uninstallingID", i18n.Args{"id": id}))
 	return exe.Run(ctx,
 		executor.Options{RequiresSudo: scope == "--system", Stdout: stdout, Stderr: stdout, Env: []string{"TERM=dumb"}},
 		"flatpak", "uninstall", "--noninteractive", scope, "-y", id,
