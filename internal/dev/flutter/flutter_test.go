@@ -277,7 +277,7 @@ func TestEnsureAndroidCmdlineTools_ChecksumMismatch(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := EnsureAndroidCmdlineTools(context.Background(), executor.New(&buf, &buf), &buf, home, "/bin/true")
-	if err == nil || !strings.Contains(err.Error(), "integridade") {
+	if err == nil || !strings.Contains(err.Error(), "integrity") {
 		t.Fatalf("err = %v, want an integrity failure", err)
 	}
 	if _, err := os.Stat(filepath.Join(home, "Android", "Sdk", "cmdline-tools", "latest")); !os.IsNotExist(err) {

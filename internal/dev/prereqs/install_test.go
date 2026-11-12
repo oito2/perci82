@@ -101,7 +101,7 @@ func TestInstallUninstall_EveryItemAtMostOnePrompt(t *testing.T) {
 				// under DryRun (nothing is downloaded) — and must stop before
 				// root.
 				if p.ID == "appimagetool" && op != "uninstall" {
-					if err == nil || !strings.Contains(err.Error(), "integridade") {
+					if err == nil || !strings.Contains(err.Error(), "integrity") {
 						t.Errorf("%s %s: err = %v, want the integrity gate", family, op, err)
 					}
 				} else if err != nil {
@@ -337,7 +337,7 @@ func TestAppImageToolChecksum(t *testing.T) {
 		errSub     string
 	}{
 		{"ok", fmt.Sprintf(`{"assets":[{"name":%q,"digest":"sha256:abc"}]}`, asset), 200, "abc", ""},
-		{"missing", `{"assets":[{"name":"other","digest":"sha256:abc"}]}`, 200, "", "não encontrado"},
+		{"missing", `{"assets":[{"name":"other","digest":"sha256:abc"}]}`, 200, "", "not found"},
 		{"bad digest", fmt.Sprintf(`{"assets":[{"name":%q,"digest":"md5:abc"}]}`, asset), 200, "", "digest"},
 		{"http error", `{}`, 500, "", "status 500"},
 	} {

@@ -213,21 +213,21 @@ var devCatalog = []sectionDef{
 			// Item table mode (#itemtable-container): one row per item
 			// with its own Instalar/Atualizar/Desinstalar buttons.
 			Title:    "nav.prereqs",
-			Desc:     "Instale, atualize ou desinstale cada pré-requisito. Os itens exigidos por outros aparecem primeiro; um item que depende de outro só pode ser instalado depois dele.",
+			Desc:     "nav.prereqs.desc",
 			ActionID: "prereqs",
 			Tab:      "nav.tab.items",
 		},
 		{
 			// Item table mode.
 			Title:    "nav.sdks",
-			Desc:     "Instale, atualize ou desinstale cada SDK. Um SDK que depende de um pré-requisito só pode ser instalado depois dele.",
+			Desc:     "nav.sdks.desc",
 			ActionID: "sdks",
 			Tab:      "nav.tab.items",
 		},
 		{
 			// "checklist simples" mode (#multiselect-container).
 			Title:    "nav.ai",
-			Desc:     "Selecione aplicativos de IA que deseja instalar. Para desinstalar, remova a seleção.",
+			Desc:     "nav.ai.desc",
 			ActionID: "ai-apps",
 			Tab:      "nav.tab.items",
 		},
@@ -235,35 +235,30 @@ var devCatalog = []sectionDef{
 			// "checklist simples" mode plus the "Aplicar Starship" /
 			// "Remover Starship" buttons (MULTISELECT_SCREENS extras).
 			Title:    "nav.terminals",
-			Desc:     "Selecione os terminais que deseja instalar. Para desinstalar, remova a seleção.\nTerminais instalados ganham a opção \"Abrir no <terminal>\" no menu de contexto do Nautilus (submenu Scripts), Nemo e Dolphin.",
+			Desc:     "nav.terminals.desc",
 			ActionID: "terminals",
 			Tab:      "nav.tab.items",
 		},
 		{
 			// Item table mode.
 			Title:    "nav.ides",
-			Desc:     "Instale, atualize ou desinstale cada IDE. Uma IDE que depende de um pré-requisito só pode ser instalada depois dele.",
+			Desc:     "nav.ides.desc",
 			ActionID: "ides",
 			Tab:      "nav.tab.items",
 		},
 		{
 			// Local file install/uninstall mode (#fileapp-container), with
 			// no Atualizar button: Android Studio updates itself.
-			Title: "nav.androidStudio",
-			Desc: "O ambiente de desenvolvimento integrado oficial para desenvolvimento de apps Android agora acelera sua produtividade com o Gemini no Android Studio, seu parceiro de programação com tecnologia de IA.\n\n" +
-				"Para instalar o Android Studio, faça o download do arquivo .tar.gz em https://developer.android.com/studio?hl=pt-br",
-			Notes: []string{
-				`O instalador do Android Studio abrirá em uma janela gráfica. Durante o assistente inicial, na tela de boas-vindas ou no menu principal, clique no ícone de engrenagem (Configure ou menu de três pontos) e selecione "Create Desktop Entry". Isso adicionará o ícone do Android Studio ao menu de aplicativos do seu sistema operacional.`,
-				"Utilize o Android Studio para atualizar.",
-			},
+			Title:    "nav.androidStudio",
+			Desc:     "nav.androidStudio.desc",
+			Notes:    []string{"nav.androidStudio.note", "nav.androidStudio.noteUpdate"},
 			ActionID: "androidstudio",
 			Tab:      "nav.tab.items",
 		},
 		{
 			// Local file install/update/uninstall mode (#fileapp-container).
-			Title: "nav.antigravityIDE",
-			Desc: "A visualização do editor do Google Antigravity oferece preenchimento automático com a tecla Tab, comandos de código em linguagem natural e um agente configurável e sensível ao contexto.\n\n" +
-				"Para instalar o Antigravity IDE (Standalone), faça o download do arquivo .tar.gz em https://antigravity.google/download#antigravity-ide",
+			Title:    "nav.antigravityIDE",
+			Desc:     "nav.antigravityIDE.desc",
 			ActionID: "antigravityide",
 			Tab:      "nav.tab.items",
 		},

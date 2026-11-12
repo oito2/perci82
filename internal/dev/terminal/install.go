@@ -62,5 +62,5 @@ ln -sf "$HOME/.local/kitty.app/bin/kitten" "$HOME/.local/bin/kitten"
 	case "kgx":
 		return distro.InstallPkgs(ctx, exe, stdout, family, "gnome-console")
 	}
-	return fmt.Errorf("instalador desconhecido para %s", t.Name)
+	return fmt.Errorf("no installer for %s", t.Name)
 }

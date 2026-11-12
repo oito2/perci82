@@ -36,6 +36,7 @@ import (
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/shellrc"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -71,13 +72,13 @@ func IsInstalled(flutterBin string) bool {
 // Leaves the Android SDK and the Chrome wrapper in place. The checkout is
 // removed through exe, so DryRun leaves it untouched.
 func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer, home, flutterDir string) error {
-	ui.Info(stdout, "Removendo Flutter...")
+	ui.Info(stdout, i18n.Tr("sdk.run.flutterRemoving", nil))
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "rm", "-rf", "--", flutterDir); err != nil {
-		ui.Err(stdout, "Falha ao remover Flutter: "+err.Error())
+		ui.Err(stdout, i18n.Tr("sdk.run.flutterRemoveFailed", i18n.Args{"error": err.Error()}))
 		return err
 	}
 	RemovePathFromBashrc(stdout, home, pathEntry, "# Flutter")
-	ui.Success(stdout, "Flutter removido com sucesso.")
+	ui.Success(stdout, i18n.Tr("sdk.run.flutterRemoved", nil))
 	return nil
 }
 
@@ -88,10 +89,10 @@ func RemovePathFromBashrc(stdout io.Writer, home, entry, comment string) {
 	candidates := shellrc.Dedup([]string{filepath.Join(home, ".bashrc"), shellrc.File(home)})
 	for _, res := range shellrc.RemoveEntry(candidates, comment, entry) {
 		if res.Err != nil {
-			ui.Warning(stdout, "Não foi possível atualizar "+res.Path+": "+res.Err.Error())
+			ui.Warning(stdout, i18n.Tr("dev.rcFailed", i18n.Args{"path": res.Path, "error": res.Err.Error()}))
 			continue
 		}
-		ui.Info(stdout, "PATH removido de "+res.Path)
+		ui.Info(stdout, i18n.Tr("dev.pathRemoved", i18n.Args{"path": res.Path}))
 	}
 }
 
@@ -113,10 +114,10 @@ func installPrereqsWith(ctx context.Context, exe *executor.Executor, stdout io.W
 		pkgs := []string{"curl", "git", "unzip", "xz-utils", "zip", "libglu1-mesa",
 			"clang", "cmake", "ninja-build", "pkg-config", "libgtk-3-dev"}
 		if needJDK {
-			ui.Info(stdout, "Instalando pré-requisitos do Flutter e o Java 21 (necessário para o Android SDK)...")
+			ui.Info(stdout, i18n.Tr("sdk.run.flutterPrereqsJava", nil))
 			pkgs = append(pkgs, "openjdk-21-jdk")
 		} else {
-			ui.Info(stdout, "Instalando pré-requisitos do Flutter...")
+			ui.Info(stdout, i18n.Tr("sdk.run.flutterPrereqs", nil))
 		}
 		return distro.InstallPkgs(ctx, exe, stdout, family, pkgs...)
 	case distro.Fedora:
@@ -125,13 +126,13 @@ func installPrereqsWith(ctx context.Context, exe *executor.Executor, stdout io.W
 		pkgs := []string{"curl", "git", "unzip", "xz", "zip", "mesa-libGLU",
 			"clang", "cmake", "ninja-build", "pkgconf-pkg-config", "gtk3-devel"}
 		if needJDK {
-			ui.Info(stdout, "Instalando pré-requisitos do Flutter e o Java 21 (necessário para o Android SDK)...")
+			ui.Info(stdout, i18n.Tr("sdk.run.flutterPrereqsJava", nil))
 			return installFedoraWithJDK(ctx, exe, stdout, pkgs)
 		}
-		ui.Info(stdout, "Instalando pré-requisitos do Flutter...")
+		ui.Info(stdout, i18n.Tr("sdk.run.flutterPrereqs", nil))
 		return distro.InstallPkgs(ctx, exe, stdout, family, pkgs...)
 	default:
-		ui.Warning(stdout, "Distribuição não suportada para instalação automática de pré-requisitos. Instale manualmente.")
+		ui.Warning(stdout, i18n.Tr("sdk.run.flutterPrereqsUnsupported", nil))
 		return nil
 	}
 }
@@ -164,51 +165,51 @@ func EnsureAndroidCmdlineTools(ctx context.Context, exe *executor.Executor, stdo
 	sdkmanagerBin := filepath.Join(latestDir, "bin", "sdkmanager")
 
 	if IsInstalled(sdkmanagerBin) {
-		ui.Info(stdout, "Android cmdline-tools já instalado em: "+androidHome)
+		ui.Info(stdout, i18n.Tr("sdk.run.cmdlineToolsPresent", i18n.Args{"path": androidHome}))
 		return exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, flutterBin, "config", "--android-sdk", androidHome)
 	}
 
 	if err := ensureJava(ctx, exe, stdout, distro.Detect()); err != nil {
-		return fmt.Errorf("instalar Java: %w", err)
+		return fmt.Errorf("install Java: %w", err)
 	}
 
 	// tmp is created inside cmdlineToolsDir so it shares a filesystem with
 	// latestDir, which keeps the os.Rename below valid.
 	if err := os.MkdirAll(cmdlineToolsDir, 0o755); err != nil {
-		return fmt.Errorf("criar diretório do Android SDK: %w", err)
+		return fmt.Errorf("create the Android SDK folder: %w", err)
 	}
 	tmp, err := os.MkdirTemp(cmdlineToolsDir, "staging-*")
 	if err != nil {
-		return fmt.Errorf("criar diretório temporário: %w", err)
+		return fmt.Errorf("create temporary folder: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
 	zipPath := filepath.Join(tmp, "cmdline-tools.zip")
-	ui.Info(stdout, "Baixando Android cmdline-tools...")
+	ui.Info(stdout, i18n.Tr("sdk.run.cmdlineToolsDownload", nil))
 	if err := exe.Run(ctx,
 		executor.Options{Stdout: stdout, Stderr: stdout},
 		"curl", "-fSL", "--connect-timeout", "10", "--max-time", "600", "--progress-bar", "-o", zipPath, androidCmdlineToolsURL,
 	); err != nil {
-		return fmt.Errorf("baixar cmdline-tools: %w", err)
+		return fmt.Errorf("download cmdline-tools: %w", err)
 	}
 
-	ui.Info(stdout, "Verificando integridade do cmdline-tools...")
+	ui.Info(stdout, i18n.Tr("sdk.run.cmdlineToolsVerify", nil))
 	checksum, err := androidCmdlineToolsChecksum(ctx)
 	if err != nil {
-		return fmt.Errorf("obter checksum do Android SDK: %w", err)
+		return fmt.Errorf("get the Android SDK checksum: %w", err)
 	}
 	if err := fsutil.VerifyFile(zipPath, sha1.New(), checksum); err != nil {
-		return fmt.Errorf("verificação de integridade do cmdline-tools falhou: %w", err)
+		return fmt.Errorf("cmdline-tools integrity check failed: %w", err)
 	}
 
-	ui.Info(stdout, "Extraindo cmdline-tools...")
+	ui.Info(stdout, i18n.Tr("sdk.run.cmdlineToolsExtract", nil))
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "unzip", "-q", "-o", zipPath, "-d", tmp); err != nil {
-		return fmt.Errorf("extrair cmdline-tools: %w", err)
+		return fmt.Errorf("extract cmdline-tools: %w", err)
 	}
 
 	_ = os.RemoveAll(latestDir)
 	if err := os.Rename(filepath.Join(tmp, "cmdline-tools"), latestDir); err != nil {
-		return fmt.Errorf("mover cmdline-tools: %w", err)
+		return fmt.Errorf("move cmdline-tools: %w", err)
 	}
 
 	EnsureAndroidEnvInBashrc(stdout, home)
@@ -216,22 +217,22 @@ func EnsureAndroidCmdlineTools(ctx context.Context, exe *executor.Executor, stdo
 	netCtx, cancel := nettimeout.Context(ctx)
 	defer cancel()
 
-	ui.Info(stdout, "Aceitando as licenças do Android SDK (termos em "+AndroidTermsURL+")...")
+	ui.Info(stdout, i18n.Tr("sdk.run.androidLicenses", i18n.Args{"url": AndroidTermsURL}))
 	licenseScript := "yes | " + executor.ShellQuote(sdkmanagerBin) + " --licenses >/dev/null"
 	if err := exe.Run(netCtx, executor.Options{Stdout: stdout, Stderr: stdout}, "bash", "-c", licenseScript); err != nil {
-		return fmt.Errorf("aceitar licenças: %w", err)
+		return fmt.Errorf("accept licenses: %w", err)
 	}
 
-	ui.Info(stdout, "Instalando platform-tools...")
+	ui.Info(stdout, i18n.Tr("sdk.run.platformTools", nil))
 	if err := exe.Run(netCtx, executor.Options{Stdout: stdout, Stderr: stdout}, sdkmanagerBin, "platform-tools"); err != nil {
-		return fmt.Errorf("instalar platform-tools: %w", err)
+		return fmt.Errorf("install platform-tools: %w", err)
 	}
 
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, flutterBin, "config", "--android-sdk", androidHome); err != nil {
-		return fmt.Errorf("configurar android-sdk no flutter: %w", err)
+		return fmt.Errorf("set android-sdk in flutter: %w", err)
 	}
 
-	ui.Success(stdout, "Android cmdline-tools instalado em: "+androidHome)
+	ui.Success(stdout, i18n.Tr("sdk.run.cmdlineToolsInstalled", i18n.Args{"path": androidHome}))
 	return nil
 }
 
@@ -241,16 +242,16 @@ func EnsureAndroidCmdlineTools(ctx context.Context, exe *executor.Executor, stdo
 func androidCmdlineToolsChecksum(ctx context.Context) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, androidRepoManifestURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("criar requisição: %w", err)
+		return "", fmt.Errorf("create request: %w", err)
 	}
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("consultar manifesto do Android SDK: %w", err)
+		return "", fmt.Errorf("query the Android SDK manifest: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("manifesto do Android SDK retornou status %d", resp.StatusCode)
+		return "", fmt.Errorf("the Android SDK manifest returned status %d", resp.StatusCode)
 	}
 
 	var manifest struct {
@@ -270,7 +271,7 @@ func androidCmdlineToolsChecksum(ctx context.Context) (string, error) {
 		} `xml:"remotePackage"`
 	}
 	if err := xml.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&manifest); err != nil {
-		return "", fmt.Errorf("decodificar manifesto: %w", err)
+		return "", fmt.Errorf("decode manifest: %w", err)
 	}
 
 	wantURL := filepath.Base(androidCmdlineToolsURL)
@@ -280,12 +281,12 @@ func androidCmdlineToolsChecksum(ctx context.Context) (string, error) {
 				continue
 			}
 			if a.Complete.Checksum.Type != "sha1" {
-				return "", fmt.Errorf("tipo de checksum inesperado no manifesto: %q", a.Complete.Checksum.Type)
+				return "", fmt.Errorf("unexpected checksum type in the manifest: %q", a.Complete.Checksum.Type)
 			}
 			return a.Complete.Checksum.Value, nil
 		}
 	}
-	return "", fmt.Errorf("checksum não encontrado no manifesto para %s", wantURL)
+	return "", fmt.Errorf("no checksum in the manifest for %s", wantURL)
 }
 
 // temurinRepo is Adoptium's signed RPM repository for the Eclipse Temurin
@@ -336,7 +337,7 @@ func ensureJava(ctx context.Context, exe *executor.Executor, stdout io.Writer, f
 func ensureJavaInstall(ctx context.Context, exe *executor.Executor, stdout io.Writer, family string) error {
 	opts := executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}
 
-	ui.Info(stdout, "Instalando Java 21 (necessário para o Android SDK)...")
+	ui.Info(stdout, i18n.Tr("sdk.run.java", nil))
 	switch family {
 	case distro.Debian:
 		// Installs JDK 21 explicitly rather than the distro default JDK.
@@ -345,7 +346,7 @@ func ensureJavaInstall(ctx context.Context, exe *executor.Executor, stdout io.Wr
 		// JDK 21 comes from Adoptium's signed repository.
 		return distro.InstallFromSignedRepo(ctx, exe, stdout, family, temurinRepo)
 	default:
-		return fmt.Errorf("distribuição não suportada para instalação automática do Java — instale um JDK manualmente")
+		return i18n.NewError("sdk.javaUnsupported")
 	}
 }
 
@@ -368,13 +369,13 @@ func EnsureAndroidEnvInBashrc(stdout io.Writer, home string) {
 		}
 		appended, err := shellrc.AppendIfMissing(rc, comment, line)
 		if err != nil {
-			ui.Warning(stdout, "Não foi possível atualizar "+rc+": "+err.Error())
+			ui.Warning(stdout, i18n.Tr("dev.rcFailed", i18n.Args{"path": rc, "error": err.Error()}))
 			return
 		}
 		added = added || appended
 	}
 	if added {
-		ui.Info(stdout, "Variáveis do Android SDK adicionadas a "+rc)
+		ui.Info(stdout, i18n.Tr("sdk.run.androidVars", i18n.Args{"path": rc}))
 	}
 }
 
@@ -397,18 +398,18 @@ func EnsureChromeWrapper(ctx context.Context, exe *executor.Executor, stdout io.
 	}
 
 	if err := os.MkdirAll(filepath.Dir(wrapperPath), 0o755); err != nil {
-		return fmt.Errorf("criar ~/.local/bin: %w", err)
+		return fmt.Errorf("create ~/.local/bin: %w", err)
 	}
 
 	script := "#!/usr/bin/env bash\nexec flatpak run " + chromeFlatpakID + " \"$@\"\n"
 	if err := fsutil.WriteGenerated(wrapperPath, []byte(script), 0o755); err != nil {
-		return fmt.Errorf("criar wrapper do Chrome: %w", err)
+		return fmt.Errorf("create the Chrome wrapper: %w", err)
 	}
 
 	localbin.EnsureInPath(stdout)
 	ensureChromeEnvInBashrc(stdout, home, wrapperPath)
 
-	ui.Success(stdout, "Wrapper do Chrome (Flatpak) criado em: "+wrapperPath)
+	ui.Success(stdout, i18n.Tr("sdk.run.chromeWrapper", i18n.Args{"path": wrapperPath}))
 	return nil
 }
 
@@ -419,21 +420,21 @@ func ensureChromeEnvInBashrc(stdout io.Writer, home, wrapperPath string) {
 	entry := "export CHROME_EXECUTABLE=" + executor.ShellQuote(wrapperPath)
 	appended, err := shellrc.AppendIfMissing(rc, "# Chrome (Flatpak)", entry)
 	if err != nil {
-		ui.Warning(stdout, "Não foi possível atualizar "+rc+": "+err.Error())
+		ui.Warning(stdout, i18n.Tr("dev.rcFailed", i18n.Args{"path": rc, "error": err.Error()}))
 		return
 	}
 	if appended {
-		ui.Info(stdout, "CHROME_EXECUTABLE adicionado a "+rc)
+		ui.Info(stdout, i18n.Tr("sdk.run.chromeExecutable", i18n.Args{"path": rc}))
 	}
 }
 
 // CloneFlutter clones the stable channel into flutterDir.
 func CloneFlutter(ctx context.Context, exe *executor.Executor, stdout io.Writer, home, flutterDir string) error {
 	if err := os.MkdirAll(filepath.Join(home, "development"), 0o755); err != nil {
-		return fmt.Errorf("criar diretório development: %w", err)
+		return fmt.Errorf("create the development folder: %w", err)
 	}
 
-	ui.Info(stdout, "Clonando "+flutterRepo+" (branch stable)...")
+	ui.Info(stdout, i18n.Tr("sdk.run.flutterClone", i18n.Args{"repo": flutterRepo}))
 	// The full history is large: instead of a total time limit, git aborts
 	// when the transfer stays below 1 KB/s for 2 minutes.
 	if err := exe.Run(ctx,
@@ -451,10 +452,10 @@ func EnsurePathInBashrc(stdout io.Writer, home string) {
 	rc := shellrc.File(home)
 	appended, err := shellrc.AppendIfMissing(rc, "# Flutter", pathEntry)
 	if err != nil {
-		ui.Warning(stdout, "Não foi possível atualizar "+rc+": "+err.Error())
+		ui.Warning(stdout, i18n.Tr("dev.rcFailed", i18n.Args{"path": rc, "error": err.Error()}))
 		return
 	}
 	if appended {
-		ui.Info(stdout, "PATH atualizado em "+rc)
+		ui.Info(stdout, i18n.Tr("dev.pathUpdated", i18n.Args{"path": rc}))
 	}
 }

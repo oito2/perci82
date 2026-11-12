@@ -35,69 +35,86 @@ import (
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/shellrc"
 	"github.com/oito2/perci82/internal/ui"
 )
 
 // Prereq describes a prerequisite managed by perci.gnl.
 type Prereq struct {
-	Name        string
+	Name string
+	// Description is the message key of the item's description;
+	// DescriptionText returns it in the current language.
 	Description string
 	ID          string
-	// RemoveWarning, when set, is shown for confirmation before the item
-	// is uninstalled — for a removal that takes more with it than the
-	// item itself.
+	// RemoveWarning, when set, is the message key of the text shown for
+	// confirmation before the item is uninstalled — for a removal that
+	// takes more with it than the item itself.
 	RemoveWarning string
 	// Requires lists what must be installed before this item: IDs of other
 	// Catalogue items, or of externalRequirements.
 	Requires []string
 }
 
+// DescriptionText returns the item's description in the current language.
+func (p Prereq) DescriptionText() string {
+	return i18n.Tr(p.Description, nil)
+}
+
+// RemoveWarningText returns the item's uninstall warning in the current
+// language, or "" when it has none.
+func (p Prereq) RemoveWarningText() string {
+	if p.RemoveWarning == "" {
+		return ""
+	}
+	return i18n.Tr(p.RemoveWarning, nil)
+}
+
 // externalRequirements maps the requirement IDs installed outside this
-// catalogue to their label.
+// catalogue to the message key of their label.
 var externalRequirements = map[string]string{
-	"go": "Go (Linguagens e SDKs)",
+	"go": "prereq.req.go",
 }
 
 // Catalogue lists all prerequisites managed by perci.gnl: the items others
 // require come first, then the rest by essentiality. Every item comes after
 // the Catalogue items it requires.
 var Catalogue = []Prereq{
-	{Name: "Curl", ID: "curl", Description: "Ferramenta de linha de comando para transferência de dados via URL"},
-	{Name: "Flatpak", ID: "flatpak", Description: "Gerenciador de pacotes e distribuição de aplicativos sandbox"},
-	{Name: "Git", ID: "git", Description: "Sistema de controle de versão distribuído"},
-	{Name: "Build Essential", ID: "build-essential", Description: "Compiladores C/C++ (GCC) e make — usados, por exemplo, pelo Rust para ligar os programas e por bibliotecas com código nativo"},
-	{Name: "OpenSSL", ID: "openssl", Description: "Ferramentas e bibliotecas de desenvolvimento para criptografia SSL/TLS (inclui os cabeçalhos usados, por exemplo, ao compilar apps Tauri)"},
-	{Name: "Lsof", ID: "lsof", Description: "Utilitário para listagem de arquivos abertos pelo sistema"},
-	{Name: "CMake", ID: "cmake", Description: "Gerador de sistemas de compilação cross-platform"},
-	{Name: "Ninja", ID: "ninja", Description: "Sistema de compilação extremamente rápido focado em velocidade"},
-	{Name: "Clang", ID: "clang", Description: "Compilador C/C++ baseado no LLVM"},
-	{Name: "GTK3 Dev Headers", ID: "gtk3dev", Description: "Arquivos de cabeçalho e desenvolvimento para a biblioteca GTK 3 (usado, por exemplo, por apps Flutter Linux desktop)"},
-	{Name: "GTK4 Dev Headers", ID: "gtk4dev", Description: "Arquivos de cabeçalho e desenvolvimento para a biblioteca GTK 4 — necessário para compilar a própria GUI do Perci (Wails v3)"},
-	{Name: "WebKitGTK 6.0 Dev Headers", ID: "webkitgtk6dev", Description: "Arquivos de cabeçalho e desenvolvimento do WebKitGTK 6.0 — necessário, junto com o GTK4, para compilar a própria GUI do Perci (Wails v3)"},
-	{Name: "WebKitGTK 4.1 Dev Headers", ID: "webkitgtk41dev", Description: "Arquivos de cabeçalho e desenvolvimento do WebKitGTK 4.1 (GTK 3) — necessário para compilar apps Tauri v2"},
-	{Name: "Libxdo Dev", ID: "libxdo", Description: "Cabeçalhos da libxdo (simulação de teclado e mouse no X11) — necessário para compilar apps Tauri v2"},
-	{Name: "Wails3 CLI", ID: "wails3", Description: "CLI do Wails v3, instalado via 'go install' — só é necessário para quem for contribuir com a GUI do Perci e precisar regenerar os bindings do frontend (make generate-bindings)",
+	{Name: "Curl", ID: "curl", Description: "prereq.curl"},
+	{Name: "Flatpak", ID: "flatpak", Description: "prereq.flatpak"},
+	{Name: "Git", ID: "git", Description: "prereq.git"},
+	{Name: "Build Essential", ID: "build-essential", Description: "prereq.build-essential"},
+	{Name: "OpenSSL", ID: "openssl", Description: "prereq.openssl"},
+	{Name: "Lsof", ID: "lsof", Description: "prereq.lsof"},
+	{Name: "CMake", ID: "cmake", Description: "prereq.cmake"},
+	{Name: "Ninja", ID: "ninja", Description: "prereq.ninja"},
+	{Name: "Clang", ID: "clang", Description: "prereq.clang"},
+	{Name: "GTK3 Dev Headers", ID: "gtk3dev", Description: "prereq.gtk3dev"},
+	{Name: "GTK4 Dev Headers", ID: "gtk4dev", Description: "prereq.gtk4dev"},
+	{Name: "WebKitGTK 6.0 Dev Headers", ID: "webkitgtk6dev", Description: "prereq.webkitgtk6dev"},
+	{Name: "WebKitGTK 4.1 Dev Headers", ID: "webkitgtk41dev", Description: "prereq.webkitgtk41dev"},
+	{Name: "Libxdo Dev", ID: "libxdo", Description: "prereq.libxdo"},
+	{Name: "Wails3 CLI", ID: "wails3", Description: "prereq.wails3",
 		Requires: []string{"go"}},
-	{Name: "Libsecret Tools", ID: "libsecret", Description: "Utilitário para acesso a chaves do sistema via Secret Service API (no Fedora, inclui o git-credential-libsecret, que guarda as senhas do Git no chaveiro)"},
-	{Name: "Librsvg Tools", ID: "librsvg", Description: "Utilitário rsvg-convert para converter imagens SVG em PNG/PDF (usado, por exemplo, na geração de ícones) e os cabeçalhos da librsvg (usados ao compilar apps Tauri)"},
-	{Name: "GNOME Keyring", ID: "gnome-keyring", Description: "Serviço daemon para armazenamento seguro de senhas e chaves"},
-	{Name: "GitHub CLI (gh)", ID: "gh", Description: "Interface de linha de comando oficial para o GitHub",
+	{Name: "Libsecret Tools", ID: "libsecret", Description: "prereq.libsecret"},
+	{Name: "Librsvg Tools", ID: "librsvg", Description: "prereq.librsvg"},
+	{Name: "GNOME Keyring", ID: "gnome-keyring", Description: "prereq.gnome-keyring"},
+	{Name: "GitHub CLI (gh)", ID: "gh", Description: "prereq.gh",
 		Requires: []string{"curl"}},
-	{Name: "Docker Engine", ID: "docker", Description: "Motor de contêineres Docker e utilitário Docker Compose. O usuário é adicionado ao grupo docker, que tem acesso equivalente ao de administrador (root) no computador."},
-	{Name: "Node.js", ID: "node", Description: "Ambiente de execução JavaScript (versão LTS instalada via nvm)",
+	{Name: "Docker Engine", ID: "docker", Description: "prereq.docker"},
+	{Name: "Node.js", ID: "node", Description: "prereq.node",
 		Requires:      []string{"curl"},
-		RemoveWarning: "Remover o Node.js apaga a pasta ~/.nvm inteira: todas as versões do Node instaladas pelo nvm e todos os pacotes npm globais delas (inclusive o Codex CLI, se instalado por aqui). As linhas do nvm no arquivo de inicialização do shell também são removidas."},
-	{Name: "Flatpak Builder", ID: "flatpak-builder", Description: "Ferramenta para compilação de aplicativos no formato Flatpak",
+		RemoveWarning: "prereq.node.removeWarning"},
+	{Name: "Flatpak Builder", ID: "flatpak-builder", Description: "prereq.flatpak-builder",
 		Requires: []string{"flatpak"}},
-	{Name: "Flatpak Builder Tools", ID: "flatpak-builder-tools", Description: "Geradores de fontes offline para empacotar no Flatpak/Flathub: flatpak-node-generator (dependências npm, pelo pipx) e flatpak-cargo-generator.py (dependências Rust), de ~/tools/flatpak-builder-tools num commit fixo",
+	{Name: "Flatpak Builder Tools", ID: "flatpak-builder-tools", Description: "prereq.flatpak-builder-tools",
 		Requires:      []string{"git", "flatpak-builder"},
-		RemoveWarning: "Remove o flatpak-node-generator do pipx e a pasta ~/tools/flatpak-builder-tools. Os pacotes pipx, python3-aiohttp e python3-tomlkit continuam instalados."},
-	{Name: "AppStream", ID: "appstream", Description: "Utilitário para metadados de componentes AppStream, usado por Flatpak/AppImage"},
-	{Name: "Libfuse2", ID: "libfuse2", Description: "Biblioteca de compatibilidade FUSE2, necessária para executar AppImages"},
-	{Name: "AppImageTool", ID: "appimagetool", Description: "Utilitário de empacotamento e geração de arquivos AppImage",
+		RemoveWarning: "prereq.flatpak-builder-tools.removeWarning"},
+	{Name: "AppStream", ID: "appstream", Description: "prereq.appstream"},
+	{Name: "Libfuse2", ID: "libfuse2", Description: "prereq.libfuse2"},
+	{Name: "AppImageTool", ID: "appimagetool", Description: "prereq.appimagetool",
 		Requires: []string{"curl"}},
-	{Name: "Mkcert", ID: "mkcert", Description: "Gera certificados TLS localmente confiáveis (usado pelo Contêiner Nginx da nova stack Docker por projeto)"},
+	{Name: "Mkcert", ID: "mkcert", Description: "prereq.mkcert"},
 }
 
 // InstalledMap returns which prerequisites are currently installed.
@@ -128,7 +145,7 @@ func MissingRequirements(ctx context.Context, exe *executor.Executor, p Prereq, 
 	for _, req := range p.Requires {
 		if label, ok := externalRequirements[req]; ok {
 			if !exe.CommandAvailable(ctx, req) {
-				missing = append(missing, label)
+				missing = append(missing, i18n.Tr(label, nil))
 			}
 			continue
 		}
@@ -257,7 +274,7 @@ func installFor(ctx context.Context, exe *executor.Executor, stdout io.Writer, p
 	if pkgs := packagesFor(p.ID, family); pkgs != nil {
 		return distro.InstallPkgs(ctx, exe, stdout, family, pkgs...)
 	}
-	return fmt.Errorf("instalador desconhecido para %s", p.Name)
+	return fmt.Errorf("no installer for %s", p.Name)
 }
 
 // UninstallOne uninstalls a single prerequisite.
@@ -283,7 +300,7 @@ func uninstallFor(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 	if pkgs := removalPackagesFor(p.ID, family); pkgs != nil {
 		return RemovePackages(ctx, exe, opts, family, pkgs...)
 	}
-	return fmt.Errorf("desinstalador desconhecido para %s", p.Name)
+	return fmt.Errorf("no uninstaller for %s", p.Name)
 }
 
 // UpdateOne updates a single installed prerequisite: its packages through
@@ -309,7 +326,7 @@ func updateFor(ctx context.Context, exe *executor.Executor, stdout io.Writer, p 
 	if pkgs := packagesFor(p.ID, family); pkgs != nil {
 		return upgradePkgs(ctx, exe, stdout, family, pkgs...)
 	}
-	return fmt.Errorf("atualizador desconhecido para %s", p.Name)
+	return fmt.Errorf("no updater for %s", p.Name)
 }
 
 // packagesFor returns the distro packages of item id on family, or nil for
@@ -442,7 +459,7 @@ func aptShell(args ...string) string {
 // ── GitHub CLI ────────────────────────────────────────────────────────────────
 
 func installGH(ctx context.Context, exe *executor.Executor, stdout io.Writer, family string, opts executor.Options) error {
-	ui.Info(stdout, "Instalando GitHub CLI...")
+	ui.Info(stdout, i18n.Tr("prereq.run.installGH", nil))
 	switch family {
 	case distro.Debian:
 		script := `set -Eeuo pipefail
@@ -487,7 +504,7 @@ rm -f /etc/apt/sources.list.d/github-cli.list /usr/share/keyrings/githubcli-arch
 // to the docker group as one privileged batch, so the password is asked
 // once. The group membership is checked beforehand, unprivileged.
 func installDocker(ctx context.Context, exe *executor.Executor, stdout io.Writer, family string) error {
-	ui.Info(stdout, "Instalando Docker via gerenciador de pacotes...")
+	ui.Info(stdout, i18n.Tr("prereq.run.installDocker", nil))
 	var steps []executor.PrivilegedStep
 	switch family {
 	case distro.Debian:
@@ -501,8 +518,8 @@ func installDocker(ctx context.Context, exe *executor.Executor, stdout io.Writer
 		return fmt.Errorf("unsupported distro family for Docker: %s", family)
 	}
 	steps = append(steps, executor.PrivilegedStep{
-		Announce: "Ativando o serviço docker...",
-		Soft:     true, WarnMessage: "Não foi possível ativar o serviço docker.",
+		Announce: i18n.Tr("prereq.run.dockerService", nil),
+		Soft:     true, WarnMessage: i18n.Tr("prereq.run.dockerServiceFailed", nil),
 		Name: "systemctl", Args: []string{"enable", "--now", "docker"},
 	})
 
@@ -514,8 +531,8 @@ func installDocker(ctx context.Context, exe *executor.Executor, stdout io.Writer
 	}
 	if addToGroup {
 		steps = append(steps, executor.PrivilegedStep{
-			Announce: "Adicionando " + user + " ao grupo docker...",
-			Soft:     true, WarnMessage: "Não foi possível adicionar " + user + " ao grupo docker.",
+			Announce: i18n.Tr("prereq.run.dockerGroup", i18n.Args{"user": user}),
+			Soft:     true, WarnMessage: i18n.Tr("prereq.run.dockerGroupFailed", i18n.Args{"user": user}),
 			Name: "usermod", Args: []string{"-aG", "docker", "--", user},
 		})
 	}
@@ -524,10 +541,10 @@ func installDocker(ctx context.Context, exe *executor.Executor, stdout io.Writer
 		return err
 	}
 	if addToGroup {
-		ui.Warning(stdout, "Reinicie a sessão para aplicar as permissões do grupo docker.")
+		ui.Warning(stdout, i18n.Tr("prereq.run.dockerRelogin", nil))
 	}
 	if family == distro.Fedora {
-		ui.Warning(stdout, "Fedora: se volumes não funcionarem, execute:\n  sudo setsebool -P container_manage_cgroup on")
+		ui.Warning(stdout, i18n.Tr("prereq.run.dockerSELinux", nil))
 	}
 	return nil
 }
@@ -561,28 +578,28 @@ nvm use --lts
 func installNode(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
 	checkScript := `export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"; command -v node && command -v npm`
 	if _, e := exe.Output(ctx, executor.Options{}, "bash", "-c", checkScript); e == nil {
-		ui.Info(stdout, "Node.js já disponível.")
+		ui.Info(stdout, i18n.Tr("prereq.run.nodeReady", nil))
 		return nil
 	}
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("obter diretório home: %w", err)
+		return fmt.Errorf("get home folder: %w", err)
 	}
 	_, statErr := os.Stat(filepath.Join(home, ".nvm", "nvm.sh"))
 	freshNVM := statErr != nil
 
-	ui.Info(stdout, "Instalando Node.js LTS via nvm...")
+	ui.Info(stdout, i18n.Tr("prereq.run.installNode", nil))
 	ctx, cancel := nettimeout.Context(ctx)
 	defer cancel()
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "bash", "-c", nodeInstallScript); err != nil {
-		return fmt.Errorf("instalar Node.js: %w", err)
+		return fmt.Errorf("install Node.js: %w", err)
 	}
 
 	localbin.EnsureInPath(stdout)
 
 	if freshNVM {
-		ui.Warning(stdout, "Reinicie o terminal para ativar o nvm e o Node.js.")
+		ui.Warning(stdout, i18n.Tr("prereq.run.nodeRestartTerminal", nil))
 	}
 	return nil
 }
@@ -590,10 +607,10 @@ func installNode(ctx context.Context, exe *executor.Executor, stdout io.Writer) 
 func uninstallNode(stdout io.Writer) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("obter diretório home: %w", err)
+		return fmt.Errorf("get home folder: %w", err)
 	}
 	if err := os.RemoveAll(filepath.Join(home, ".nvm")); err != nil {
-		return fmt.Errorf("remover ~/.nvm: %w", err)
+		return fmt.Errorf("remove ~/.nvm: %w", err)
 	}
 	candidates := shellrc.Dedup([]string{
 		filepath.Join(home, ".bashrc"), filepath.Join(home, ".bash_profile"), filepath.Join(home, ".profile"),
@@ -602,20 +619,21 @@ func uninstallNode(stdout io.Writer) error {
 	for _, line := range nvmRCLines {
 		for _, res := range shellrc.RemoveEntry(candidates, "", line) {
 			if res.Err != nil {
-				ui.Warning(stdout, "Não foi possível atualizar "+res.Path+": "+res.Err.Error())
+				ui.Warning(stdout, i18n.Tr("prereq.run.rcFailed", i18n.Args{"path": res.Path, "error": res.Err.Error()}))
 				continue
 			}
-			ui.Info(stdout, "Linha do nvm removida de "+res.Path)
+			ui.Info(stdout, i18n.Tr("prereq.run.nvmLineRemoved", i18n.Args{"path": res.Path}))
 		}
 	}
-	ui.Success(stdout, "Node.js removido.")
+	ui.Success(stdout, i18n.Tr("prereq.run.nodeRemoved", nil))
 	return nil
 }
 
 // nodeUpdateScript installs the latest Node.js LTS through nvm, carrying
 // over the global npm packages of nvm's default version (the one in use
 // when there is no default), and makes the LTS the default for new shells.
-// Nothing is installed when that version already is the latest LTS.
+// Nothing is installed when that version already is the latest LTS: the
+// script then prints $PERCI_UP_TO_DATE with {version} replaced.
 const nodeUpdateScript = `set -Eeo pipefail
 export NVM_DIR="$HOME/.nvm"
 . "$NVM_DIR/nvm.sh"
@@ -625,7 +643,7 @@ if [ "$current" = "N/A" ]; then
 fi
 latest="$(nvm version-remote --lts)"
 if [ "$current" = "$latest" ]; then
-    echo "Node.js já está na versão LTS mais recente ($current)."
+    printf '%s\n' "${PERCI_UP_TO_DATE//\{version\}/$current}"
     exit 0
 fi
 nvm install --lts --reinstall-packages-from="$current"
@@ -633,11 +651,12 @@ nvm alias default 'lts/*'
 `
 
 func updateNode(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-	ui.Info(stdout, "Atualizando Node.js para a última LTS via nvm...")
+	ui.Info(stdout, i18n.Tr("prereq.run.updateNode", nil))
 	ctx, cancel := nettimeout.Context(ctx)
 	defer cancel()
-	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "bash", "-c", nodeUpdateScript); err != nil {
-		return fmt.Errorf("atualizar Node.js: %w", err)
+	opts := executor.Options{Stdout: stdout, Stderr: stdout, Env: []string{"PERCI_UP_TO_DATE=" + i18n.Tr("prereq.run.nodeUpToDate", nil)}}
+	if err := exe.Run(ctx, opts, "bash", "-c", nodeUpdateScript); err != nil {
+		return fmt.Errorf("update Node.js: %w", err)
 	}
 	return nil
 }
@@ -671,17 +690,17 @@ func appImageToolChecksum(ctx context.Context, assetName string) (string, error)
 	apiURL := githubAPIBase + "/repos/AppImage/appimagetool/releases/tags/" + appImageToolVersion
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("criar requisição: %w", err)
+		return "", fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("consultar GitHub API: %w", err)
+		return "", fmt.Errorf("query the GitHub API: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API retornou status %d", resp.StatusCode)
+		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
 	}
 
 	var payload struct {
@@ -691,7 +710,7 @@ func appImageToolChecksum(ctx context.Context, assetName string) (string, error)
 		} `json:"assets"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&payload); err != nil {
-		return "", fmt.Errorf("decodificar resposta: %w", err)
+		return "", fmt.Errorf("decode response: %w", err)
 	}
 	for _, a := range payload.Assets {
 		if a.Name != assetName {
@@ -699,11 +718,11 @@ func appImageToolChecksum(ctx context.Context, assetName string) (string, error)
 		}
 		sum, ok := strings.CutPrefix(a.Digest, "sha256:")
 		if !ok {
-			return "", fmt.Errorf("formato de digest inesperado para %s: %q", assetName, a.Digest)
+			return "", fmt.Errorf("unexpected digest format for %s: %q", assetName, a.Digest)
 		}
 		return sum, nil
 	}
-	return "", fmt.Errorf("asset %s não encontrado na release %s", assetName, appImageToolVersion)
+	return "", fmt.Errorf("asset %s not found in release %s", assetName, appImageToolVersion)
 }
 
 // installAppImageTool downloads appimagetool to an unprivileged temp file
@@ -715,32 +734,32 @@ func installAppImageTool(ctx context.Context, exe *executor.Executor, stdout io.
 	assetName := "appimagetool-" + appImageToolArch() + ".AppImage"
 	toolURL := githubDownloadBase + "/AppImage/appimagetool/releases/download/" + appImageToolVersion + "/" + assetName
 
-	ui.Info(stdout, "Obtendo checksum do appimagetool "+appImageToolVersion+"...")
+	ui.Info(stdout, i18n.Tr("prereq.run.appimageChecksum", i18n.Args{"version": appImageToolVersion}))
 	checksum, err := appImageToolChecksum(ctx, assetName)
 	if err != nil {
-		return fmt.Errorf("obter checksum do appimagetool: %w", err)
+		return fmt.Errorf("get the appimagetool checksum: %w", err)
 	}
 
 	tmp, err := os.CreateTemp("", "appimagetool-*.AppImage")
 	if err != nil {
-		return fmt.Errorf("criar arquivo temporário: %w", err)
+		return fmt.Errorf("create temporary file: %w", err)
 	}
 	tmpPath := tmp.Name()
 	_ = tmp.Close()
 	defer func() { _ = os.Remove(tmpPath) }()
 
-	ui.Info(stdout, "Baixando appimagetool...")
+	ui.Info(stdout, i18n.Tr("prereq.run.appimageDownload", nil))
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "curl", "-fsSL", "--connect-timeout", "10", "--max-time", "600", "-o", tmpPath, "--", toolURL); err != nil {
-		return fmt.Errorf("baixar appimagetool: %w", err)
+		return fmt.Errorf("download appimagetool: %w", err)
 	}
 
-	ui.Info(stdout, "Verificando integridade do appimagetool...")
+	ui.Info(stdout, i18n.Tr("prereq.run.appimageVerify", nil))
 	if err := fsutil.VerifyFile(tmpPath, sha256.New(), checksum); err != nil {
-		return fmt.Errorf("verificação de integridade do appimagetool falhou: %w", err)
+		return fmt.Errorf("appimagetool integrity check failed: %w", err)
 	}
 
 	if err := exe.PrivilegedInstall(ctx, opts, tmpPath, appImageToolDest, checksum, "0755"); err != nil {
-		return fmt.Errorf("instalar appimagetool: %w", err)
+		return fmt.Errorf("install appimagetool: %w", err)
 	}
 	return nil
 }
@@ -770,17 +789,17 @@ func goBinDir(ctx context.Context, exe *executor.Executor) string {
 // since `go install` writes under the user's own GOPATH/GOBIN.
 func installWails3(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
 	if !exe.CommandAvailable(ctx, "go") {
-		return fmt.Errorf("go não encontrado — instale primeiro em Desenvolvimento :: Linguagens e SDKs")
+		return i18n.NewError("prereq.wails3NoGo")
 	}
-	ui.Info(stdout, "Instalando wails3 "+wails3Version+" via go install...")
+	ui.Info(stdout, i18n.Tr("prereq.run.installWails3", i18n.Args{"version": wails3Version}))
 	pkg := "github.com/wailsapp/wails/v3/cmd/wails3@" + wails3Version
 	ctx, cancel := nettimeout.Context(ctx)
 	defer cancel()
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "go", "install", pkg); err != nil {
-		return fmt.Errorf("instalar wails3: %w", err)
+		return fmt.Errorf("install wails3: %w", err)
 	}
 	if !exe.CommandAvailable(ctx, "wails3") {
-		ui.Warning(stdout, "wails3 instalado, mas não encontrado no PATH — adicione o diretório de binários do Go (`go env GOPATH`/bin, ou `go env GOBIN`) ao seu ~/.bashrc.")
+		ui.Warning(stdout, i18n.Tr("prereq.run.wails3NotInPath", nil))
 	}
 	return nil
 }
@@ -788,10 +807,10 @@ func installWails3(ctx context.Context, exe *executor.Executor, stdout io.Writer
 func uninstallWails3(ctx context.Context, exe *executor.Executor) error {
 	gobin := goBinDir(ctx, exe)
 	if gobin == "" {
-		return fmt.Errorf("não foi possível localizar o diretório de binários do Go")
+		return i18n.NewError("prereq.goBinNotFound")
 	}
 	if err := os.Remove(filepath.Join(gobin, "wails3")); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remover wails3: %w", err)
+		return fmt.Errorf("remove wails3: %w", err)
 	}
 	return nil
 }

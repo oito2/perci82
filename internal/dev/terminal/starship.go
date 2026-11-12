@@ -27,6 +27,7 @@ import (
 	"github.com/oito2/perci82/internal/dev/localbin"
 	"github.com/oito2/perci82/internal/dev/nettimeout"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/shellrc"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -45,7 +46,7 @@ func InstallStarship(ctx context.Context, exe *executor.Executor, stdout io.Writ
 	}
 	// Validated before anything is downloaded.
 	if !slices.Contains(StarshipPresets, preset) {
-		return fmt.Errorf("preset do starship desconhecido: %q", preset)
+		return fmt.Errorf("unknown starship preset: %q", preset)
 	}
 	script := `
 set -Eeuo pipefail
@@ -69,7 +70,7 @@ curl -fsSL ` + nettimeout.CurlShellFlags + ` https://starship.rs/install.sh | sh
 		cfgPath := filepath.Join(home, ".config", "starship.toml")
 		if pErr := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout},
 			starshipBin, "preset", preset, "-o", cfgPath); pErr != nil {
-			ui.Warning(stdout, "Falha ao aplicar preset: "+pErr.Error())
+			ui.Warning(stdout, i18n.Tr("terminal.run.presetFailed", i18n.Args{"error": pErr.Error()}))
 		}
 	}
 
@@ -101,9 +102,9 @@ func UninstallStarship(stdout io.Writer) error {
 	if _, statErr := os.Stat(cfg); statErr == nil {
 		backup := starshipBackupPath(cfg, time.Now())
 		if err := os.Rename(cfg, backup); err != nil {
-			ui.Warning(stdout, "Não foi possível renomear "+cfg+": "+err.Error())
+			ui.Warning(stdout, i18n.Tr("terminal.run.renameFailed", i18n.Args{"path": cfg, "error": err.Error()}))
 		} else {
-			ui.Info(stdout, "Configuração do Starship preservada em "+backup)
+			ui.Info(stdout, i18n.Tr("terminal.run.starshipKept", i18n.Args{"path": backup}))
 		}
 	}
 
@@ -111,7 +112,7 @@ func UninstallStarship(stdout io.Writer) error {
 	stripStarshipLine(filepath.Join(home, ".zshrc"), `eval "$(starship init zsh)"`)
 	stripStarshipLine(filepath.Join(home, ".config", "fish", "config.fish"), `starship init fish | source`)
 
-	ui.Info(stdout, "Configurações do Starship removidas dos shells.")
+	ui.Info(stdout, i18n.Tr("terminal.run.starshipRemoved", nil))
 	return nil
 }
 
@@ -133,7 +134,7 @@ func ConfigureStarshipShells(stdout io.Writer) {
 	for _, s := range shells {
 		if _, statErr := os.Stat(s.rc); statErr == nil {
 			if appendLineIfMissing(s.rc, s.line) {
-				ui.Info(stdout, "Starship registrado em "+s.rc)
+				ui.Info(stdout, i18n.Tr("terminal.run.starshipAdded", i18n.Args{"path": s.rc}))
 			}
 		}
 	}
@@ -141,7 +142,7 @@ func ConfigureStarshipShells(stdout io.Writer) {
 	fishConfig := filepath.Join(home, ".config", "fish", "config.fish")
 	if _, statErr := os.Stat(fishConfig); statErr == nil {
 		if appendLineIfMissing(fishConfig, `starship init fish | source`) {
-			ui.Info(stdout, "Starship registrado em "+fishConfig)
+			ui.Info(stdout, i18n.Tr("terminal.run.starshipAdded", i18n.Args{"path": fishConfig}))
 		}
 	}
 }

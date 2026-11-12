@@ -24,6 +24,7 @@ package prereqs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -34,6 +35,7 @@ import (
 	"github.com/oito2/perci82/internal/dev/nettimeout"
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -54,7 +56,7 @@ var flatpakToolsPkgs = []string{"pipx", "python3-aiohttp", "python3-tomlkit"}
 func flatpakToolsDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("obter diretório home: %w", err)
+		return "", fmt.Errorf("get home folder: %w", err)
 	}
 	return filepath.Join(home, "tools", "flatpak-builder-tools"), nil
 }
@@ -103,31 +105,31 @@ func installFlatpakTools(ctx context.Context, exe *executor.Executor, stdout io.
 	opts := executor.Options{Stdout: stdout, Stderr: stdout}
 	if _, err := os.Stat(dir); err == nil {
 		if !exe.DryRun && !isFlatpakToolsClone(netCtx, exe, dir) {
-			return fmt.Errorf("%s já existe e não é um clone de %s — mova ou apague essa pasta", dir, flatpakToolsRepo)
+			return errors.New(i18n.Tr("prereq.toolsNotClone", i18n.Args{"dir": dir, "repo": flatpakToolsRepo}))
 		}
-		ui.Info(stdout, "Atualizando "+dir+"...")
+		ui.Info(stdout, i18n.Tr("prereq.run.updatingDir", i18n.Args{"dir": dir}))
 		if err := exe.Run(netCtx, opts, "git", "-C", dir, "fetch", "--quiet", "origin"); err != nil {
-			return fmt.Errorf("atualizar flatpak-builder-tools: %w", err)
+			return fmt.Errorf("update flatpak-builder-tools: %w", err)
 		}
 	} else {
 		if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
 			return err
 		}
-		ui.Info(stdout, "Clonando flatpak-builder-tools em "+dir+"...")
+		ui.Info(stdout, i18n.Tr("prereq.run.cloningTools", i18n.Args{"dir": dir}))
 		if err := exe.Run(netCtx, opts, "git", "clone", "--quiet", "--", flatpakToolsRepo, dir); err != nil {
-			return fmt.Errorf("clonar flatpak-builder-tools: %w", err)
+			return fmt.Errorf("clone flatpak-builder-tools: %w", err)
 		}
 	}
 	if err := exe.Run(netCtx, opts, "git", "-C", dir, "checkout", "--quiet", "--detach", flatpakToolsCommit); err != nil {
-		return fmt.Errorf("fixar flatpak-builder-tools em %s: %w", flatpakToolsCommit[:12], err)
+		return fmt.Errorf("pin flatpak-builder-tools at %s: %w", flatpakToolsCommit[:12], err)
 	}
 
-	ui.Info(stdout, "Instalando flatpak-node-generator (pipx)...")
+	ui.Info(stdout, i18n.Tr("prereq.run.installNodeGenerator", nil))
 	if err := exe.Run(netCtx, opts, "pipx", "install", "--force", filepath.Join(dir, "node")); err != nil {
-		return fmt.Errorf("instalar flatpak-node-generator: %w", err)
+		return fmt.Errorf("install flatpak-node-generator: %w", err)
 	}
 	localbin.EnsureInPath(stdout)
-	ui.Success(stdout, "Geradores prontos: flatpak-node-generator e python3 "+filepath.Join(dir, "cargo", "flatpak-cargo-generator.py"))
+	ui.Success(stdout, i18n.Tr("prereq.run.generatorsReady", i18n.Args{"path": filepath.Join(dir, "cargo", "flatpak-cargo-generator.py")}))
 	return nil
 }
 
@@ -142,16 +144,16 @@ func uninstallFlatpakTools(ctx context.Context, exe *executor.Executor, stdout i
 	opts := executor.Options{Stdout: stdout, Stderr: stdout}
 	if exe.CommandAvailable(ctx, "pipx") {
 		if err := exe.Run(ctx, opts, "pipx", "uninstall", flatpakNodePackage); err != nil {
-			ui.Warning(stdout, "flatpak-node-generator não foi removido do pipx: "+err.Error())
+			ui.Warning(stdout, i18n.Tr("prereq.run.nodeGeneratorKept", i18n.Args{"error": err.Error()}))
 		}
 	}
 	if _, err := os.Stat(dir); err != nil {
 		return nil
 	}
 	if !exe.DryRun && !isFlatpakToolsClone(ctx, exe, dir) {
-		return fmt.Errorf("%s não é um clone de %s; nada foi apagado", dir, flatpakToolsRepo)
+		return errors.New(i18n.Tr("prereq.toolsNotCloneKept", i18n.Args{"dir": dir, "repo": flatpakToolsRepo}))
 	}
-	ui.Info(stdout, "Removendo "+dir+"...")
+	ui.Info(stdout, i18n.Tr("prereq.run.removingDir", i18n.Args{"dir": dir}))
 	if exe.DryRun {
 		return nil
 	}

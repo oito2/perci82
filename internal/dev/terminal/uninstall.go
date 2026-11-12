@@ -43,7 +43,7 @@ func UninstallOne(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 	case "kgx":
 		return removePackage(ctx, exe, sudo, family, "gnome-console")
 	}
-	return fmt.Errorf("desinstalador desconhecido para %s", t.Name)
+	return fmt.Errorf("no uninstaller for %s", t.Name)
 }
 
 // removePackage removes pkg only when the removal takes no other package

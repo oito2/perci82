@@ -24,23 +24,24 @@
 // scripts under js/.
 "use strict";
 
-// ITEM_TABLE_SCREENS maps actionId to the two bound methods the screen
-// needs: fetch() brings the rows, run(id, op) runs "install", "update" or
+// ITEM_TABLE_SCREENS maps actionId to the message key of the table's
+// first column header and the two bound methods the screen needs: fetch()
+// brings the rows, run(id, op) runs "install", "update" or
 // "uninstall" on one item. Each new screen of this type only needs one
 // entry here.
 const ITEM_TABLE_SCREENS = {
   prereqs: {
-    header: "Pré-requisito",
+    header: "itemTable.prereq",
     fetch: function () { return App.GetPrereqsInfo(); },
     run: function (id, op) { return App.RunPrereqAction(id, op); },
   },
   sdks: {
-    header: "SDK",
+    header: "itemTable.sdk",
     fetch: function () { return App.GetSDKsInfo(); },
     run: function (id, op) { return App.RunSDKAction(id, op); },
   },
   ides: {
-    header: "IDE",
+    header: "itemTable.ide",
     fetch: function () { return App.GetIDEsInfo(); },
     run: function (id, op) { return App.RunIDEAction(id, op); },
   },
@@ -64,8 +65,10 @@ function itemTableButton(label, cls, enabled, onClick) {
   return btn;
 }
 
-function runItemTableAction(cfg, it, op, label) {
-  beginRun(label + " " + it.label, function () { return cfg.run(it.id, op); }, { buttons: itemTableButtons });
+// runItemTableAction runs op on it; labelKey is the message key of the
+// run's title ("Instalar {name}"...).
+function runItemTableAction(cfg, it, op, labelKey) {
+  beginRun(t(labelKey, { name: it.label }), function () { return cfg.run(it.id, op); }, { buttons: itemTableButtons });
 }
 
 // buildItemTableRow builds the <tr> of it: name, description and missing
@@ -88,7 +91,7 @@ function buildItemTableRow(cfg, it) {
   if (!it.installed && missing.length) {
     const hint = document.createElement("p");
     hint.className = "text-sm text-warning";
-    hint.textContent = "Requer: " + missing.join(", ");
+    hint.textContent = t("itemTable.requires", { items: missing.join(", ") });
     tdInfo.appendChild(hint);
   }
 
@@ -96,16 +99,16 @@ function buildItemTableRow(cfg, it) {
   tdActions.className = "align-top";
   const wrap = document.createElement("div");
   wrap.className = "flex gap-2 justify-end";
-  wrap.appendChild(itemTableButton("Instalar", "btn-primary", !it.installed && !missing.length, function () {
-    runItemTableAction(cfg, it, "install", "Instalar");
+  wrap.appendChild(itemTableButton(t("action.install"), "btn-primary", !it.installed && !missing.length, function () {
+    runItemTableAction(cfg, it, "install", "itemTable.run.install");
   }));
-  wrap.appendChild(itemTableButton("Atualizar", "btn-outline", it.installed, function () {
-    runItemTableAction(cfg, it, "update", "Atualizar");
+  wrap.appendChild(itemTableButton(t("action.update"), "btn-outline", it.installed, function () {
+    runItemTableAction(cfg, it, "update", "itemTable.run.update");
   }));
-  wrap.appendChild(itemTableButton("Desinstalar", "btn-outline btn-error", it.installed, function () {
-    const message = "Desinstalar " + it.label + "?" + (it.removeWarning ? "\n\n" + it.removeWarning : "");
-    openConfirm("Confirmar remoção", message, function () {
-      runItemTableAction(cfg, it, "uninstall", "Desinstalar");
+  wrap.appendChild(itemTableButton(t("action.uninstall"), "btn-outline btn-error", it.installed, function () {
+    const message = t("itemTable.confirmUninstall", { name: it.label }) + (it.removeWarning ? "\n\n" + it.removeWarning : "");
+    openConfirm(t("checklist.confirmRemoval"), message, function () {
+      runItemTableAction(cfg, it, "uninstall", "itemTable.run.uninstall");
     });
   }));
   tdActions.appendChild(wrap);
@@ -118,8 +121,8 @@ function buildItemTableRow(cfg, it) {
 function renderItemTableScreen(item) {
   const cfg = ITEM_TABLE_SCREENS[item.actionId];
   itemTableIntro.textContent = item.desc || "";
-  itemTableHeader.textContent = cfg.header;
-  itemTableRows.innerHTML = '<tr><td colspan="2" class="opacity-60">Verificando o que está instalado...</td></tr>';
+  itemTableHeader.textContent = t(cfg.header);
+  itemTableRows.innerHTML = '<tr><td colspan="2" class="opacity-60">' + escHTML(t("itemTable.checking")) + "</td></tr>";
   itemTableButtons = [];
   // One latestOnly guard for both outcomes: neither the rows nor the error
   // of an older request reach the table after a newer one started.
@@ -131,7 +134,7 @@ function renderItemTableScreen(item) {
       const td = document.createElement("td");
       td.colSpan = 2;
       td.className = "text-error";
-      td.textContent = "Falha ao verificar o que está instalado: " + result.err;
+      td.textContent = t("itemTable.checkFailed", { error: result.err });
       tr.appendChild(td);
       itemTableRows.appendChild(tr);
       return;

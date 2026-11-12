@@ -71,7 +71,7 @@ func TestInstall(t *testing.T) {
 	exe := executor.New(&buf, &buf)
 	tampered := []byte("tampered")
 	served.Store(&tampered)
-	if err := Install(context.Background(), exe, &buf); err == nil || !strings.Contains(err.Error(), "integridade") {
+	if err := Install(context.Background(), exe, &buf); err == nil || !strings.Contains(err.Error(), "integrity") {
 		t.Fatalf("a tampered download was accepted: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(home, "args")); err == nil {

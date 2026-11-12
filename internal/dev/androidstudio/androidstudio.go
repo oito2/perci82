@@ -26,6 +26,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -34,6 +35,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -76,12 +78,12 @@ func Installed() bool {
 // with the user's own privileges.
 func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer, tarballPath string) error {
 	if _, err := os.Stat(tarballPath); err != nil {
-		return fmt.Errorf("arquivo não encontrado: %s", tarballPath)
+		return errors.New(i18n.Tr("dev.fileNotFound", i18n.Args{"path": tarballPath}))
 	}
 
 	user := executor.CurrentUser()
 	if user == "" {
-		return fmt.Errorf("não foi possível determinar o usuário atual")
+		return errors.New("could not determine the current user")
 	}
 
 	// Entries must all live under android-studio/, which
@@ -92,44 +94,44 @@ func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer, tarb
 
 	oldDir := installDir + ".old"
 	steps := []executor.PrivilegedStep{{
-		Announce: "Preparando " + installDir + " para " + user + "...",
+		Announce: i18n.Tr("studio.run.prepare", i18n.Args{"dir": installDir, "user": user}),
 		Name:     "sh",
 		Args:     []string{"-c", prepareScript, "sh", installDir, oldDir, user},
 	}}
 	if err := exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, steps); err != nil {
-		return fmt.Errorf("preparar %s: %w", installDir, err)
+		return fmt.Errorf("prepare %s: %w", installDir, err)
 	}
 
-	ui.Info(stdout, "Extraindo "+tarballPath+" em "+installDir+"...")
+	ui.Info(stdout, i18n.Tr("studio.run.extract", i18n.Args{"file": tarballPath, "dir": installDir}))
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout},
 		"tar", "-xzf", tarballPath, "-C", installDir, "--strip-components=1", "--no-same-owner",
 	); err != nil {
 		if _, statErr := os.Stat(oldDir); statErr == nil {
-			ui.Warning(stdout, "A instalação anterior foi preservada em "+oldDir+".")
+			ui.Warning(stdout, i18n.Tr("studio.run.oldKept", i18n.Args{"dir": oldDir}))
 		}
-		return fmt.Errorf("extrair: %w", err)
+		return fmt.Errorf("extract: %w", err)
 	}
 
 	// The previous install is owned by the user, so removing it needs no
 	// second password prompt. Skipped in DryRun.
 	if exe.DryRun {
-		ui.Info(stdout, "[dry-run] remover "+oldDir)
+		ui.Info(stdout, "[dry-run] remove "+oldDir)
 	} else if err := os.RemoveAll(oldDir); err != nil {
-		ui.Warning(stdout, "Não foi possível remover a instalação anterior em "+oldDir+": "+err.Error())
+		ui.Warning(stdout, i18n.Tr("studio.run.oldRemoveFailed", i18n.Args{"dir": oldDir, "error": err.Error()}))
 	}
 
 	studioSh := filepath.Join(installDir, "bin", "studio.sh")
-	ui.Info(stdout, "Abrindo o assistente de configuração do Android Studio (janela própria)...")
+	ui.Info(stdout, i18n.Tr("studio.run.wizard", nil))
 	// setsid + & detaches studio.sh from perci's own process (its own
 	// session, stdin/stdout/stderr closed) so exe.Run returns as soon as
 	// the process launches.
 	launchScript := "setsid " + executor.ShellQuote(studioSh) + " >/dev/null 2>&1 < /dev/null &"
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "bash", "-c", launchScript); err != nil {
-		ui.Warning(stdout, "Não foi possível abrir o assistente automaticamente: "+err.Error())
-		ui.Warning(stdout, "Abra manualmente: "+studioSh)
+		ui.Warning(stdout, i18n.Tr("studio.run.wizardFailed", i18n.Args{"error": err.Error()}))
+		ui.Warning(stdout, i18n.Tr("studio.run.openByHand", i18n.Args{"path": studioSh}))
 	}
 
-	ui.Success(stdout, "Android Studio instalado em "+installDir+".")
+	ui.Success(stdout, i18n.Tr("studio.run.installed", i18n.Args{"dir": installDir}))
 	return nil
 }
 
@@ -140,12 +142,12 @@ func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer, tarb
 func validateTarballEntries(tarballPath string) error {
 	f, err := os.Open(tarballPath)
 	if err != nil {
-		return fmt.Errorf("abrir tarball: %w", err)
+		return fmt.Errorf("open tarball: %w", err)
 	}
 	defer func() { _ = f.Close() }()
 	gz, err := gzip.NewReader(f)
 	if err != nil {
-		return fmt.Errorf("o arquivo não é um .tar.gz válido: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("dev.notTarGz", nil), err)
 	}
 	defer func() { _ = gz.Close() }()
 	var names []string
@@ -156,7 +158,7 @@ func validateTarballEntries(tarballPath string) error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("listar conteúdo do tarball: %w", err)
+			return fmt.Errorf("list the tarball: %w", err)
 		}
 		names = append(names, hdr.Name)
 	}
@@ -172,11 +174,11 @@ func checkTarballEntries(listing string) error {
 		}
 		found = true
 		if strings.HasPrefix(entry, "/") || !strings.HasPrefix(entry, "android-studio/") || slices.Contains(strings.Split(entry, "/"), "..") {
-			return fmt.Errorf("o arquivo não parece um tarball do Android Studio (entrada %q)", entry)
+			return errors.New(i18n.Tr("studio.notStudio", i18n.Args{"entry": entry}))
 		}
 	}
 	if !found {
-		return fmt.Errorf("tarball vazio")
+		return i18n.NewError("dev.emptyTarball")
 	}
 	return nil
 }
@@ -188,15 +190,15 @@ func checkTarballEntries(listing string) error {
 func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
 	sudo := executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}
 
-	ui.Info(stdout, "Removendo "+installDir+"...")
+	ui.Info(stdout, i18n.Tr("dev.removingDir", i18n.Args{"dir": installDir}))
 	if err := exe.Run(ctx, sudo, "rm", "-rf", "--", installDir, installDir+".old"); err != nil {
-		return fmt.Errorf("remover %s: %w", installDir, err)
+		return fmt.Errorf("remove %s: %w", installDir, err)
 	}
 
 	if home, err := os.UserHomeDir(); err == nil {
 		_ = os.Remove(desktopFile(home))
 	}
 
-	ui.Success(stdout, "Android Studio desinstalado.")
+	ui.Success(stdout, i18n.Tr("studio.run.uninstalled", nil))
 	return nil
 }

@@ -31,35 +31,50 @@ import (
 	"github.com/oito2/perci82/internal/dev/prereqs"
 	"github.com/oito2/perci82/internal/dev/rust"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
 // SDK describes a language/SDK toolchain managed by perci.gnl.
 type SDK struct {
-	Name        string
-	ID          string // "go", "rust" or "flutter"
+	Name string
+	ID   string // "go", "rust" or "flutter"
+	// Description is the message key of the SDK's description;
+	// DescriptionText returns it in the current language.
 	Description string
 	// Requires lists the Names of the prereqs.Catalogue items its installer
 	// needs.
 	Requires []string
-	// RemoveWarning is shown in the uninstall confirmation.
+	// RemoveWarning is the message key of the text shown in the uninstall
+	// confirmation; RemoveWarningText returns it in the current language.
 	RemoveWarning string
+}
+
+// DescriptionText returns the SDK's description in the current language.
+func (s SDK) DescriptionText() string {
+	return i18n.Tr(s.Description, i18n.Args{"url": flutter.AndroidTermsURL})
+}
+
+// RemoveWarningText returns the SDK's uninstall warning in the current
+// language.
+func (s SDK) RemoveWarningText() string {
+	return i18n.Tr(s.RemoveWarning, nil)
 }
 
 // Catalogue lists all SDKs managed by perci.gnl.
 var Catalogue = []SDK{
 	{Name: "Go SDK", ID: "go",
-		Description:   "Linguagem Go, na versão estável mais recente, instalada em /usr/local/go",
+		Description:   "sdk.go",
 		Requires:      []string{"Curl"},
-		RemoveWarning: "Remove /usr/local/go e a linha do Go no PATH do arquivo de inicialização do shell."},
+		RemoveWarning: "sdk.go.removeWarning"},
 	{Name: "Rust (rustup)", ID: "rust",
-		Description:   "Linguagem Rust (canal stable) pelo rustup, só para o seu usuário em ~/.cargo e ~/.rustup: rustc, cargo, clippy, rustfmt e rust-analyzer",
+		Description:   "sdk.rust",
 		Requires:      []string{"Curl", "Build Essential"},
-		RemoveWarning: "Remove ~/.cargo (inclusive os programas instalados com cargo install), ~/.rustup com todos os toolchains, e a linha do Rust no PATH do arquivo de inicialização do shell."},
+		RemoveWarning: "sdk.rust.removeWarning"},
 	{Name: "Flutter + Dart SDK", ID: "flutter",
-		Description:   "Flutter (canal stable) com o Dart, em ~/development/flutter, mais o Android cmdline-tools e o wrapper do Chrome. A instalação aceita as licenças do Android SDK em seu nome; os termos estão em " + flutter.AndroidTermsURL + ".",
+		Description:   "sdk.flutter",
 		Requires:      []string{"Git"},
-		RemoveWarning: "Remove ~/development/flutter e a linha do Flutter no PATH do arquivo de inicialização do shell. O Android SDK (~/Android/Sdk) e o wrapper do Chrome continuam instalados."},
+		RemoveWarning: "sdk.flutter.removeWarning"},
 }
 
 // paths resolves the fixed locations used by InstalledMap and the
@@ -67,7 +82,7 @@ var Catalogue = []SDK{
 func paths() (home, flutterDir, flutterBin string, err error) {
 	home, err = os.UserHomeDir()
 	if err != nil {
-		return "", "", "", fmt.Errorf("obter diretório home: %w", err)
+		return "", "", "", fmt.Errorf("get home folder: %w", err)
 	}
 	flutterDir = filepath.Join(home, "development", "flutter")
 	flutterBin = filepath.Join(flutterDir, "bin", "flutter")
@@ -94,7 +109,7 @@ func MissingRequirements(ctx context.Context, exe *executor.Executor, s SDK) []s
 	var missing []string
 	for _, req := range s.Requires {
 		if !prereqs.Installed(ctx, exe, req) {
-			missing = append(missing, req+" (Pré-requisitos)")
+			missing = append(missing, i18n.Tr("dev.requirement", i18n.Args{"name": req}))
 		}
 	}
 	return missing
@@ -136,7 +151,7 @@ func install(ctx context.Context, exe *executor.Executor, stdout io.Writer, id, 
 		// Needs go.dev reachable for the download and its checksum.
 		latest, checksum, err := golang.LatestRelease(ctx)
 		if err != nil {
-			return fmt.Errorf("obter a versão mais recente do Go: %w", err)
+			return fmt.Errorf("get the newest Go version: %w", err)
 		}
 		if err := golang.Install(ctx, exe, stdout, latest, checksum); err != nil {
 			return err
@@ -152,19 +167,19 @@ func install(ctx context.Context, exe *executor.Executor, stdout io.Writer, id, 
 		}
 		flutter.EnsurePathInBashrc(stdout, home)
 		if err := flutter.InstallPrereqs(ctx, exe, stdout); err != nil {
-			ui.Warning(stdout, "Falha ao instalar pré-requisitos do Flutter: "+err.Error())
+			ui.Warning(stdout, i18n.Tr("sdk.run.flutterPrereqsFailed", i18n.Args{"error": err.Error()}))
 		}
 		if err := flutter.EnsureAndroidCmdlineTools(ctx, exe, stdout, home, flutterBin); err != nil {
-			ui.Warning(stdout, "Falha ao instalar o Android cmdline-tools: "+err.Error())
+			ui.Warning(stdout, i18n.Tr("sdk.run.cmdlineToolsFailed", i18n.Args{"error": err.Error()}))
 		}
 		if err := flutter.EnsureChromeWrapper(ctx, exe, stdout, home); err != nil {
-			ui.Warning(stdout, "Falha ao criar o wrapper do Chrome: "+err.Error())
+			ui.Warning(stdout, i18n.Tr("sdk.run.chromeWrapperFailed", i18n.Args{"error": err.Error()}))
 		}
-		ui.Info(stdout, "Executando diagnóstico (flutter doctor)...")
+		ui.Info(stdout, i18n.Tr("sdk.run.flutterDoctor", nil))
 		_ = exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, flutterBin, "doctor")
 		return nil
 	}
-	return fmt.Errorf("instalador desconhecido para %s", id)
+	return fmt.Errorf("no installer for %s", id)
 }
 
 // latestGoRelease and installedGoVersion look up the Go versions update
@@ -180,22 +195,22 @@ func update(ctx context.Context, exe *executor.Executor, stdout io.Writer, id, f
 	case "go":
 		latest, checksum, err := latestGoRelease(ctx)
 		if err != nil {
-			return fmt.Errorf("obter a versão mais recente do Go: %w", err)
+			return fmt.Errorf("get the newest Go version: %w", err)
 		}
 		if _, current := installedGoVersion(ctx, exe); current == latest {
-			ui.Info(stdout, "Go já está na versão mais recente ("+current+").")
+			ui.Info(stdout, i18n.Tr("sdk.run.goUpToDate", i18n.Args{"version": current}))
 			return nil
 		}
 		return golang.Install(ctx, exe, stdout, latest, checksum)
 	case "rust":
 		return rust.Update(ctx, exe, stdout)
 	case "flutter":
-		ui.Info(stdout, "Atualizando Flutter (flutter upgrade)...")
+		ui.Info(stdout, i18n.Tr("sdk.run.flutterUpgrade", nil))
 		ctx, cancel := nettimeout.Context(ctx)
 		defer cancel()
 		return exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, flutterBin, "upgrade")
 	}
-	return fmt.Errorf("atualizador desconhecido para %s", id)
+	return fmt.Errorf("no updater for %s", id)
 }
 
 func remove(ctx context.Context, exe *executor.Executor, stdout io.Writer, id, home, flutterDir string) error {
@@ -207,5 +222,5 @@ func remove(ctx context.Context, exe *executor.Executor, stdout io.Writer, id, h
 	case "flutter":
 		return flutter.Uninstall(ctx, exe, stdout, home, flutterDir)
 	}
-	return fmt.Errorf("desinstalador desconhecido para %s", id)
+	return fmt.Errorf("no uninstaller for %s", id)
 }

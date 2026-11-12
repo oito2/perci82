@@ -20,6 +20,7 @@ import (
 	"io"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -27,10 +28,10 @@ import (
 // script always fetches the latest version, and apt-get/dnf install upgrade
 // an already-installed package.
 func UpdateOne(ctx context.Context, exe *executor.Executor, stdout io.Writer, e IDE, family string) error {
-	ui.Info(stdout, "Atualizando "+e.Name+"...")
+	ui.Info(stdout, i18n.Tr("dev.updating", i18n.Args{"name": e.Name}))
 	if err := InstallOne(ctx, exe, stdout, e, family); err != nil {
 		return err
 	}
-	ui.Success(stdout, e.Name+" atualizado.")
+	ui.Success(stdout, i18n.Tr("dev.updated", i18n.Args{"name": e.Name}))
 	return nil
 }

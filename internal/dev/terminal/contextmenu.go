@@ -24,6 +24,7 @@ import (
 
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -47,10 +48,10 @@ func AddContextMenuEntries(t Terminal, stdout io.Writer) {
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		ui.Warning(stdout, "Menu de contexto: falha ao obter diretório home: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("terminal.run.menuNoHome", i18n.Args{"error": err.Error()}))
 		return
 	}
-	ui.Info(stdout, "Integrando "+t.Name+" ao menu de contexto dos gerenciadores de arquivos...")
+	ui.Info(stdout, i18n.Tr("terminal.run.menuAdd", i18n.Args{"name": t.Name}))
 	writeContextMenuFile(nautilusScriptPath(t, home), nautilusScript(t), 0o755, "Nautilus", stdout)
 	writeContextMenuFile(nemoScriptPath(t, home), nemoScript(t), 0o755, "Nemo", stdout)
 	writeContextMenuFile(dolphinMenuPath(t, home), dolphinMenu(t), 0o755, "Dolphin", stdout)
@@ -65,11 +66,11 @@ func RemoveContextMenuEntries(t Terminal, stdout io.Writer) {
 	if err != nil {
 		return
 	}
-	for _, p := range []string{
-		nautilusScriptPath(t, home),
-		nemoScriptPath(t, home),
-		dolphinMenuPath(t, home),
-	} {
+	paths := []string{dolphinMenuPath(t, home)}
+	for _, locale := range i18n.Locales() {
+		paths = append(paths, nautilusScriptPathIn(t, home, locale), nemoScriptPathIn(t, home, locale))
+	}
+	for _, p := range paths {
 		_ = os.Remove(p)
 		_ = os.Remove(p + ".perci-bak")
 	}
@@ -79,11 +80,11 @@ func RemoveContextMenuEntries(t Terminal, stdout io.Writer) {
 
 func writeContextMenuFile(path, content string, perm os.FileMode, label string, stdout io.Writer) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		ui.Warning(stdout, label+": falha ao criar diretório: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("terminal.run.menuDirFailed", i18n.Args{"name": label, "error": err.Error()}))
 		return
 	}
 	if err := fsutil.WriteGenerated(path, []byte(content), perm); err != nil {
-		ui.Warning(stdout, label+": falha ao escrever arquivo: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("terminal.run.menuWriteFailed", i18n.Args{"name": label, "error": err.Error()}))
 	}
 }
 
@@ -110,8 +111,21 @@ func shellescapeWords(s string) string {
 
 // ── Nautilus ─────────────────────────────────────────────────────────────────
 
+// openInLabel is the "Open in <terminal>" label of the file managers' menu
+// entries in locale.
+func openInLabel(t Terminal, locale string) string {
+	return i18n.T(locale, "terminal.openIn", i18n.Args{"name": t.Name})
+}
+
+// nautilusScriptPath is the Nautilus script of t in the current language.
 func nautilusScriptPath(t Terminal, home string) string {
-	return filepath.Join(home, ".local", "share", "nautilus", "scripts", "Abrir no "+t.Name)
+	return nautilusScriptPathIn(t, home, i18n.Locale())
+}
+
+// nautilusScriptPathIn is the Nautilus script of t in locale — the script's
+// file name is the label the menu shows.
+func nautilusScriptPathIn(t Terminal, home, locale string) string {
+	return filepath.Join(home, ".local", "share", "nautilus", "scripts", openInLabel(t, locale))
 }
 
 func nautilusScript(t Terminal) string {
@@ -125,8 +139,15 @@ DIR=$(python3 -c "import sys,urllib.parse; u=sys.argv[1]; print(urllib.parse.unq
 
 // ── Nemo ─────────────────────────────────────────────────────────────────────
 
+// nemoScriptPath is the Nemo script of t in the current language.
 func nemoScriptPath(t Terminal, home string) string {
-	return filepath.Join(home, ".local", "share", "nemo", "scripts", "Abrir no "+t.Name)
+	return nemoScriptPathIn(t, home, i18n.Locale())
+}
+
+// nemoScriptPathIn is the Nemo script of t in locale — the script's file
+// name is the label the menu shows.
+func nemoScriptPathIn(t Terminal, home, locale string) string {
+	return filepath.Join(home, ".local", "share", "nemo", "scripts", openInLabel(t, locale))
 }
 
 func nemoScript(t Terminal) string {
@@ -153,8 +174,8 @@ MimeType=inode/directory;
 Actions=%s;
 
 [Desktop Action %s]
-Name=Abrir no %s
+Name=%s
 Icon=utilities-terminal
 Exec=%s %s %%f
-`, actionID, actionID, t.Name, shellescapeWords(execCmd(t)), shellescapeWords(t.DirFlag))
+`, actionID, actionID, openInLabel(t, i18n.Locale()), shellescapeWords(execCmd(t)), shellescapeWords(t.DirFlag))
 }

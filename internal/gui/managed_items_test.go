@@ -56,8 +56,8 @@ func TestRunPrereqAction_Refusals(t *testing.T) {
 		{"Curl", "install", "já está instalado"},
 		{"Git", "update", "não está instalado"},
 		{"Git", "uninstall", "não está instalado"},
-		{"Git", "reinstall", "operação desconhecida"},
-		{"Nope", "install", "desconhecido"},
+		{"Git", "reinstall", "unknown operation"},
+		{"Nope", "install", "unknown item"},
 	}
 	for _, c := range cases {
 		b, rec := newTestBase(t)

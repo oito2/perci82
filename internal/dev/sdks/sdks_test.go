@@ -170,8 +170,8 @@ func TestCatalogue_FlutterDescribesTheLicenseAcceptance(t *testing.T) {
 		if sk.ID != "flutter" {
 			continue
 		}
-		if !strings.Contains(sk.Description, "licenças do Android SDK") || !strings.Contains(sk.Description, "https://developer.android.com/studio/terms") {
-			t.Errorf("description = %q", sk.Description)
+		if !strings.Contains(sk.DescriptionText(), "licenças do Android SDK") || !strings.Contains(sk.DescriptionText(), "https://developer.android.com/studio/terms") {
+			t.Errorf("description = %q", sk.DescriptionText())
 		}
 	}
 }

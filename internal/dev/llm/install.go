@@ -44,7 +44,7 @@ func InstallOne(ctx context.Context, exe *executor.Executor, stdout io.Writer, l
 	case "opencode":
 		return runInstaller(ctx, exe, stdout, opts, "https://opencode.ai/install")
 	}
-	return fmt.Errorf("instalador desconhecido para %s", l.Name)
+	return fmt.Errorf("no installer for %s", l.Name)
 }
 
 // runInstaller downloads the vendor install script at url with bounded

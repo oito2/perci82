@@ -13,7 +13,8 @@ Changes for the first release of Perci82 Dev.
 - **Perci82 Dev** (`perci82-dev`), split from Perci 1.9.0: the development screens (Ambiente, Docker, Repositórios, Contextos de IA, Skills & MCPs) and the system tray.
 - A new icon, under the application ID `io.github.oito2.perci82.dev`.
 - The installer `install-dev.sh`: it installs Perci82 Dev's newest release with its application menu entry and offers to remove the old Perci (`prci`), keeping `~/.perci`.
-- Configurações → Idioma chooses between "Definido pelo sistema" (Portuguese when the system language is Portuguese, English otherwise), Português (Brasil) and English, saved as `language`. The switch applies at once, without a restart, including the tray menu. The screens are translated as they are migrated.
+- Configurações → Idioma chooses between "Definido pelo sistema" (Portuguese when the system language is Portuguese, English otherwise), Português (Brasil) and English, saved as `language`. The switch applies at once, without a restart, including the tray menu. The Ambiente screens (Pré-requisitos, Linguagens e SDKs, IA, Terminais, IDEs, Android Studio, Antigravity IDE) are translated, including the progress messages of their actions; technical error details are shown in English. The other screens are translated as they are migrated.
+- The "Open in <terminal>" entries that Terminais adds to the Nautilus, Nemo and Dolphin context menus follow the chosen language.
 
 ### Changed
 

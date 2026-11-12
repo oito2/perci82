@@ -46,7 +46,7 @@ func InstallOne(ctx context.Context, exe *executor.Executor, stdout io.Writer, e
 	case "codium":
 		return installVSCodium(ctx, exe, stdout, family)
 	}
-	return fmt.Errorf("instalador desconhecido para %s", e.Name)
+	return fmt.Errorf("no installer for %s", e.Name)
 }
 
 // installVSCode installs VS Code from Microsoft's signed apt/dnf

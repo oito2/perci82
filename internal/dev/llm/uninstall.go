@@ -25,6 +25,7 @@ import (
 
 	"github.com/oito2/perci82/internal/dev/localbin"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/shellrc"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -40,7 +41,7 @@ func UninstallOne(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 		if dataDir == "" {
 			return nil
 		}
-		ui.Info(stdout, "Removendo as versões baixadas em "+dataDir+"...")
+		ui.Info(stdout, i18n.Tr("llm.run.removingVersions", i18n.Args{"dir": dataDir}))
 		return exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "rm", "-rf", "--", dataDir)
 	case "opencode":
 		if err := removeBinary(ctx, exe, stdout, l.Cmd); err != nil {
@@ -53,7 +54,7 @@ func UninstallOne(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 	case "codex":
 		return localbin.RunNPMGlobal(ctx, exe, stdout, "uninstall", "@openai/codex")
 	}
-	return fmt.Errorf("desinstalador desconhecido para %s", l.Name)
+	return fmt.Errorf("no uninstaller for %s", l.Name)
 }
 
 // claudeDataDir returns ~/.local/share/claude when the claude found on PATH
@@ -101,7 +102,7 @@ func removeOpenCodeLeftovers(ctx context.Context, exe *executor.Executor, stdout
 	// Absent when OpenCode was installed another way: nothing to report.
 	if _, statErr := os.Stat(base); statErr == nil {
 		if err := exe.Run(ctx, opts, "rmdir", "--ignore-fail-on-non-empty", "--", base); err != nil {
-			ui.Warning(stdout, "Não foi possível remover "+base+": "+err.Error())
+			ui.Warning(stdout, i18n.Tr("dev.removeFailed", i18n.Args{"path": base, "error": err.Error()}))
 		}
 	}
 
@@ -123,10 +124,10 @@ func removeOpenCodeLeftovers(ctx context.Context, exe *executor.Executor, stdout
 	for _, entry := range []string{"export PATH=" + binDir + ":$PATH", "fish_add_path " + binDir} {
 		for _, res := range shellrc.RemoveEntry(candidates, "# opencode", entry) {
 			if res.Err != nil {
-				ui.Warning(stdout, "Não foi possível atualizar "+res.Path+": "+res.Err.Error())
+				ui.Warning(stdout, i18n.Tr("dev.rcFailed", i18n.Args{"path": res.Path, "error": res.Err.Error()}))
 				continue
 			}
-			ui.Info(stdout, "PATH do OpenCode removido de "+res.Path)
+			ui.Info(stdout, i18n.Tr("llm.run.opencodePathRemoved", i18n.Args{"path": res.Path}))
 		}
 	}
 	return nil
@@ -137,7 +138,7 @@ func removeOpenCodeLeftovers(ctx context.Context, exe *executor.Executor, stdout
 func removeBinary(ctx context.Context, exe *executor.Executor, stdout io.Writer, cmd string) error {
 	p, ok := exe.Which(cmd)
 	if !ok {
-		ui.Warning(stdout, cmd+" não foi encontrado no PATH — nada a remover.")
+		ui.Warning(stdout, i18n.Tr("llm.run.notInPath", i18n.Args{"name": cmd}))
 		return nil
 	}
 	return exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "rm", "-f", "--", p)

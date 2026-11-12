@@ -17,12 +17,14 @@ package prereqs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/oito2/perci82/internal/distro"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // RemovePackages removes pkgs with the package manager of family, but only
@@ -50,7 +52,7 @@ func CheckRemoval(ctx context.Context, exe *executor.Executor, family string, pk
 	case distro.Debian:
 		sim, err := exe.Output(ctx, executor.Options{Env: []string{"LC_ALL=C"}}, "apt-get", append([]string{"-s", "purge", "--"}, pkgs...)...)
 		if err != nil {
-			return fmt.Errorf("simular a remoção de %s: %w", strings.Join(pkgs, ", "), err)
+			return fmt.Errorf("simulate removing %s: %w", strings.Join(pkgs, ", "), err)
 		}
 		extra = extraAptRemovals(sim, pkgs)
 	case distro.Fedora:
@@ -59,18 +61,17 @@ func CheckRemoval(ctx context.Context, exe *executor.Executor, family string, pk
 		sim, err := exe.Output(ctx, executor.Options{Env: []string{"LC_ALL=C"}}, "sh", append([]string{"-c",
 			`dnf remove --assumeno --no-autoremove -- "$@" 2>&1 || true`, "sh"}, pkgs...)...)
 		if err != nil {
-			return fmt.Errorf("simular a remoção de %s: %w", strings.Join(pkgs, ", "), err)
+			return fmt.Errorf("simulate removing %s: %w", strings.Join(pkgs, ", "), err)
 		}
 		if !exe.DryRun && !dnfPlanPrinted(sim) {
-			return fmt.Errorf("não foi possível simular a remoção de %s — nada foi removido:\n%s", strings.Join(pkgs, ", "), strings.TrimSpace(sim))
+			return errors.New(i18n.Tr("prereq.simulateFailed", i18n.Args{"packages": strings.Join(pkgs, ", "), "output": strings.TrimSpace(sim)}))
 		}
 		extra = extraDnfRemovals(sim, pkgs)
 	default:
 		return fmt.Errorf("unsupported distro family: %s", family)
 	}
 	if len(extra) > 0 {
-		return fmt.Errorf("remover %s também removeria: %s — nada foi removido; se tiver certeza, remova manualmente pelo terminal",
-			strings.Join(pkgs, ", "), strings.Join(extra, ", "))
+		return errors.New(i18n.Tr("prereq.wouldRemove", i18n.Args{"packages": strings.Join(pkgs, ", "), "extra": strings.Join(extra, ", ")}))
 	}
 	return nil
 }

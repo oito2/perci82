@@ -100,7 +100,7 @@ func AppendIfMissing(path, comment, entry string) (appended bool, err error) {
 	// data that could contain a newline (e.g. a value influenced by external
 	// input) must not be able to inject extra shell commands this way.
 	if strings.ContainsAny(comment, "\n\r") || strings.ContainsAny(entry, "\n\r") {
-		return false, fmt.Errorf("shellrc: comment/entry não podem conter quebras de linha")
+		return false, fmt.Errorf("shellrc: comment/entry must not contain line breaks")
 	}
 
 	path = realPath(path)

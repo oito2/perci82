@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +32,7 @@ import (
 
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/shellrc"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -87,18 +89,18 @@ func InstalledVersion(ctx context.Context, exe *executor.Executor) (bool, string
 func fetchReleases(ctx context.Context) ([]goRelease, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, goVersionAPI, nil)
 	if err != nil {
-		return nil, fmt.Errorf("criar requisição: %w", err)
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("consultar API: %w", err)
+		return nil, fmt.Errorf("query the API: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	var releases []goRelease
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&releases); err != nil {
-		return nil, fmt.Errorf("decodificar resposta: %w", err)
+		return nil, fmt.Errorf("decode response: %w", err)
 	}
 	return releases, nil
 }
@@ -116,7 +118,7 @@ func tarballChecksum(releases []goRelease, version, goos, arch string) (string, 
 			}
 		}
 	}
-	return "", fmt.Errorf("checksum não encontrado para %s %s/%s", version, goos, arch)
+	return "", fmt.Errorf("no checksum for %s %s/%s", version, goos, arch)
 }
 
 // LatestRelease fetches the latest stable Go release from go.dev and
@@ -135,7 +137,7 @@ func LatestRelease(ctx context.Context) (version, checksumSHA256 string, err err
 		}
 	}
 	if version == "" {
-		return "", "", fmt.Errorf("nenhuma versão estável encontrada na API")
+		return "", "", errors.New("no stable version in the API response")
 	}
 	checksumSHA256, err = tarballChecksum(releases, version, runtime.GOOS, runtime.GOARCH)
 	if err != nil {
@@ -154,7 +156,7 @@ func LatestRelease(ctx context.Context) (version, checksumSHA256 string, err err
 func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer, version, checksumSHA256 string) error {
 	tmp, err := os.MkdirTemp("", "perci-go-*")
 	if err != nil {
-		return fmt.Errorf("criar diretório temporário: %w", err)
+		return fmt.Errorf("create temporary folder: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
@@ -173,23 +175,23 @@ func download(ctx context.Context, exe *executor.Executor, stdout io.Writer, dir
 	url := downloadBase + "/" + tarball
 	dest = filepath.Join(dir, tarball)
 
-	ui.Info(stdout, "Baixando "+url+"...")
+	ui.Info(stdout, i18n.Tr("dev.downloading", i18n.Args{"url": url}))
 	if err := exe.Run(ctx,
 		executor.Options{Stdout: stdout, Stderr: stdout},
 		"curl", "-fSL", "--connect-timeout", "10", "--max-time", "600", "--progress-bar", "-o", dest, url,
 	); err != nil {
-		return "", "", fmt.Errorf("baixar tarball: %w", err)
+		return "", "", fmt.Errorf("download tarball: %w", err)
 	}
 
-	ui.Info(stdout, "Verificando integridade do tarball...")
+	ui.Info(stdout, i18n.Tr("sdk.run.goVerify", nil))
 	if checksumSHA256 == "" {
 		checksumSHA256, err = fetchTarballChecksum(ctx, version, runtime.GOOS, runtime.GOARCH)
 		if err != nil {
-			return "", "", fmt.Errorf("obter checksum: %w", err)
+			return "", "", fmt.Errorf("get checksum: %w", err)
 		}
 	}
 	if err := fsutil.VerifyFile(dest, sha256.New(), checksumSHA256); err != nil {
-		return "", "", fmt.Errorf("verificação de integridade falhou: %w", err)
+		return "", "", fmt.Errorf("integrity check failed: %w", err)
 	}
 	return dest, checksumSHA256, nil
 }
@@ -199,7 +201,7 @@ func download(ctx context.Context, exe *executor.Executor, stdout io.Writer, dir
 // password is asked once. See installScript.
 func installTarball(ctx context.Context, exe *executor.Executor, stdout io.Writer, dest, checksumSHA256 string) error {
 	return exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, []executor.PrivilegedStep{{
-		Announce: "Extraindo e instalando em " + goInstallDir + "...",
+		Announce: i18n.Tr("sdk.run.goExtract", i18n.Args{"dir": goInstallDir}),
 		Name:     "sh",
 		Args:     []string{"-c", installScript, "sh", goInstallDir, dest, checksumSHA256},
 	}})
@@ -219,7 +221,7 @@ const installScript = `set -e
 staging="$1-staging"; old="$1-old"; copy="$1-staging.tar.gz"
 rm -rf -- "$staging" "$old" "$copy"
 install -m 0600 -T -- "$2" "$copy"
-printf '%s  %s\n' "$3" "$copy" | sha256sum -c --status - || { rm -f -- "$copy"; echo "o tarball do Go foi alterado após a verificação" >&2; exit 1; }
+printf '%s  %s\n' "$3" "$copy" | sha256sum -c --status - || { rm -f -- "$copy"; echo "the Go tarball changed after it was verified" >&2; exit 1; }
 mkdir -p -- "$staging"
 tar --strip-components=1 -C "$staging" -xzf "$copy" || { rm -rf -- "$staging" "$copy"; exit 1; }
 rm -f -- "$copy"
@@ -240,18 +242,18 @@ func fetchTarballChecksum(ctx context.Context, version, goos, arch string) (stri
 
 // Uninstall removes the Go installation and its PATH entry in ~/.bashrc.
 func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
-	ui.Info(stdout, "Removendo Go...")
+	ui.Info(stdout, i18n.Tr("sdk.run.goRemoving", nil))
 	if err := exe.Run(ctx,
 		executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout},
 		"rm", "-rf", "--", goInstallDir,
 	); err != nil {
-		ui.Err(stdout, "Falha ao remover Go: "+err.Error())
+		ui.Err(stdout, i18n.Tr("sdk.run.goRemoveFailed", i18n.Args{"error": err.Error()}))
 		return err
 	}
 
 	RemovePathFromBashrc(stdout)
 
-	ui.Success(stdout, "Go removido com sucesso.")
+	ui.Success(stdout, i18n.Tr("sdk.run.goRemoved", nil))
 	return nil
 }
 
@@ -265,10 +267,10 @@ func RemovePathFromBashrc(stdout io.Writer) {
 	for _, entry := range []string{pathEntry, legacyPathEntry} {
 		for _, res := range shellrc.RemoveEntry(candidates, "# Go", entry) {
 			if res.Err != nil {
-				ui.Warning(stdout, "Não foi possível atualizar "+res.Path+": "+res.Err.Error())
+				ui.Warning(stdout, i18n.Tr("dev.rcFailed", i18n.Args{"path": res.Path, "error": res.Err.Error()}))
 				continue
 			}
-			ui.Info(stdout, "PATH removido de "+res.Path)
+			ui.Info(stdout, i18n.Tr("dev.pathRemoved", i18n.Args{"path": res.Path}))
 		}
 	}
 }
@@ -277,7 +279,7 @@ func RemovePathFromBashrc(stdout io.Writer) {
 func EnsurePathInBashrc(stdout io.Writer) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		ui.Warning(stdout, "Não foi possível localizar o diretório home.")
+		ui.Warning(stdout, i18n.Tr("dev.noHome", nil))
 		return
 	}
 
@@ -288,11 +290,11 @@ func EnsurePathInBashrc(stdout io.Writer) {
 	}
 	appended, err := shellrc.AppendIfMissing(rc, "# Go", pathEntry)
 	if err != nil {
-		ui.Warning(stdout, "Não foi possível atualizar "+rc+": "+err.Error())
+		ui.Warning(stdout, i18n.Tr("dev.rcFailed", i18n.Args{"path": rc, "error": err.Error()}))
 		return
 	}
 	if appended {
-		ui.Info(stdout, "PATH atualizado em "+rc)
+		ui.Info(stdout, i18n.Tr("dev.pathUpdated", i18n.Args{"path": rc}))
 	}
 }
 

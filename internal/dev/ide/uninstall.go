@@ -38,7 +38,7 @@ func UninstallOne(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 		opts := executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}
 		return aptDnfRemove(ctx, exe, "codium", family, opts)
 	}
-	return fmt.Errorf("desinstalador desconhecido para %s", e.Name)
+	return fmt.Errorf("no uninstaller for %s", e.Name)
 }
 
 func aptDnfRemove(ctx context.Context, exe *executor.Executor, pkg, family string, opts executor.Options) error {

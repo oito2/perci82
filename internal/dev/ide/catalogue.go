@@ -22,32 +22,48 @@ import (
 	"github.com/oito2/perci82/internal/dev/localbin"
 	"github.com/oito2/perci82/internal/dev/prereqs"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // IDE describes an editor managed by perci.gnl.
 type IDE struct {
-	Name        string
-	Cmd         string
+	Name string
+	Cmd  string
+	// Description is the message key of the editor's description;
+	// DescriptionText returns it in the current language.
 	Description string
 	// Requires lists the Names of the prereqs.Catalogue items its installer
 	// needs.
 	Requires []string
-	// RemoveWarning is shown in the uninstall confirmation.
+	// RemoveWarning is the message key of the text shown in the uninstall
+	// confirmation; RemoveWarningText returns it in the current language.
 	RemoveWarning string
+}
+
+// DescriptionText returns the editor's description in the current
+// language.
+func (e IDE) DescriptionText() string {
+	return i18n.Tr(e.Description, nil)
+}
+
+// RemoveWarningText returns the editor's uninstall warning in the current
+// language.
+func (e IDE) RemoveWarningText() string {
+	return i18n.Tr(e.RemoveWarning, nil)
 }
 
 // Catalogue lists all IDEs managed by perci.gnl.
 var Catalogue = []IDE{
 	{Name: "Zed Editor", Cmd: "zed",
-		Description:   "Editor de código minimalista criado para velocidade e colaboração entre humanos e IA, instalado pelo script oficial em ~/.local",
+		Description:   "ide.zed",
 		Requires:      []string{"Curl"},
-		RemoveWarning: "Remove ~/.local/zed.app, ~/.local/bin/zed e o atalho do menu de aplicativos. As configurações em ~/.config/zed continuam."},
+		RemoveWarning: "ide.zed.removeWarning"},
 	{Name: "VS Code", Cmd: "code",
-		Description:   "Editor de código da Microsoft, gratuito e com recursos de IA, instalado pelo repositório oficial da Microsoft (apt/dnf)",
-		RemoveWarning: "Remove o pacote code. O repositório da Microsoft e as configurações em ~/.config/Code e ~/.vscode continuam."},
+		Description:   "ide.code",
+		RemoveWarning: "ide.code.removeWarning"},
 	{Name: "VSCodium", Cmd: "codium",
-		Description:   "Distribuição do VS Code com licença livre, mantida pela comunidade, instalada pelo repositório oficial do VSCodium (apt/dnf)",
-		RemoveWarning: "Remove o pacote codium. O repositório do VSCodium e as configurações em ~/.config/VSCodium e ~/.vscode-oss continuam."},
+		Description:   "ide.codium",
+		RemoveWarning: "ide.codium.removeWarning"},
 }
 
 // MissingRequirements returns the labels of e's requirements that aren't
@@ -56,7 +72,7 @@ func MissingRequirements(ctx context.Context, exe *executor.Executor, e IDE) []s
 	var missing []string
 	for _, req := range e.Requires {
 		if !prereqs.Installed(ctx, exe, req) {
-			missing = append(missing, req+" (Pré-requisitos)")
+			missing = append(missing, i18n.Tr("dev.requirement", i18n.Args{"name": req}))
 		}
 	}
 	return missing

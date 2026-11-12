@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/shellrc"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -80,7 +81,7 @@ func EnsureInPath(stdout io.Writer) {
 		line = fishExportLine
 	}
 	if _, err := shellrc.AppendIfMissing(rc, "", line); err != nil {
-		ui.Warning(stdout, "Adicione manualmente a "+rc+": "+line)
+		ui.Warning(stdout, i18n.Tr("dev.addLineByHand", i18n.Args{"path": rc, "line": line}))
 	}
 }
 

@@ -19,6 +19,7 @@ package gui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -33,6 +34,7 @@ import (
 	"github.com/oito2/perci82/internal/dev/sdks"
 	"github.com/oito2/perci82/internal/dev/terminal"
 	"github.com/oito2/perci82/internal/distro"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -75,31 +77,31 @@ func runManagedItemAction(b *serviceBase, name, op string, lookup func(name stri
 	return b.runAction(func(stdout io.Writer) error {
 		it, ok := lookup(name)
 		if !ok {
-			return fmt.Errorf("item desconhecido: %q", name)
+			return fmt.Errorf("unknown item: %q", name)
 		}
 		var run func(io.Writer) error
 		var label string
 		switch op {
 		case "install":
 			if it.installed() {
-				return fmt.Errorf("%s já está instalado", it.name)
+				return errors.New(i18n.Tr("managed.alreadyInstalled", i18n.Args{"name": it.name}))
 			}
 			if missing := it.missing(); len(missing) > 0 {
-				return fmt.Errorf("%s requer: %s", it.name, strings.Join(missing, ", "))
+				return errors.New(i18n.Tr("managed.requires", i18n.Args{"name": it.name, "items": strings.Join(missing, ", ")}))
 			}
-			run, label = it.install, "Instalando "
+			run, label = it.install, "managed.installing"
 		case "update", "uninstall":
 			if !it.installed() {
-				return fmt.Errorf("%s não está instalado", it.name)
+				return errors.New(i18n.Tr("managed.notInstalled", i18n.Args{"name": it.name}))
 			}
-			run, label = it.update, "Atualizando "
+			run, label = it.update, "managed.updating"
 			if op == "uninstall" {
-				run, label = it.uninstall, "Desinstalando "
+				run, label = it.uninstall, "managed.uninstalling"
 			}
 		default:
-			return fmt.Errorf("operação desconhecida: %q", op)
+			return fmt.Errorf("unknown operation: %q", op)
 		}
-		ui.Step(stdout, 1, 1, label+it.name)
+		ui.Step(stdout, 1, 1, i18n.Tr(label, i18n.Args{"name": it.name}))
 		return run(stdout)
 	})
 }
@@ -114,10 +116,10 @@ func (d *DevSetupService) GetPrereqsInfo() []ManagedItemInfo {
 	items := make([]ManagedItemInfo, len(prereqs.Catalogue))
 	for i, p := range prereqs.Catalogue {
 		items[i] = ManagedItemInfo{
-			ID: p.Name, Label: p.Name, Description: p.Description,
+			ID: p.Name, Label: p.Name, Description: p.DescriptionText(),
 			Installed:     installed[p.Name],
 			Missing:       prereqs.MissingRequirements(ctx, d.exe, p, installed),
-			RemoveWarning: p.RemoveWarning,
+			RemoveWarning: p.RemoveWarningText(),
 		}
 	}
 	return items
@@ -156,10 +158,10 @@ func (d *DevSetupService) GetSDKsInfo() []ManagedItemInfo {
 	items := make([]ManagedItemInfo, len(sdks.Catalogue))
 	for i, s := range sdks.Catalogue {
 		items[i] = ManagedItemInfo{
-			ID: s.Name, Label: s.Name, Description: s.Description,
+			ID: s.Name, Label: s.Name, Description: s.DescriptionText(),
 			Installed:     installed[s.Name],
 			Missing:       sdks.MissingRequirements(ctx, d.exe, s),
-			RemoveWarning: s.RemoveWarning,
+			RemoveWarning: s.RemoveWarningText(),
 		}
 	}
 	return items
@@ -272,10 +274,10 @@ func (d *DevSetupService) GetIDEsInfo() []ManagedItemInfo {
 	items := make([]ManagedItemInfo, len(ide.Catalogue))
 	for i, e := range ide.Catalogue {
 		items[i] = ManagedItemInfo{
-			ID: e.Name, Label: e.Name, Description: e.Description,
+			ID: e.Name, Label: e.Name, Description: e.DescriptionText(),
 			Installed:     installed[e.Name],
 			Missing:       ide.MissingRequirements(ctx, d.exe, e),
-			RemoveWarning: e.RemoveWarning,
+			RemoveWarning: e.RemoveWarningText(),
 		}
 	}
 	return items
@@ -318,13 +320,13 @@ func validateTarballPath(tarballPath string) error {
 	}
 	info, err := os.Stat(tarballPath)
 	if err != nil {
-		return fmt.Errorf("arquivo inválido: %w", err)
+		return fmt.Errorf("%s: %w", i18n.Tr("dev.invalidFile", nil), err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("selecione um arquivo .tar.gz válido")
+		return i18n.NewError("dev.chooseTarGz")
 	}
 	if !strings.HasSuffix(tarballPath, ".tar.gz") {
-		return fmt.Errorf("selecione um arquivo .tar.gz válido")
+		return i18n.NewError("dev.chooseTarGz")
 	}
 	return nil
 }
@@ -335,7 +337,7 @@ func validateTarballPath(tarballPath string) error {
 // chosen path, or "" if the user cancelled.
 func (d *DevSetupService) PickAndroidStudioTarball() (string, error) {
 	return approvePath(d.wailsApp.Dialog.OpenFile().
-		SetTitle("Selecione o arquivo do Android Studio (.tar.gz)").
+		SetTitle(i18n.Tr("dev.pickTarball", i18n.Args{"name": "Android Studio"})).
 		AddFilter("Android Studio (*.tar.gz)", "*.tar.gz").
 		PromptForSingleSelection())
 }
@@ -370,7 +372,7 @@ func (d *DevSetupService) UninstallAndroidStudio() error {
 // chosen path, or "" if the user cancelled.
 func (d *DevSetupService) PickAntigravityIDETarball() (string, error) {
 	return approvePath(d.wailsApp.Dialog.OpenFile().
-		SetTitle("Selecione o arquivo do Antigravity IDE (.tar.gz)").
+		SetTitle(i18n.Tr("dev.pickTarball", i18n.Args{"name": "Antigravity IDE"})).
 		AddFilter("Antigravity IDE (*.tar.gz)", "*.tar.gz").
 		PromptForSingleSelection())
 }

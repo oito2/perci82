@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -31,6 +32,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -79,28 +81,28 @@ func Update(ctx context.Context, exe *executor.Executor, stdout io.Writer, tarba
 
 func doInstallOrUpdate(ctx context.Context, exe *executor.Executor, stdout io.Writer, tarballPath string, update bool) error {
 	if _, err := os.Stat(tarballPath); err != nil {
-		return fmt.Errorf("arquivo não encontrado: %s", tarballPath)
+		return errors.New(i18n.Tr("dev.fileNotFound", i18n.Args{"path": tarballPath}))
 	}
 	if !update && Installed() {
-		return fmt.Errorf("%s já existe — use Atualizar em vez de Instalar", installDir)
+		return errors.New(i18n.Tr("agide.exists", i18n.Args{"dir": installDir}))
 	}
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("obter diretório home: %w", err)
+		return fmt.Errorf("get home folder: %w", err)
 	}
 
 	workdir, err := os.MkdirTemp("", "antigravity-extract-*")
 	if err != nil {
-		return fmt.Errorf("criar diretório temporário: %w", err)
+		return fmt.Errorf("create temporary folder: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(workdir) }()
 
 	userOpts := executor.Options{Stdout: stdout, Stderr: stdout}
 
-	ui.Info(stdout, "Extraindo "+tarballPath+"...")
+	ui.Info(stdout, i18n.Tr("agide.run.extract", i18n.Args{"file": tarballPath}))
 	if err := exe.Run(ctx, userOpts, "tar", "-xzf", tarballPath, "-C", workdir); err != nil {
-		return fmt.Errorf("extrair tarball: %w", err)
+		return fmt.Errorf("extract tarball: %w", err)
 	}
 
 	candidateDir, binName, err := findBinary(workdir)
@@ -108,15 +110,15 @@ func doInstallOrUpdate(ctx context.Context, exe *executor.Executor, stdout io.Wr
 		return err
 	}
 	if err := exe.Run(ctx, userOpts, "chmod", "+x", filepath.Join(candidateDir, binName)); err != nil {
-		ui.Warning(stdout, "Não foi possível marcar o binário como executável: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("agide.run.chmodFailed", i18n.Args{"error": err.Error()}))
 	}
 
 	if candidateDir == workdir {
-		return fmt.Errorf("o tarball não tem uma pasta raiz com o app — formato inesperado")
+		return i18n.NewError("agide.noRoot")
 	}
 	sandboxSum, err := fileSHA256(filepath.Join(candidateDir, "chrome-sandbox"))
 	if err != nil {
-		return fmt.Errorf("chrome-sandbox não encontrado no tarball: %w", err)
+		return fmt.Errorf("chrome-sandbox not found in the tarball: %w", err)
 	}
 
 	// One privileged batch (one pkexec prompt) that never trusts the
@@ -128,12 +130,12 @@ func doInstallOrUpdate(ctx context.Context, exe *executor.Executor, stdout io.Wr
 	// install until the new one is fully in place.
 	sandbox := filepath.Join(installDir, "chrome-sandbox")
 	steps := []executor.PrivilegedStep{{
-		Announce: "Instalando em " + installDir + "...",
+		Announce: i18n.Tr("agide.run.install", i18n.Args{"dir": installDir}),
 		Name:     "sh",
 		Args:     []string{"-c", installScript, "sh", installDir, candidateDir, sandboxSum, sandboxPermWant},
 	}}
 	if err := exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, steps); err != nil {
-		return fmt.Errorf("instalar: %w", err)
+		return fmt.Errorf("install: %w", err)
 	}
 
 	if err := verifySandboxPerms(ctx, exe, sandbox); err != nil {
@@ -141,20 +143,20 @@ func doInstallOrUpdate(ctx context.Context, exe *executor.Executor, stdout io.Wr
 	}
 
 	if iconPath, err := extractIcon(workdir); err != nil {
-		ui.Warning(stdout, "Não foi possível extrair o ícone do app — o app funcionará, mas sem ícone customizado: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("agide.run.iconFailed", i18n.Args{"error": err.Error()}))
 	} else {
 		installIcon(stdout, home, iconPath)
 	}
 
 	if err := writeDesktopEntry(home, binName); err != nil {
-		ui.Warning(stdout, "Falha ao criar a entrada de menu: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("agide.run.menuFailed", i18n.Args{"error": err.Error()}))
 	} else {
-		ui.Info(stdout, "Entrada de menu criada em "+desktopFile(home))
+		ui.Info(stdout, i18n.Tr("agide.run.menuCreated", i18n.Args{"path": desktopFile(home)}))
 	}
 
 	refreshDesktopDB(ctx, exe, stdout, home)
 
-	ui.Success(stdout, "Antigravity IDE instalado em "+installDir+". Procure por 'Antigravity' no menu de aplicativos.")
+	ui.Success(stdout, i18n.Tr("agide.run.installed", i18n.Args{"dir": installDir}))
 	return nil
 }
 
@@ -169,13 +171,13 @@ rm -rf -- "$new"
 cp -a --no-preserve=ownership -- "$2" "$new"
 chown -R root:root -- "$new"
 chmod -R u-s,g-s -- "$new"
-printf '%s  %s\n' "$3" "$new/chrome-sandbox" | sha256sum -c --status - || { rm -rf -- "$new"; echo "chrome-sandbox foi alterado após a verificação" >&2; exit 1; }
+printf '%s  %s\n' "$3" "$new/chrome-sandbox" | sha256sum -c --status - || { rm -rf -- "$new"; echo "chrome-sandbox changed after it was verified" >&2; exit 1; }
 chmod "$4" -- "$new/chrome-sandbox"
 if [ -e "$1" ]; then rm -rf -- "$old"; mv -- "$1" "$old"; fi
 if ! mv -- "$new" "$1"; then
   rm -rf -- "$new"
   if [ -e "$old" ]; then mv -- "$old" "$1"; fi
-  echo "Falha ao colocar a nova versão no lugar; a instalação anterior foi restaurada." >&2
+  echo "Failed to put the new version in place; the previous install was restored." >&2
   exit 1
 fi
 rm -rf -- "$old"`
@@ -187,7 +189,7 @@ func fileSHA256(path string) (string, error) {
 		return "", err
 	}
 	if !info.Mode().IsRegular() {
-		return "", fmt.Errorf("%s não é um arquivo comum", path)
+		return "", fmt.Errorf("%s is not a regular file", path)
 	}
 	f, err := os.Open(path)
 	if err != nil {
@@ -242,10 +244,10 @@ func findBinary(workdir string) (dir, name string, err error) {
 		return nil
 	})
 	if walkErr != nil {
-		return "", "", fmt.Errorf("percorrer arquivos extraídos: %w", walkErr)
+		return "", "", fmt.Errorf("walk the extracted files: %w", walkErr)
 	}
 	if len(candidates) == 0 {
-		return "", "", fmt.Errorf("não encontrei nenhum binário começando com 'antigravity' dentro do tarball")
+		return "", "", i18n.NewError("agide.noBinary")
 	}
 	if len(candidates) == 1 {
 		return filepath.Dir(candidates[0]), filepath.Base(candidates[0]), nil
@@ -276,10 +278,10 @@ func findBinary(workdir string) (dir, name string, err error) {
 func verifySandboxPerms(ctx context.Context, exe *executor.Executor, sandbox string) error {
 	perms, err := exe.Output(ctx, executor.Options{}, "stat", "-c", "%a", sandbox)
 	if err != nil {
-		return fmt.Errorf("verificar permissões do chrome-sandbox: %w", err)
+		return fmt.Errorf("check the chrome-sandbox permissions: %w", err)
 	}
 	if strings.TrimSpace(perms) != sandboxPermWant {
-		return fmt.Errorf("falha ao aplicar permissões setuid no chrome-sandbox")
+		return errors.New("failed to set the setuid permissions of chrome-sandbox")
 	}
 	return nil
 }
@@ -301,19 +303,19 @@ func extractIcon(workdir string) (string, error) {
 func installIcon(stdout io.Writer, home, extractedIconPath string) {
 	dest := iconFile(home)
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		ui.Warning(stdout, "Falha ao criar diretório de ícones: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("agide.run.iconDirFailed", i18n.Args{"error": err.Error()}))
 		return
 	}
 	data, err := os.ReadFile(extractedIconPath)
 	if err != nil {
-		ui.Warning(stdout, "Falha ao ler ícone extraído: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("agide.run.iconReadFailed", i18n.Args{"error": err.Error()}))
 		return
 	}
 	if err := os.WriteFile(dest, data, 0o644); err != nil {
-		ui.Warning(stdout, "Falha ao instalar ícone: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("agide.run.iconInstallFailed", i18n.Args{"error": err.Error()}))
 		return
 	}
-	ui.Info(stdout, "Ícone instalado em "+dest)
+	ui.Info(stdout, i18n.Tr("agide.run.iconInstalled", i18n.Args{"path": dest}))
 }
 
 // writeDesktopEntry writes the application menu entry for binName.
@@ -346,7 +348,7 @@ func refreshDesktopDB(ctx context.Context, exe *executor.Executor, stdout io.Wri
 	_ = exe.Run(ctx, opts, "update-desktop-database", filepath.Join(home, ".local", "share", "applications"))
 	_ = exe.Run(ctx, opts, "gtk-update-icon-cache", "-t", filepath.Join(home, ".local", "share", "icons", "hicolor"))
 	if err := exe.Run(ctx, opts, "desktop-file-validate", desktopFile(home)); err != nil {
-		ui.Warning(stdout, "desktop-file-validate encontrou problemas no .desktop: "+err.Error())
+		ui.Warning(stdout, i18n.Tr("agide.run.desktopInvalid", i18n.Args{"error": err.Error()}))
 	}
 }
 
@@ -356,9 +358,9 @@ func refreshDesktopDB(ctx context.Context, exe *executor.Executor, stdout io.Wri
 func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
 	sudo := executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}
 
-	ui.Info(stdout, "Removendo "+installDir+"...")
+	ui.Info(stdout, i18n.Tr("dev.removingDir", i18n.Args{"dir": installDir}))
 	if err := exe.Run(ctx, sudo, "rm", "-rf", "--", installDir); err != nil {
-		return fmt.Errorf("remover %s: %w", installDir, err)
+		return fmt.Errorf("remove %s: %w", installDir, err)
 	}
 
 	if home, err := os.UserHomeDir(); err == nil {
@@ -367,6 +369,6 @@ func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer) er
 		refreshDesktopDB(ctx, exe, stdout, home)
 	}
 
-	ui.Success(stdout, "Antigravity IDE desinstalado.")
+	ui.Success(stdout, i18n.Tr("agide.run.uninstalled", nil))
 	return nil
 }

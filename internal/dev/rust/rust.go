@@ -31,6 +31,7 @@ import (
 	"github.com/oito2/perci82/internal/dev/nettimeout"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/shellrc"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -76,7 +77,7 @@ func cargoBin() (string, error) {
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("obter diretório home: %w", err)
+		return "", fmt.Errorf("get home folder: %w", err)
 	}
 	return filepath.Join(home, ".cargo", "bin"), nil
 }
@@ -102,25 +103,25 @@ func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer) erro
 	t := target()
 	checksum, ok := rustupChecksums[t]
 	if !ok {
-		return fmt.Errorf("arquitetura sem instalador do Rust: %s", t)
+		return fmt.Errorf("no Rust installer for this architecture: %s", t)
 	}
 	tmp, err := os.CreateTemp("", "rustup-init-*")
 	if err != nil {
-		return fmt.Errorf("criar arquivo temporário: %w", err)
+		return fmt.Errorf("create temporary file: %w", err)
 	}
 	tmpPath := tmp.Name()
 	_ = tmp.Close()
 	defer func() { _ = os.Remove(tmpPath) }()
 
 	url := downloadBase + "/" + rustupVersion + "/" + t + "/rustup-init"
-	ui.Info(stdout, "Baixando o instalador do Rust (rustup "+rustupVersion+")...")
+	ui.Info(stdout, i18n.Tr("sdk.run.rustDownload", i18n.Args{"version": rustupVersion}))
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "curl", "-fsSL", "--connect-timeout", "10", "--max-time", "600", "-o", tmpPath, "--", url); err != nil {
-		return fmt.Errorf("baixar rustup-init: %w", err)
+		return fmt.Errorf("download rustup-init: %w", err)
 	}
 	if !exe.DryRun {
-		ui.Info(stdout, "Verificando integridade do instalador...")
+		ui.Info(stdout, i18n.Tr("sdk.run.rustVerify", nil))
 		if err := fsutil.VerifyFile(tmpPath, sha256.New(), checksum); err != nil {
-			return fmt.Errorf("verificação de integridade do rustup-init falhou: %w", err)
+			return fmt.Errorf("rustup-init integrity check failed: %w", err)
 		}
 		if err := os.Chmod(tmpPath, 0o700); err != nil {
 			return err
@@ -131,14 +132,14 @@ func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer) erro
 	for _, c := range components {
 		args = append(args, "--component", c)
 	}
-	ui.Info(stdout, "Instalando o Rust (stable) e os componentes...")
+	ui.Info(stdout, i18n.Tr("sdk.run.rustInstall", nil))
 	runCtx, cancel := nettimeout.Context(ctx)
 	defer cancel()
 	if err := exe.Run(runCtx, executor.Options{Stdout: stdout, Stderr: stdout}, tmpPath, args...); err != nil {
-		return fmt.Errorf("instalar o Rust: %w", err)
+		return fmt.Errorf("install Rust: %w", err)
 	}
 	ensurePath(stdout)
-	ui.Success(stdout, "Rust instalado. Abra um novo terminal para usar cargo e rustc.")
+	ui.Success(stdout, i18n.Tr("sdk.run.rustInstalled", nil))
 	return nil
 }
 
@@ -151,12 +152,12 @@ func Update(ctx context.Context, exe *executor.Executor, stdout io.Writer) error
 	}
 	runCtx, cancel := nettimeout.Context(ctx)
 	defer cancel()
-	ui.Info(stdout, "Atualizando o Rust (rustup update)...")
+	ui.Info(stdout, i18n.Tr("sdk.run.rustUpdate", nil))
 	if err := exe.Run(runCtx, executor.Options{Stdout: stdout, Stderr: stdout}, rustup, "update"); err != nil {
-		return fmt.Errorf("atualizar o Rust: %w", err)
+		return fmt.Errorf("update Rust: %w", err)
 	}
 	if err := exe.Run(runCtx, executor.Options{Stdout: stdout, Stderr: stdout}, rustup, append([]string{"component", "add"}, components...)...); err != nil {
-		return fmt.Errorf("adicionar componentes do Rust: %w", err)
+		return fmt.Errorf("add Rust components: %w", err)
 	}
 	ensurePath(stdout)
 	return nil
@@ -169,12 +170,12 @@ func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer) er
 	if err != nil {
 		return err
 	}
-	ui.Info(stdout, "Removendo o Rust (rustup self uninstall)...")
+	ui.Info(stdout, i18n.Tr("sdk.run.rustRemoving", nil))
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, rustup, "self", "uninstall", "-y"); err != nil {
-		return fmt.Errorf("remover o Rust: %w", err)
+		return fmt.Errorf("remove Rust: %w", err)
 	}
 	removePath(stdout)
-	ui.Success(stdout, "Rust removido.")
+	ui.Success(stdout, i18n.Tr("sdk.run.rustRemoved", nil))
 	return nil
 }
 
@@ -192,17 +193,17 @@ func rustupPath() (string, error) {
 func ensurePath(stdout io.Writer) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		ui.Warning(stdout, "Não foi possível localizar o diretório home.")
+		ui.Warning(stdout, i18n.Tr("dev.noHome", nil))
 		return
 	}
 	rc := shellrc.File(home)
 	appended, err := shellrc.AppendIfMissing(rc, rcComment, pathEntry)
 	if err != nil {
-		ui.Warning(stdout, "Não foi possível atualizar "+rc+": "+err.Error())
+		ui.Warning(stdout, i18n.Tr("dev.rcFailed", i18n.Args{"path": rc, "error": err.Error()}))
 		return
 	}
 	if appended {
-		ui.Info(stdout, "PATH atualizado em "+rc)
+		ui.Info(stdout, i18n.Tr("dev.pathUpdated", i18n.Args{"path": rc}))
 	}
 }
 
@@ -216,9 +217,9 @@ func removePath(stdout io.Writer) {
 	candidates := shellrc.Dedup([]string{filepath.Join(home, ".bashrc"), shellrc.File(home)})
 	for _, res := range shellrc.RemoveEntry(candidates, rcComment, pathEntry) {
 		if res.Err != nil {
-			ui.Warning(stdout, "Não foi possível atualizar "+res.Path+": "+res.Err.Error())
+			ui.Warning(stdout, i18n.Tr("dev.rcFailed", i18n.Args{"path": res.Path, "error": res.Err.Error()}))
 			continue
 		}
-		ui.Info(stdout, "PATH removido de "+res.Path)
+		ui.Info(stdout, i18n.Tr("dev.pathRemoved", i18n.Args{"path": res.Path}))
 	}
 }

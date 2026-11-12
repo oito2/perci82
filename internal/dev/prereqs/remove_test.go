@@ -220,8 +220,8 @@ func TestRemovalPackagesFor_Libsecret(t *testing.T) {
 
 func TestCatalogue_DockerWarnsAboutGroup(t *testing.T) {
 	for _, p := range Catalogue {
-		if p.ID == "docker" && !strings.Contains(p.Description, "grupo docker") {
-			t.Errorf("docker description lacks the group warning: %q", p.Description)
+		if p.ID == "docker" && !strings.Contains(p.DescriptionText(), "grupo docker") {
+			t.Errorf("docker description lacks the group warning: %q", p.DescriptionText())
 		}
 	}
 }

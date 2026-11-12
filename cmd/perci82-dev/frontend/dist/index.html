@@ -289,7 +289,7 @@
                 <thead>
                   <tr>
                     <th id="itemtable-header"></th>
-                    <th class="text-right">Ações</th>
+                    <th class="text-right" data-i18n="itemTable.actions">Ações</th>
                   </tr>
                 </thead>
                 <tbody id="itemtable-rows"></tbody>
@@ -306,9 +306,7 @@
             <p id="multiselect-intro" class="opacity-80 mb-4" style="white-space: pre-line;"></p>
             <ul id="multiselect-items" class="space-y-2 mb-4"></ul>
             <div class="flex gap-2">
-              <button id="btn-executar-multiselect" class="btn btn-primary">
-                Executar
-              </button>
+              <button id="btn-executar-multiselect" class="btn btn-primary" data-i18n="action.run">Executar</button>
               <!-- Optional extra buttons (e.g. "Aplicar Starship" and
                    "Remover Starship" in "Aplicativos: Terminais") — built
                    per screen from MULTISELECT_SCREENS[actionId].extras;
@@ -326,21 +324,13 @@
           <div id="fileapp-container" class="hidden">
             <p id="fileapp-desc" class="opacity-80 mb-4" style="white-space: pre-line;"></p>
             <div class="flex items-center gap-2 mb-4">
-              <button id="btn-fileapp-pick" class="btn btn-outline btn-sm">
-                Selecionar arquivo
-              </button>
-              <span id="fileapp-path" class="text-sm opacity-70">Nenhum arquivo selecionado.</span>
+              <button id="btn-fileapp-pick" class="btn btn-outline btn-sm" data-i18n="fileapp.pick">Selecionar arquivo</button>
+              <span id="fileapp-path" class="text-sm opacity-70"></span>
             </div>
             <div class="flex gap-2 mb-4">
-              <button id="btn-fileapp-install" class="btn btn-primary" disabled>
-                Instalar
-              </button>
-              <button id="btn-fileapp-update" class="btn btn-outline hidden" disabled>
-                Atualizar
-              </button>
-              <button id="btn-fileapp-uninstall" class="btn btn-outline btn-error" disabled>
-                Desinstalar
-              </button>
+              <button id="btn-fileapp-install" class="btn btn-primary" disabled data-i18n="action.install">Instalar</button>
+              <button id="btn-fileapp-update" class="btn btn-outline hidden" disabled data-i18n="action.update">Atualizar</button>
+              <button id="btn-fileapp-uninstall" class="btn btn-outline btn-error" disabled data-i18n="action.uninstall">Desinstalar</button>
             </div>
             <ul id="fileapp-notes" class="text-sm opacity-70 list-disc pl-5 space-y-1"></ul>
           </div>

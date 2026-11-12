@@ -33,26 +33,26 @@ MULTISELECT_SCREENS.terminals = {
   // independent of selection. confirm (optional) is asked first.
   extras: [
     {
-      label: "Aplicar Starship",
+      get label() { return t("terminals.applyStarship"); },
       run: function () { return App.ApplyStarship(); },
     },
     {
-      label: "Remover Starship",
-      confirm: "Remove o binário do Starship e a inicialização dele no bash, zsh e fish. " +
-        "A configuração (~/.config/starship.toml) é preservada como starship.toml.perci-bak.",
+      get label() { return t("terminals.removeStarship"); },
+      get confirm() { return t("terminals.removeStarshipConfirm"); },
       run: function () { return App.RemoveStarship(); },
     },
   ],
 };
 
 // runScreenAction starts one of a screen's install/update/uninstall
-// actions: nothing while another runs, then the Execução lifecycle with
-// the screen's buttons disabled, and fn()'s refusal handled by failRun.
-function runScreenAction(item, label, buttons, fn) {
+// actions (opKey is the message key of the operation's name): nothing
+// while another runs, then the Execução lifecycle with the screen's
+// buttons disabled, and fn()'s refusal handled by failRun.
+function runScreenAction(item, opKey, buttons, fn) {
   beginRun(item.title, fn, {
     buttons: buttons,
     maxSteps: 1,
-    announce: "Iniciando " + item.title + " (" + label + ")...",
+    announce: t("fileapp.starting", { name: item.title, op: t(opKey) }),
   });
 }
 
@@ -116,7 +116,7 @@ function renderFileAppScreen(item) {
 
   const cfg = FILEAPP_SCREENS[item.actionId];
   window.__fileappPath = "";
-  fileappPath.textContent = "Nenhum arquivo selecionado.";
+  fileappPath.textContent = t("fileapp.noFile");
   btnFileappInstall.disabled = true;
   btnFileappUninstall.disabled = true;
 
@@ -144,14 +144,14 @@ function renderFileAppScreen(item) {
   const buttons = [btnFileappInstall, btnFileappUpdate, btnFileappUninstall];
   btnFileappInstall.onclick = function () {
     if (!window.__fileappPath) return;
-    runScreenAction(item, "instalar", buttons, function () { return cfg.install(window.__fileappPath); });
+    runScreenAction(item, "fileapp.op.install", buttons, function () { return cfg.install(window.__fileappPath); });
   };
   btnFileappUpdate.onclick = function () {
     if (!window.__fileappPath || !cfg.update) return;
-    runScreenAction(item, "atualizar", buttons, function () { return cfg.update(window.__fileappPath); });
+    runScreenAction(item, "fileapp.op.update", buttons, function () { return cfg.update(window.__fileappPath); });
   };
   btnFileappUninstall.onclick = function () {
-    runScreenAction(item, "desinstalar", buttons, cfg.uninstall);
+    runScreenAction(item, "fileapp.op.uninstall", buttons, cfg.uninstall);
   };
 }
 
