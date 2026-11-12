@@ -110,13 +110,12 @@ test("IA: Contextos: Remover previews the files and removes after the confirmati
   assert.equal(called("RemoveAIContext")[0].args[0], "/ws/velho");
 });
 
-test("IA: Contextos: Alterar opens the folder on Definir Contexto with its recorded name, agents and standards", async () => {
+test("IA: Contextos: Alterar opens the folder on Configurar Projeto with its recorded name, agents and standards", async () => {
   const record = { registered: true, hasContext: true, name: "Mexido", models: ["Linux Bash"], agents: ["codex"] };
   const { rows, actions, click, element, ctx } = await screen({ GetAIContextRecord: record });
   click(actions(rows()[2])[1]);
   await settle();
   assert.equal(evalIn(ctx, "aicFolder"), "/ws/mexido");
-  assert.equal(element("tab-radio-aic-define").checked, true);
   assert.equal(element("aic-name").value, "Mexido");
   const agentBoxes = element("aic-agents").children.map((l) => [l.children[0].dataset.agent, l.children[0].checked]);
   assert.deepEqual(agentBoxes, [["claude", false], ["codex", true]]);

@@ -44,6 +44,12 @@ type Config struct {
 	// theme saved by Perci 1.9 — reads as "system".
 	GUITheme string `yaml:"gui_theme,omitempty"`
 
+	// ProjectNotesPath is the folder holding one notes folder per project
+	// with an AI context (PROJECT.md, notes/, plans/, references/), kept
+	// outside the projects' repositories. Empty keeps the project rules in
+	// each project's .instructions/PROJECT.md.
+	ProjectNotesPath string `yaml:"project_notes_path,omitempty"`
+
 	// SystemGUITheme is Perci82 System's theme, with the same values as
 	// GUITheme.
 	SystemGUITheme string `yaml:"system_gui_theme,omitempty"`

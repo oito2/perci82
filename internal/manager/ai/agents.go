@@ -16,13 +16,14 @@
 package ai
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // Agent IDs.
@@ -43,7 +44,7 @@ type Agent struct {
 // agents is the catalog of supported agents, in display order.
 var agents = []Agent{
 	{ID: AgentClaude, Label: "Claude Code"},
-	{ID: AgentGemini, Label: "Gemini (CLI e Code Assist)"},
+	{ID: AgentGemini, Label: "Gemini (CLI + Code Assist)"},
 	{ID: AgentCodex, Label: "ChatGPT CLI (Codex)"},
 	{ID: AgentOpenCode, Label: "OpenCode"},
 	{ID: AgentAntigravity, Label: "Antigravity"},
@@ -66,12 +67,12 @@ func AgentIDs() []string {
 // agentSet validates ids: at least one, every one known.
 func agentSet(ids []string) (map[string]bool, error) {
 	if len(ids) == 0 {
-		return nil, errors.New("marque ao menos um agente de IA")
+		return nil, i18n.NewError("aic.noAgent")
 	}
 	set := make(map[string]bool, len(ids))
 	for _, id := range ids {
 		if !slices.ContainsFunc(agents, func(a Agent) bool { return a.ID == id }) {
-			return nil, fmt.Errorf("agente desconhecido: %q", id)
+			return nil, fmt.Errorf("unknown agent: %q", id)
 		}
 		set[id] = true
 	}

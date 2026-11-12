@@ -43,6 +43,7 @@ var templateHistory = map[string][]string{
 		"7c0d87063b4165e0db1ba8013f4d0c015f66e3cd03ab379e067b75f7fac2792e",
 	},
 	"MOODLE.md": {
+		"1439b0eb038d7c95083b7106853e74509591540fd2f3c5c15f134d79c8865a3c",
 		"859fcdce6caac37bc8ca5bd1f206ed68f4b5a95cacf231c5d4fe7e9c97a8503b",
 		"ae1c65489ea2ef5b58fee891de567f5a658a582bd6238eac74b2f2c716bc10ea",
 	},
@@ -51,6 +52,7 @@ var templateHistory = map[string][]string{
 		"2ae6488006035e19f2f3fdc74996a04ca4729223cdc2eed79733e7c6dfba10ae",
 	},
 	"PHP-SLIM.md": {
+		"f1eaff7caf5827912f8bcfa93210192f3438e798039a4441ba55167a956a3383",
 		"fbae92f1525f94e41d57a637c92ff33d8b45c88e1851e768561db66bd4cf57b8",
 	},
 	"PROJECT-DOCUMENTATION-DESKTOP.md": {

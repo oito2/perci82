@@ -163,9 +163,38 @@ scTrayEnabled.addEventListener("change", function () {
   });
 });
 
-// renderAppSelfConfig fills the tray toggle and the workspace card of
-// Configurações.
+// Anotações de projeto: the folder is saved as soon as it is picked, and
+// Desativar clears it.
+const scNotesPath = document.getElementById("sc-notes-path");
+const btnScPickNotes = document.getElementById("btn-sc-pick-notes");
+const btnScClearNotes = document.getElementById("btn-sc-clear-notes");
+
+function renderScNotes(path) {
+  scNotesPath.textContent = path || t("notes.off");
+  scNotesPath.classList.toggle("opacity-60", !path);
+  btnScClearNotes.classList.toggle("hidden", !path);
+}
+
+function saveScNotes(path) {
+  App.SetProjectNotesPath(path).then(function () {
+    renderScNotes(path);
+  }).catch(function (err) {
+    openError(t("notes.saveFailed", { error: err }));
+  });
+}
+
+btnScPickNotes.addEventListener("click", function () {
+  App.PickProjectNotesFolder().then(function (path) {
+    if (path) saveScNotes(path); // "" when the dialog was cancelled
+  });
+});
+btnScClearNotes.addEventListener("click", function () { saveScNotes(""); });
+
+// renderAppSelfConfig fills the tray toggle, the workspace card and the
+// project notes folder of Configurações.
 function renderAppSelfConfig() {
+  App.GetProjectNotesPath().then(renderScNotes);
+
   App.GetTrayEnabled().then(function (enabled) {
     scTrayEnabled.checked = enabled;
   });

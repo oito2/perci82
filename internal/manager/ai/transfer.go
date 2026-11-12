@@ -30,6 +30,7 @@ import (
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -60,7 +61,7 @@ type TransferContext struct {
 }
 
 // ErrNothingToExport is returned when an export would hold no folder.
-var ErrNothingToExport = errors.New("nada para exportar — nenhuma pasta selecionada")
+var ErrNothingToExport = i18n.NewError("aic.nothingToExport")
 
 // Exportable converts contexts into an export file: a folder inside
 // workspace gets its path relative to it, any other keeps its absolute
@@ -87,10 +88,10 @@ func WriteTransfer(path string, f TransferFile) error {
 	}
 	data, err := yaml.Marshal(f)
 	if err != nil {
-		return fmt.Errorf("gerar yaml: %w", err)
+		return fmt.Errorf("generate yaml: %w", err)
 	}
 	if err := fsutil.WriteFileAtomic(path, data, 0o600); err != nil {
-		return fmt.Errorf("escrever %s: %w", path, err)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
 }
@@ -100,16 +101,16 @@ func WriteTransfer(path string, f TransferFile) error {
 func LoadTransfer(path string) (TransferFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return TransferFile{}, fmt.Errorf("ler %s: %w", path, err)
+		return TransferFile{}, fmt.Errorf("read %s: %w", path, err)
 	}
 	var f TransferFile
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 	if err := dec.Decode(&f); err != nil || f.Kind != TransferKind {
-		return TransferFile{}, fmt.Errorf("%s não é um arquivo de contextos de IA do Perci", path)
+		return TransferFile{}, errors.New(i18n.Tr("aic.notTransferFile", i18n.Args{"path": path}))
 	}
 	if err := f.Validate(); err != nil {
-		return TransferFile{}, fmt.Errorf("arquivo de contextos de IA inválido: %w", err)
+		return TransferFile{}, fmt.Errorf("%s: %w", i18n.Tr("aic.invalidFile", nil), err)
 	}
 	return f, nil
 }
@@ -122,26 +123,26 @@ func LoadTransfer(path string) (TransferFile, error) {
 func (f TransferFile) Validate() error {
 	switch {
 	case f.Version == 0:
-		return errors.New("o arquivo não informa a versão do formato")
+		return i18n.NewError("git.noVersion")
 	case f.Version > TransferVersion:
-		return fmt.Errorf("o arquivo usa a versão %d do formato, mais nova que a desta versão do Perci (%d)", f.Version, TransferVersion)
+		return errors.New(i18n.Tr("git.newerVersion", i18n.Args{"version": f.Version, "supported": TransferVersion}))
 	}
 	var seen []config.AIContext
 	for _, t := range f.Contexts {
 		name, err := normalizeName(seen, t.Name, "")
 		if err != nil {
-			return fmt.Errorf("pasta %q: %w", t.Path, err)
+			return fmt.Errorf("folder %q: %w", t.Path, err)
 		}
 		if name != t.Name {
-			return fmt.Errorf("nome com espaços nas pontas: %q", t.Name)
+			return fmt.Errorf("name with spaces at its ends: %q", t.Name)
 		}
 		if err := checkTransferPath(t); err != nil {
-			return fmt.Errorf("contexto %q: %w", t.Name, err)
+			return fmt.Errorf("context %q: %w", t.Name, err)
 		}
 		// A relative path never starts with "/", so it never equals an
 		// absolute one.
 		if slices.ContainsFunc(seen, func(c config.AIContext) bool { return c.Path == t.Path }) {
-			return fmt.Errorf("contexto %q: a pasta %s aparece mais de uma vez", t.Name, t.Path)
+			return fmt.Errorf("context %q: the folder %s appears more than once", t.Name, t.Path)
 		}
 		seen = append(seen, config.AIContext{Name: name, Path: t.Path})
 	}
@@ -153,12 +154,12 @@ func (f TransferFile) Validate() error {
 func checkTransferPath(t TransferContext) error {
 	if t.Relative {
 		if t.Path == "" || t.Path == "." || !filepath.IsLocal(filepath.FromSlash(t.Path)) || filepath.ToSlash(filepath.Clean(t.Path)) != t.Path {
-			return fmt.Errorf("caminho relativo inválido: %q", t.Path)
+			return fmt.Errorf("invalid relative path: %q", t.Path)
 		}
 		return nil
 	}
 	if !filepath.IsAbs(t.Path) || filepath.Clean(t.Path) != t.Path {
-		return fmt.Errorf("caminho inválido: %q", t.Path)
+		return fmt.Errorf("invalid path: %q", t.Path)
 	}
 	return nil
 }
@@ -231,14 +232,14 @@ func planOne(t TransferContext, path string, contexts []config.AIContext) Import
 	ic := ImportContext{Name: t.Name, Path: path, Models: ms, Agents: ids, Unknown: unknown}
 	switch {
 	case len(ids) == 0:
-		ic.State, ic.Reason = ImportInvalid, "nenhum agente conhecido por esta versão do Perci"
+		ic.State, ic.Reason = ImportInvalid, i18n.Tr("aic.noKnownAgent", nil)
 	case slices.ContainsFunc(contexts, func(c config.AIContext) bool { return c.Path == path }):
-		ic.State, ic.Reason = ImportRegistered, "pasta já registrada nesta máquina"
+		ic.State, ic.Reason = ImportRegistered, i18n.Tr("aic.alreadyRegistered", nil)
 	default:
 		info, err := os.Stat(path)
 		switch {
 		case err == nil && !info.IsDir():
-			ic.State, ic.Reason = ImportInvalid, "o caminho existe e não é uma pasta"
+			ic.State, ic.Reason = ImportInvalid, i18n.Tr("aic.notAFolder", nil)
 		case err == nil:
 			ic.State = ImportApply
 		default:
@@ -275,23 +276,23 @@ type importStep struct {
 // not picked twice. A replacement Path must be absolute.
 func planPicks(f TransferFile, picks []ImportPick, contexts []config.AIContext, workspace string) ([]importStep, error) {
 	if len(picks) == 0 {
-		return nil, errors.New("nenhuma pasta selecionada")
+		return nil, i18n.NewError("aic.noneSelected")
 	}
 	taken := slices.Clone(contexts)
 	var steps []importStep
 	for _, p := range picks {
 		i := slices.IndexFunc(f.Contexts, func(t TransferContext) bool { return t.Name == p.Source })
 		if i < 0 {
-			return nil, fmt.Errorf("%q não está no arquivo", p.Source)
+			return nil, errors.New(i18n.Tr("aic.notInFile", i18n.Args{"name": p.Source}))
 		}
 		if slices.ContainsFunc(steps, func(s importStep) bool { return s.plan.Name == p.Source }) {
-			return nil, fmt.Errorf("%q selecionado mais de uma vez", p.Source)
+			return nil, fmt.Errorf("%q selected more than once", p.Source)
 		}
 		t := f.Contexts[i]
 		path := t.resolvePath(workspace)
 		if p.Path != "" {
 			if !filepath.IsAbs(p.Path) {
-				return nil, fmt.Errorf("%q: caminho não absoluto: %q", p.Source, p.Path)
+				return nil, fmt.Errorf("%q: path is not absolute: %q", p.Source, p.Path)
 			}
 			path = filepath.Clean(p.Path)
 		}
@@ -300,7 +301,7 @@ func planPicks(f TransferFile, picks []ImportPick, contexts []config.AIContext, 
 			return nil, fmt.Errorf("%q: %s", p.Source, plan.Reason)
 		}
 		if slices.ContainsFunc(steps, func(s importStep) bool { return s.plan.Path == path }) {
-			return nil, fmt.Errorf("%q: a pasta %s foi escolhida para mais de um contexto", p.Source, path)
+			return nil, errors.New(i18n.Tr("aic.folderTwice", i18n.Args{"name": p.Source, "path": path}))
 		}
 		name, err := normalizeName(taken, p.Name, path)
 		if err != nil {
@@ -360,7 +361,7 @@ func Import(stdout io.Writer, f TransferFile, picks []ImportPick, workspace stri
 	for i, s := range steps {
 		ui.Step(stdout, i+1, len(steps), s.name)
 		if len(s.plan.Unknown) > 0 {
-			ui.Warning(stdout, "Desconhecidos nesta versão do Perci, deixados de fora: "+strings.Join(s.plan.Unknown, ", "))
+			ui.Warning(stdout, i18n.Tr("aic.run.unknownLeftOut", i18n.Args{"names": strings.Join(s.plan.Unknown, ", ")}))
 		}
 		if s.plan.State == ImportApply {
 			if err := GenerateSharedFiles(s.plan.Path, ModelsNamed(s.plan.Models), s.plan.Agents, true, stdout); err != nil {
@@ -369,7 +370,7 @@ func Import(stdout io.Writer, f TransferFile, picks []ImportPick, workspace stri
 				continue
 			}
 		} else {
-			ui.Info(stdout, "Pasta não encontrada — registrada como pendente: "+s.plan.Path)
+			ui.Info(stdout, i18n.Tr("aic.run.pending", i18n.Args{"path": s.plan.Path}))
 		}
 		if err := RecordContext(s.name, s.plan.Path, s.plan.Models, s.plan.Agents); err != nil {
 			ui.Err(stdout, s.plan.Path+": "+err.Error())

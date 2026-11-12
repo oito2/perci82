@@ -234,6 +234,11 @@ func containerPath(appType, relPath string) (string, bool) {
 	}
 }
 
+// ContainerPath is containerPath for the other packages.
+func ContainerPath(appType, relPath string) (string, bool) {
+	return containerPath(appType, relPath)
+}
+
 // nginxServes reports whether Nginx serves the files of an app of appType
 // (every type but Node, which Nginx only proxies), so a mount into it must
 // reach Nginx too.

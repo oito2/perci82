@@ -430,6 +430,38 @@ func (h *DevHomeService) SetWorkspacePath(path string) error {
 	})
 }
 
+// GetProjectNotesPath returns the persisted project notes folder, "" when
+// unset or when the config can't be read.
+func (h *DevHomeService) GetProjectNotesPath() string {
+	cfg, err := config.Load()
+	if err != nil {
+		return ""
+	}
+	return cfg.ProjectNotesPath
+}
+
+// PickProjectNotesFolder opens the native folder picker for the project
+// notes folder.
+func (h *DevHomeService) PickProjectNotesFolder() (string, error) {
+	return h.pickFolder(i18n.Tr("notes.pickTitle", nil))
+}
+
+// SetProjectNotesPath persists the project notes folder chosen via
+// PickProjectNotesFolder, or clears it with "". Only a path picked in that
+// dialog this session is accepted: the AI contexts give the coding agents
+// write access to it.
+func (h *DevHomeService) SetProjectNotesPath(path string) error {
+	if path != "" {
+		if err := requireApprovedPath(path); err != nil {
+			return err
+		}
+	}
+	return config.Update(func(cfg *config.Config) error {
+		cfg.ProjectNotesPath = path
+		return nil
+	})
+}
+
 // PickUninstallBackupPath opens the native "Salvar Como" dialog for the
 // uninstall's "Fazer backup das configurações" checkbox — it differs from
 // PickExportConfigPath only in its title/default filename; both save

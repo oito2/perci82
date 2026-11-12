@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -122,14 +123,14 @@ func removeIfPristine(path string, stdout io.Writer, generated ...string) {
 		return
 	}
 	if !slices.Contains(generated, string(data)) {
-		ui.Warning(stdout, path+" não foi gerado pelo Perci ou foi editado — mantido; apague-o manualmente se não precisar mais dele.")
+		ui.Warning(stdout, i18n.Tr("aic.run.notGenerated", i18n.Args{"path": path}))
 		return
 	}
 	if err := os.Remove(path); err != nil {
-		ui.Warning(stdout, "Falha ao remover "+path+": "+err.Error())
+		ui.Warning(stdout, i18n.Tr("aic.run.removeFailed", i18n.Args{"path": path, "error": err.Error()}))
 		return
 	}
-	ui.Info(stdout, "Removido: "+path)
+	ui.Info(stdout, i18n.Tr("aic.run.removed", i18n.Args{"path": path}))
 }
 
 // writeStub writes the stub at name (CLAUDE.md, GEMINI.md) unless it
@@ -137,7 +138,7 @@ func removeIfPristine(path string, stdout io.Writer, generated ...string) {
 // writing the stub through it would replace AGENTS.md.
 func writeStub(dir, name, content string, overwrite bool, stdout io.Writer) error {
 	if sameFile(filepath.Join(dir, name), filepath.Join(dir, "AGENTS.md")) {
-		ui.Info(stdout, name+" é um link para AGENTS.md — mantido.")
+		ui.Info(stdout, i18n.Tr("aic.run.symlinkKept", i18n.Args{"name": name}))
 		return nil
 	}
 	return WriteFile(filepath.Join(dir, name), content, overwrite, stdout)
@@ -168,7 +169,7 @@ func readOpenCodeConfig(dir string) (map[string]any, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber() // keeps numbers exactly as written
 	if err := dec.Decode(&doc); err != nil || doc == nil {
-		return nil, fmt.Errorf("%s não é um objeto JSON válido", openCodeConfig)
+		return nil, fmt.Errorf("%s is not a valid JSON object", openCodeConfig)
 	}
 	return doc, nil
 }
@@ -182,7 +183,7 @@ func instructionsOf(doc map[string]any) ([]any, error) {
 	}
 	list, ok := raw.([]any)
 	if !ok {
-		return nil, fmt.Errorf(`"instructions" de %s não é uma lista`, openCodeConfig)
+		return nil, fmt.Errorf(`"instructions" of %s is not a list`, openCodeConfig)
 	}
 	return list, nil
 }
@@ -198,24 +199,45 @@ func writeOpenCodeConfig(dir string, doc map[string]any, stdout io.Writer) error
 	}
 	path := filepath.Join(dir, openCodeConfig)
 	if err := fsutil.WriteGenerated(path, buf.Bytes(), 0o644); err != nil {
-		return fmt.Errorf("escrever %s: %w", path, err)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
-	ui.Info(stdout, "Atualizado: "+path)
+	ui.Info(stdout, i18n.Tr("aic.run.updated", i18n.Args{"path": path}))
 	return nil
 }
 
-// addOpenCodeProjectRules adds the project rules to the instructions of
-// dir's opencode.json, creating the file when it is missing. Every other
+// isOpenCodeRulesEntry reports whether the instructions entry v loads
+// project rules Perci set up: .instructions/PROJECT.md, or the PROJECT.md
+// of a notes folder.
+func isOpenCodeRulesEntry(v any) bool {
+	s, ok := v.(string)
+	if !ok {
+		return false
+	}
+	if s == openCodeRulesEntry {
+		return true
+	}
+	return filepath.Base(s) == "PROJECT.md" && isNotesFolder(filepath.Dir(s))
+}
+
+// writeOpenCodeConfigFor makes dir's opencode.json load the project rules
+// (entry: .instructions/PROJECT.md, or the notes folder's PROJECT.md) and
+// hold the permissions of g; entry "" takes Perci's instructions entry and
+// permissions out, and removes a file left with nothing else. Every other
 // key is kept; a file that can't be merged is left alone with a warning.
-func addOpenCodeProjectRules(dir string, stdout io.Writer) error {
-	if _, err := os.Stat(filepath.Join(dir, "opencode.jsonc")); err == nil {
-		if _, err := os.Stat(filepath.Join(dir, openCodeConfig)); os.IsNotExist(err) {
-			ui.Warning(stdout, "opencode.jsonc não é alterado pelo Perci (pode ter comentários): adicione \""+openCodeRulesEntry+"\" a \"instructions\" manualmente.")
-			return nil
+func writeOpenCodeConfigFor(dir, entry string, g grants, stdout io.Writer) error {
+	if entry != "" {
+		if _, err := os.Stat(filepath.Join(dir, "opencode.jsonc")); err == nil {
+			if _, err := os.Stat(filepath.Join(dir, openCodeConfig)); os.IsNotExist(err) {
+				ui.Warning(stdout, i18n.Tr("aic.run.opencodeJsonc", i18n.Args{"entry": entry}))
+				return nil
+			}
 		}
 	}
 	doc, err := readOpenCodeConfig(dir)
 	if err == nil && doc == nil {
+		if entry == "" {
+			return nil
+		}
 		doc = map[string]any{"$schema": openCodeSchema}
 	}
 	var list []any
@@ -223,41 +245,47 @@ func addOpenCodeProjectRules(dir string, stdout io.Writer) error {
 		list, err = instructionsOf(doc)
 	}
 	if err != nil {
-		ui.Warning(stdout, err.Error()+" — as regras do projeto não foram adicionadas ao OpenCode; corrija o arquivo manualmente.")
+		if entry != "" {
+			ui.Warning(stdout, i18n.Tr("aic.run.opencodeBad", i18n.Args{"error": err.Error()}))
+		}
 		return nil
 	}
-	if slices.Contains(list, any(openCodeRulesEntry)) {
-		ui.Info(stdout, "Já existente: "+filepath.Join(dir, openCodeConfig))
-		return nil
-	}
-	doc["instructions"] = append(list, openCodeRulesEntry)
-	return writeOpenCodeConfig(dir, doc, stdout)
-}
 
-// removeOpenCodeProjectRules takes the project rules out of the
-// instructions of dir's opencode.json, and removes the file when nothing
-// else is left in it.
-func removeOpenCodeProjectRules(dir string, stdout io.Writer) error {
-	doc, err := readOpenCodeConfig(dir)
-	if err != nil || doc == nil {
-		return nil
+	changed := false
+	kept := list[:0:0]
+	for _, v := range list {
+		if v != any(entry) && isOpenCodeRulesEntry(v) {
+			changed = true
+			continue
+		}
+		kept = append(kept, v)
 	}
-	list, err := instructionsOf(doc)
-	if err != nil || !slices.Contains(list, any(openCodeRulesEntry)) {
-		return nil
+	if entry != "" && !slices.Contains(kept, any(entry)) {
+		kept = append(kept, entry)
+		changed = true
 	}
-	list = slices.DeleteFunc(list, func(v any) bool { return v == any(openCodeRulesEntry) })
-	if len(list) == 0 {
+	if len(kept) == 0 {
 		delete(doc, "instructions")
 	} else {
-		doc["instructions"] = list
+		doc["instructions"] = kept
 	}
-	if len(doc) == 0 || (len(doc) == 1 && doc["$schema"] == openCodeSchema) {
-		path := filepath.Join(dir, openCodeConfig)
-		if err := os.Remove(path); err != nil {
-			return fmt.Errorf("remover %s: %w", path, err)
+	permChanged, err := setOpenCodePermissions(doc, openCodePermissions(g))
+	if err != nil {
+		ui.Warning(stdout, i18n.Tr("aic.run.opencodeBad", i18n.Args{"error": err.Error()}))
+		return nil
+	}
+	path := filepath.Join(dir, openCodeConfig)
+	switch {
+	case !changed && !permChanged:
+		if entry != "" {
+			ui.Info(stdout, i18n.Tr("aic.run.exists", i18n.Args{"path": path}))
 		}
-		ui.Info(stdout, "Removido: "+path)
+		return nil
+	case len(doc) == 0 || (len(doc) == 1 && doc["$schema"] == openCodeSchema):
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove %s: %w", path, err)
+		}
+		ui.Info(stdout, i18n.Tr("aic.run.removed", i18n.Args{"path": path}))
 		return nil
 	}
 	return writeOpenCodeConfig(dir, doc, stdout)
@@ -271,5 +299,5 @@ func openCodeHasProjectRules(dir string) bool {
 		return false
 	}
 	list, err := instructionsOf(doc)
-	return err == nil && slices.Contains(list, any(openCodeRulesEntry))
+	return err == nil && slices.ContainsFunc(list, isOpenCodeRulesEntry)
 }

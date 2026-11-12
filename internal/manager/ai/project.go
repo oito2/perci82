@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -58,7 +59,7 @@ func generatedLines() (map[string]bool, error) {
 			lines[strings.TrimRight(l, " \t\r")] = true
 		}
 	}
-	for _, path := range append([]string{"templates/BASIC.md"}, legacyTemplates...) {
+	for _, path := range append([]string{"templates/BASIC.md", "templates/NOTES.md"}, legacyTemplates...) {
 		tpl, err := readTpl(path)
 		if err != nil {
 			return nil, err
@@ -76,11 +77,13 @@ func generatedLines() (map[string]bool, error) {
 // projectContent returns the lines of the AGENTS.md text agents that no
 // Perci version generated — rules the project wrote by hand — with
 // consecutive lines kept together and a blank line between groups.
-func projectContent(agents string) (string, error) {
+// notesDir is the project's notes folder the text may name ("" for none).
+func projectContent(agents, notesDir string) (string, error) {
 	known, err := generatedLines()
 	if err != nil {
 		return "", err
 	}
+	agents = normalizeNotes(agents, notesDir)
 	var groups [][]string
 	var cur []string
 	flush := func() {
@@ -94,7 +97,7 @@ func projectContent(agents string) (string, error) {
 		switch {
 		case strings.TrimSpace(l) == "":
 			flush()
-		case known[l] || standardLineRe.MatchString(l) || agentsMarkerRe.MatchString(l):
+		case known[l] || known[genericNotesLine(l)] || standardLineRe.MatchString(l) || agentsMarkerRe.MatchString(l):
 			flush()
 		default:
 			cur = append(cur, l)
@@ -117,13 +120,13 @@ func ensureProjectRules(dir string, overwrite bool, stdout io.Writer) error {
 	path := filepath.Join(dir, projectRulesPath)
 	current, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("ler %s: %w", path, err)
+		return fmt.Errorf("read %s: %w", path, err)
 	}
 	exists := err == nil
 
 	moved := ""
 	if agents, err := os.ReadFile(filepath.Join(dir, "AGENTS.md")); err == nil && overwrite {
-		if moved, err = projectContent(string(agents)); err != nil {
+		if moved, err = projectContent(string(agents), ""); err != nil {
 			return err
 		}
 	}
@@ -144,12 +147,12 @@ func ensureProjectRules(dir string, overwrite bool, stdout io.Writer) error {
 		return err
 	}
 	if err := fsutil.WriteGenerated(path, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("escrever %s: %w", path, err)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
 	if moved != "" {
-		ui.Warning(stdout, "Regras escritas à mão no AGENTS.md foram movidas para "+path+" — confira o arquivo; o AGENTS.md agora é regenerado pelo Perci.")
+		ui.Warning(stdout, i18n.Tr("aic.run.rulesMoved", i18n.Args{"path": path}))
 	} else {
-		ui.Info(stdout, "Criado: "+path)
+		ui.Info(stdout, i18n.Tr("aic.run.created", i18n.Args{"path": path}))
 	}
 	return nil
 }

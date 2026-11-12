@@ -20,14 +20,13 @@
 "use strict";
 
 // ===========================================================================
-// "Dev Tools :: IA: Contextos": the registered folders (main tab), the
-// "Definir Contexto" tab (#panel-aic-define) and the "Exportar/Importar"
-// tab (#panel-aic-transfer).
+// "Contextos de IA": Gerenciar Contextos (the registered folders,
+// #aicontext-container), Configurar Projeto (#aicdefine-container) and
+// Exportar/Importar (#aictransfer-container).
 // ===========================================================================
 
-const tabLabelAicDefine = document.getElementById("tab-label-aic-define");
-const tabRadioAicDefine = document.getElementById("tab-radio-aic-define");
-const tabLabelAicTransfer = document.getElementById("tab-label-aic-transfer");
+const aicdefineContainer = document.getElementById("aicdefine-container");
+const aictransferContainer = document.getElementById("aictransfer-container");
 const aicRowsEl = document.getElementById("aic-rows");
 const aicEmpty = document.getElementById("aic-empty");
 const btnAicUpdateAll = document.getElementById("btn-aic-update-all");
@@ -56,6 +55,16 @@ const aicAgentLabelsReady = App.GetAIContextAgents("").then(function (agents) {
   (agents || []).forEach(function (a) { aicAgentLabels[a.id] = a.label; });
 }).catch(function () {});
 
+// aicModelLabels is the label of each standard ID, in the language of the
+// last load (aicLoadModelLabels).
+let aicModelLabels = {};
+function aicLoadModelLabels() {
+  return App.GetAIContextItems("").then(function (items) {
+    aicModelLabels = {};
+    (items || []).forEach(function (it) { aicModelLabels[it.id] = it.label; });
+  }).catch(function () {});
+}
+
 // aicFolderName is the last segment of path (path itself when it has none).
 function aicFolderName(path) {
   const parts = path.split("/").filter(Boolean);
@@ -69,24 +78,25 @@ function aicAgentsText(ids) {
 
 // aicModelsText names the standards of models, "—" for none.
 function aicModelsText(models) {
-  return (models || []).join(", ") || "—";
+  return (models || []).map(function (m) { return aicModelLabels[m] || m; }).join(", ") || "—";
 }
 
 // aicNameError tells what is wrong with name for the folder at path
 // ("" when nothing): empty, or used by another registered folder.
 function aicNameError(name, path) {
-  if (!name) return "Informe o nome do contexto.";
+  if (!name) return t("aic.err.noName");
   const lower = name.toLowerCase();
   const other = aicContexts.find(function (c) { return c.path !== path && c.name.toLowerCase() === lower; });
-  return other ? 'O nome "' + name + '" já é usado pela pasta ' + other.path + "." : "";
+  return other ? t("aic.err.nameTaken", { name: name, path: other.path }) : "";
 }
 
-const AIC_ACTIONS = { create: "criar", update: "atualizar", remove: "remover" };
+// AIC_ACTIONS maps a change's action to the message key of its verb.
+const AIC_ACTIONS = { create: "aic.act.create", update: "aic.act.update", remove: "aic.act.remove", skip: "aic.act.skip" };
 
 // aicChangeLines lists changes ({path, action}), one per line, indented by
 // indent.
 function aicChangeLines(changes, indent) {
-  return changes.map(function (c) { return indent + "• " + (AIC_ACTIONS[c.action] || c.action) + ": " + c.path; }).join("\n");
+  return changes.map(function (c) { return indent + "• " + (AIC_ACTIONS[c.action] ? t(AIC_ACTIONS[c.action]) : c.action) + ": " + c.path; }).join("\n");
 }
 
 // aicFolderChangesText lists the changes of each folder of previews
@@ -94,10 +104,10 @@ function aicChangeLines(changes, indent) {
 // pendingText describes a folder that does not exist.
 function aicFolderChangesText(previews, edited, pendingText) {
   return previews.map(function (p) {
-    const head = p.name + " — " + p.path + (edited && edited[p.path] ? " (tem arquivos editados à mão)" : "");
+    const head = p.name + " — " + p.path + (edited && edited[p.path] ? " " + t("aic.hasEdited") : "");
     let body;
     if (p.pending) body = "  • " + pendingText;
-    else if (!p.changes.length) body = "  • nada a mudar nos arquivos";
+    else if (!p.changes.length) body = "  • " + t("aic.nothingToChange");
     else body = aicChangeLines(p.changes, "  ");
     return head + "\n" + body;
   }).join("\n\n");
@@ -109,10 +119,10 @@ function aicFolderChangesText(previews, edited, pendingText) {
 
 // AIC_ROW_STATE describes each folder state (managerai.ContextState).
 const AIC_ROW_STATE = {
-  applied: { label: "em dia", cls: "badge-success", title: "Os arquivos são o que esta versão do Perci gera para o contexto registrado." },
-  outdated: { label: "desatualizado", cls: "badge-warning", title: "Gerado por uma versão anterior do Perci ou com arquivos faltando: Atualizar regera." },
-  edited: { label: "editado", cls: "badge-error", title: "Arquivos editados à mão: Atualizar substitui (guardando um .perci-bak). Regras do projeto ficam em .instructions/PROJECT.md." },
-  pending: { label: "pendente", cls: "badge-ghost", title: "A pasta não existe nesta máquina. Depois de criá-la (por exemplo, clonando o repositório), ela aparece como desatualizada e Atualizar gera o contexto." },
+  applied: { get label() { return t("gac.ch.current"); }, cls: "badge-success", get title() { return t("aic.row.appliedHint"); } },
+  outdated: { get label() { return t("aic.st.outdated"); }, cls: "badge-warning", get title() { return t("aic.row.outdatedHint"); } },
+  edited: { get label() { return t("aic.st.edited"); }, cls: "badge-error", get title() { return t("aic.row.editedHint"); } },
+  pending: { get label() { return t("aic.st.pending"); }, cls: "badge-ghost", get title() { return t("aic.row.pendingHint"); } },
 };
 
 // aicNeedsUpdate reports whether Atualizar todos covers row.
@@ -128,27 +138,30 @@ function aicUpdate(paths) {
     previews = previews || [];
     const todo = previews.filter(function (p) { return !p.pending && p.changes.length; });
     if (todo.length === 0) {
-      openMessage("Nada a mudar", "Os arquivos já estão como o contexto registrado gera.", false);
+      openMessage(t("aic.nothingTitle"), t("aic.nothingRegistered"), false);
       return;
     }
     const edited = {};
     aicContexts.forEach(function (c) { if (c.state === "edited") edited[c.path] = true; });
-    const msg = aicFolderChangesText(previews, edited, "pulada: a pasta não existe nesta máquina") +
-      "\n\nArquivos substituídos ficam com uma cópia .perci-bak. Continuar?";
-    openConfirm("Atualizar contextos de IA", msg, function () {
-      beginRun("Atualizar contextos de IA", function () {
+    const msg = aicFolderChangesText(previews, edited, t("aic.skippedMissing")) + "\n\n" + t("aic.backupContinue");
+    openConfirm(t("aic.updateTitle"), msg, function () {
+      beginRun(t("aic.updateTitle"), function () {
         return App.UpdateAIContexts(todo.map(function (p) { return p.path; }));
       }, { buttons: [btnAicUpdateAll] });
     });
-  }).catch(function (err) { openError("Falha ao calcular as mudanças: " + err); });
+  }).catch(function (err) { openError(t("aic.previewFailed", { error: err })); });
 }
 
-// aicEdit opens row's folder on the "Definir Contexto" tab.
+// aicKeepFolder makes the next Configurar Projeto render keep aicFolder
+// (set by Alterar) instead of starting without a folder.
+let aicKeepFolder = false;
+
+// aicEdit opens row's folder on Configurar Projeto.
 function aicEdit(row) {
   aicFolder = row.path;
-  renderAicAlert();
-  renderAicItems();
-  tabRadioAicDefine.checked = true;
+  aicKeepFolder = true;
+  renderAicDefineScreen();
+  selectMenuItem("aicontext-define|");
 }
 
 // aicRemove previews Remover on row's folder and, after the confirmation,
@@ -158,13 +171,12 @@ function aicRemove(row) {
   App.PreviewAIContextRemove(row.path).then(function (changes) {
     changes = changes || [];
     const files = changes.length
-      ? "Arquivos que serão removidos de " + row.path + ":\n\n" + aicChangeLines(changes, "") +
-        "\n\nArquivos editados à mão e .instructions/PROJECT.md são mantidos."
-      : "Nenhum arquivo de " + row.path + " é removido (a pasta não existe ou não há arquivos do Perci intactos).";
-    openConfirm("Remover contexto de IA", files + '\n\nRemover "' + row.name + '" da lista?', function () {
-      beginRun("Remover contexto de IA", function () { return App.RemoveAIContext(row.path); });
+      ? t("aic.removeFiles", { path: row.path }) + "\n\n" + aicChangeLines(changes, "") + "\n\n" + t("aic.removeKept")
+      : t("aic.removeNone", { path: row.path });
+    openConfirm(t("aic.removeTitle"), files + "\n\n" + t("aic.removeConfirm", { name: row.name }), function () {
+      beginRun(t("aic.removeTitle"), function () { return App.RemoveAIContext(row.path); });
     });
-  }).catch(function (err) { openError("Falha ao calcular as mudanças: " + err); });
+  }).catch(function (err) { openError(t("aic.previewFailed", { error: err })); });
 }
 
 // buildAicRow builds the table row of one registered folder.
@@ -192,8 +204,8 @@ function buildAicRow(row) {
   if (row.divergent && row.state !== "pending") {
     const div = document.createElement("span");
     div.className = "badge badge-sm badge-warning badge-outline whitespace-nowrap ml-1";
-    div.textContent = "seleção diferente";
-    div.title = "Os arquivos da pasta têm outros padrões ou agentes que os registrados. Atualizar aplica os registrados; Alterar permite mudar a seleção.";
+    div.textContent = t("aic.divergent");
+    div.title = t("aic.divergentHint");
     tdState.appendChild(div);
   }
   tr.appendChild(tdState);
@@ -203,17 +215,17 @@ function buildAicRow(row) {
   wrap.className = "flex gap-1";
   const pending = row.state === "pending";
 
-  const btnUpdate = iconButton("refreshCw", "Atualizar");
+  const btnUpdate = iconButton("refreshCw", t("action.update"));
   btnUpdate.disabled = pending;
   btnUpdate.addEventListener("click", function () { aicUpdate([row.path]); });
   wrap.appendChild(btnUpdate);
 
-  const btnEdit = iconButton("pencil", "Alterar");
+  const btnEdit = iconButton("pencil", t("aic.change"));
   btnEdit.disabled = pending;
   btnEdit.addEventListener("click", function () { aicEdit(row); });
   wrap.appendChild(btnEdit);
 
-  const btnRemove = iconButton("trash2", "Remover");
+  const btnRemove = iconButton("trash2", t("docker.remove"));
   btnRemove.addEventListener("click", function () { aicRemove(row); });
   wrap.appendChild(btnRemove);
 
@@ -234,9 +246,9 @@ function renderAicRows(rows) {
 }
 
 function loadAicRows() {
-  Promise.all([aicAgentLabelsReady, App.GetAIContexts()]).then(latestOnly("aic-rows", function (res) {
+  Promise.all([aicAgentLabelsReady, App.GetAIContexts(), aicLoadModelLabels()]).then(latestOnly("aic-rows", function (res) {
     renderAicRows(res[1]);
-  })).catch(function (err) { openError("Falha ao listar os contextos: " + err); });
+  })).catch(function (err) { openError(t("aic.listFailed", { error: err })); });
 }
 
 btnAicUpdateAll.addEventListener("click", function () {
@@ -250,14 +262,14 @@ btnAicUpdateAll.addEventListener("click", function () {
 
 function renderAicAlert() {
   if (!aicFolder) {
-    aicAlertTitle.textContent = "Selecione a pasta de trabalho";
-    aicAlertDesc.textContent = "As opções abaixo serão habilitadas ao selecionar a pasta de trabalho";
-    btnAicPickFolder.textContent = "Selecionar Pasta";
+    aicAlertTitle.textContent = t("aic.pickTitle");
+    aicAlertDesc.textContent = t("aic.pickDesc");
+    btnAicPickFolder.textContent = t("devfolders.pick");
     return;
   }
-  aicAlertTitle.textContent = "Nome da pasta: " + aicFolderName(aicFolder);
+  aicAlertTitle.textContent = t("aic.folderName", { name: aicFolderName(aicFolder) });
   aicAlertDesc.textContent = aicFolder;
-  btnAicPickFolder.textContent = "Alterar Pasta";
+  btnAicPickFolder.textContent = t("gt.changeFolder");
 }
 
 btnAicPickFolder.addEventListener("click", function () {
@@ -285,12 +297,12 @@ function renderAicPresetOptions() {
   aicPreset.innerHTML = "";
   const custom = document.createElement("option");
   custom.value = "";
-  custom.textContent = "Personalizado";
+  custom.textContent = t("aic.custom");
   aicPreset.appendChild(custom);
   aicPresets.forEach(function (p) {
     const opt = document.createElement("option");
     opt.value = p.name;
-    opt.textContent = p.name;
+    opt.textContent = p.label || p.name;
     aicPreset.appendChild(opt);
   });
   aicPreset.value = "";
@@ -333,9 +345,9 @@ function aicCheckedAgents() {
 
 // AIC_STATUS describes each standard state (managerai.GuideStatus).
 const AIC_STATUS = {
-  applied: { label: "aplicado", cls: "badge-success", title: "Igual ao que esta versão do Perci gera." },
-  outdated: { label: "desatualizado", cls: "badge-warning", title: "Gerado por uma versão anterior do Perci: Aplicar atualiza." },
-  edited: { label: "editado", cls: "badge-error", title: "Editado à mão: Aplicar substitui (guardando um .perci-bak). Regras do projeto ficam em .instructions/PROJECT.md." },
+  applied: { get label() { return t("aic.st.applied"); }, cls: "badge-success", get title() { return t("aic.item.appliedHint"); } },
+  outdated: { get label() { return t("aic.st.outdated"); }, cls: "badge-warning", get title() { return t("aic.item.outdatedHint"); } },
+  edited: { get label() { return t("aic.st.edited"); }, cls: "badge-error", get title() { return t("aic.item.editedHint"); } },
 };
 
 // buildAicItem builds the row of one standard: checkbox, name, state
@@ -356,8 +368,7 @@ function buildAicItem(it) {
 
 // aicPreviewMessage lists the changes of an Aplicar for the confirmation.
 function aicPreviewMessage(folder, changes) {
-  return "Arquivos que serão alterados em " + folder + ":\n\n" + aicChangeLines(changes, "") +
-    "\n\nArquivos substituídos ficam com uma cópia .perci-bak. Continuar?";
+  return t("aic.changeFiles", { path: folder }) + "\n\n" + aicChangeLines(changes, "") + "\n\n" + t("aic.backupContinue");
 }
 
 // aicRecordOf is the AIContextRecord of rec, or an unregistered folder
@@ -399,7 +410,7 @@ function renderAicItems() {
     .then(latestOnly("aicontext", function (res) {
       renderAicDefine(folder, aicRecordOf(res[0]), res[1] || [], res[2] || []);
     }))
-    .catch(function (err) { openError("Falha ao ler a pasta: " + err); });
+    .catch(function (err) { openError(t("aic.readFailed", { error: err })); });
 }
 
 // renderAicDefine fills the "Definir Contexto" form for folder: rec is its
@@ -410,8 +421,7 @@ function renderAicDefine(folder, rec, agents, items) {
   aicName.value = rec.registered ? rec.name : "";
   aicUnregistered.classList.toggle("hidden", rec.registered || !rec.hasContext);
   if (!rec.registered && rec.hasContext) {
-    aicUnregisteredDesc.textContent = "Esta pasta já tem um contexto gerado pelo Perci (padrões: " + aicModelsText(rec.models) +
-      "; agentes: " + aicAgentsText(rec.agents) + "), mas não está na aba Contextos. Informe o nome e clique em Registrar: nenhum arquivo é alterado.";
+    aicUnregisteredDesc.textContent = t("aic.unregistered", { models: aicModelsText(rec.models), agents: aicAgentsText(rec.agents) });
   }
 
   renderAicAgents(rec.registered ? agents.map(function (a) {
@@ -451,7 +461,7 @@ function renderAicDefine(folder, rec, agents, items) {
       if (!preset || folder !== aicFolder) return;
       aicPreset.value = name;
       aicPreset.onchange();
-      aicPresetHint.textContent = "Sugerido pelos arquivos da pasta." + (preset.hint ? " " + preset.hint : "");
+      aicPresetHint.textContent = t("aic.suggested") + (preset.hint ? " " + preset.hint : "");
       aicPresetHint.classList.remove("hidden");
     }));
   }
@@ -470,24 +480,24 @@ function renderAicDefine(folder, rec, agents, items) {
       .map(function (it) { return it.id; });
     const agentIDs = aicCheckedAgents();
     if (agentIDs.length === 0) {
-      openError("Marque ao menos um agente de IA.");
+      openError(t("aic.err.noAgent"));
       return;
     }
     const apply = function () {
-      beginRun("Aplicar Contextos de IA", function () { return App.ApplyAIContext(folder, name, selected, agentIDs); });
+      beginRun(t("aic.applyTitle"), function () { return App.ApplyAIContext(folder, name, selected, agentIDs); });
     };
     App.PreviewAIContext(folder, selected, agentIDs).then(function (changes) {
       changes = changes || [];
       if (changes.length) {
-        openConfirm("Aplicar Contextos de IA", aicPreviewMessage(folder, changes), apply);
+        openConfirm(t("aic.applyTitle"), aicPreviewMessage(folder, changes), apply);
         return;
       }
       if (rec.registered && rec.name === name && aicSameSet(rec.models, selected) && aicSameSet(rec.agents, agentIDs)) {
-        openMessage("Nada a mudar", "Os arquivos de " + folder + " já estão como esta seleção gera.", false);
+        openMessage(t("aic.nothingTitle"), t("aic.nothingSelection", { path: folder }), false);
         return;
       }
-      openConfirm("Aplicar Contextos de IA", "Nenhum arquivo de " + folder + ' muda: só o registro de "' + name + '" na aba Contextos é atualizado. Continuar?', apply);
-    }).catch(function (err) { openError("Falha ao calcular as mudanças: " + err); });
+      openConfirm(t("aic.applyTitle"), t("aic.recordOnly", { path: folder, name: name }), apply);
+    }).catch(function (err) { openError(t("aic.previewFailed", { error: err })); });
   };
 }
 
@@ -501,10 +511,10 @@ btnAicRegister.addEventListener("click", function () {
     return;
   }
   App.RegisterAIContext(folder, name).then(function () {
-    openMessage("Registrado", '"' + name + '" agora aparece na aba Contextos.', false);
+    openMessage(t("aic.registered"), t("aic.registeredText", { name: name }), false);
     loadAicRows();
     if (folder === aicFolder) renderAicItems();
-  }).catch(function (err) { openError("Falha ao registrar: " + err); });
+  }).catch(function (err) { openError(t("aic.registerFailed", { error: err })); });
 });
 
 // ===========================================================================
@@ -570,21 +580,20 @@ btnAicExport.addEventListener("click", function () {
   App.PickAIContextExportPath().then(function (path) {
     if (!path) return; // user cancelled the dialog
     return App.ExportAIContexts(path, paths).then(function () {
-      openMessage("Exportado", paths.length + " pasta(s) exportada(s) para:\n" + path, false);
+      openMessage(t("transfer.exported"), t("aic.exportedTo", { count: paths.length, path: path }), false);
     });
-  }).catch(function (err) { openError("Falha ao exportar: " + err); });
+  }).catch(function (err) { openError(t("transfer.exportFailed", { error: err })); });
 });
 
 // ---- Importar ---------------------------------------------------------------
 
-const AIC_NO_FILE = "Nenhum arquivo selecionado";
 
 // AIC_IMPORT_STATE labels each import state (managerai.ImportContext.State).
 const AIC_IMPORT_STATE = {
-  apply: "recebe o contexto",
-  pending: "pendente: a pasta não existe",
-  registered: "já registrada aqui",
-  invalid: "indisponível",
+  get apply() { return t("aic.imp.apply"); },
+  get pending() { return t("aic.imp.pending"); },
+  get registered() { return t("aic.imp.registered"); },
+  get invalid() { return t("aic.imp.invalid"); },
 };
 
 // aicImportFile is the file the Importar section shows; aicImportPaths the
@@ -613,9 +622,9 @@ function aicImportNotes(picks, taken) {
   const seen = {};
   picks.forEach(function (p) {
     const lower = p.name.toLowerCase();
-    if (!p.name) notes.push('Informe o nome de "' + p.source + '".');
-    else if (lowerTaken.indexOf(lower) >= 0) notes.push('O nome "' + p.name + '" já é usado por uma pasta desta máquina.');
-    else if (seen[lower]) notes.push('O nome "' + p.name + '" foi dado a mais de um contexto.');
+    if (!p.name) notes.push(t("aic.imp.noName", { name: p.source }));
+    else if (lowerTaken.indexOf(lower) >= 0) notes.push(t("aic.imp.nameTaken", { name: p.name }));
+    else if (seen[lower]) notes.push(t("aic.imp.nameTwice", { name: p.name }));
     seen[lower] = true;
   });
   return notes;
@@ -640,8 +649,8 @@ function updateAicImport() {
 function buildAicImportRow(item) {
   const disabled = item.state !== "apply" && item.state !== "pending";
   let detail = item.path + " · " + aicModelsText(item.models) + " · " + aicAgentsText(item.agents);
-  if (item.reason) detail += "\nIndisponível: " + item.reason;
-  if ((item.unknown || []).length) detail += "\nDesconhecidos nesta versão, ficam de fora: " + item.unknown.join(", ");
+  if (item.reason) detail += "\n" + t("transfer.unavailable", { reason: item.reason });
+  if ((item.unknown || []).length) detail += "\n" + t("aic.imp.unknown", { names: item.unknown.join(", ") });
   const built = aicCheckRow(item.name, detail, disabled);
   built.text.children[1].className += " whitespace-pre-line";
 
@@ -656,7 +665,7 @@ function buildAicImportRow(item) {
   input.type = "text";
   input.className = "input input-bordered input-sm max-w-xs";
   input.maxLength = 80;
-  input.placeholder = "Nome nesta máquina";
+  input.placeholder = t("aic.imp.namePlaceholder");
   input.value = aicImportNames[item.name] !== undefined ? aicImportNames[item.name] : item.name;
   input.disabled = disabled;
   input.addEventListener("input", function () {
@@ -666,14 +675,14 @@ function buildAicImportRow(item) {
   controls.appendChild(input);
   const change = document.createElement("button");
   change.className = "btn btn-xs";
-  change.textContent = "Trocar pasta";
+  change.textContent = t("gt.changeFolder");
   change.addEventListener("click", function (e) {
     e.preventDefault();
     App.PickAIContextFolder().then(function (folder) {
       if (!folder) return;
       aicImportPaths[item.name] = folder;
       loadAicImport(aicImportFile);
-    }).catch(function (err) { openError("Falha ao escolher a pasta: " + err); });
+    }).catch(function (err) { openError(t("gt.pickFailed", { error: err })); });
   });
   controls.appendChild(change);
   built.text.appendChild(controls);
@@ -700,7 +709,7 @@ function resetAicImport() {
   aicImportNames = {};
   aicImportPreview = null;
   aicImportRows = [];
-  aicImportPathEl.textContent = AIC_NO_FILE;
+  aicImportPathEl.textContent = t("transfer.noFile");
   aicImportPathEl.classList.add("opacity-60");
   aicImportList.innerHTML = "";
   aicImportNote.classList.add("hidden");
@@ -718,7 +727,7 @@ function loadAicImport(path) {
     renderAicImport(aicImportPreview);
   })).catch(function (err) {
     resetAicImport();
-    openError("Falha ao ler o arquivo: " + err);
+    openError(t("transfer.readFailed", { error: err }));
   });
 }
 
@@ -728,7 +737,7 @@ btnAicImportPick.addEventListener("click", function () {
     aicImportPaths = {};
     aicImportNames = {};
     loadAicImport(path);
-  }).catch(function (err) { openError("Falha ao selecionar o arquivo: " + err); });
+  }).catch(function (err) { openError(t("transfer.pickFailed", { error: err })); });
 });
 
 btnAicImport.addEventListener("click", function () {
@@ -737,23 +746,34 @@ btnAicImport.addEventListener("click", function () {
   if (picks.length === 0 || aicImportNotes(picks, aicImportPreview.taken).length) return;
   const file = aicImportFile;
   App.PreviewAIContextImportChanges(file, picks).then(function (previews) {
-    const msg = "Importar " + picks.length + " contexto(s):\n\n" +
-      aicFolderChangesText(previews || [], null, "fica pendente: a pasta não existe nesta máquina") +
-      "\n\nArquivos substituídos ficam com uma cópia .perci-bak. Continuar?";
-    openConfirm("Importar contextos de IA", msg, function () {
-      beginRun("Importar contextos de IA", function () {
+    const msg = t("aic.importWhat", { count: picks.length }) + "\n\n" +
+      aicFolderChangesText(previews || [], null, t("aic.imp.pendingNote")) + "\n\n" + t("aic.backupContinue");
+    openConfirm(t("aic.importTitle"), msg, function () {
+      beginRun(t("aic.importTitle"), function () {
         return App.ImportAIContexts(file, picks);
       }, { buttons: [btnAicImport] });
     });
-  }).catch(function (err) { openError("Falha ao calcular as mudanças: " + err); });
+  }).catch(function (err) { openError(t("aic.previewFailed", { error: err })); });
 });
 
 // ===========================================================================
 
+// renderAIContextScreen shows Gerenciar Contextos.
 function renderAIContextScreen() {
-  aicFolder = "";
+  loadAicRows();
+}
+
+// renderAicDefineScreen shows Configurar Projeto: without a folder, unless
+// Alterar just chose one.
+function renderAicDefineScreen() {
+  if (!aicKeepFolder) aicFolder = "";
+  aicKeepFolder = false;
   renderAicAlert();
   renderAicItems();
+}
+
+// renderAicTransferScreen shows Exportar/Importar.
+function renderAicTransferScreen() {
   loadAicRows();
   resetAicImport();
 }

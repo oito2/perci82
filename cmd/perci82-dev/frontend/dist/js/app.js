@@ -29,7 +29,9 @@ SCREENS["git-accounts"] = { el: gitaccountsContainer, alsoShow: [tabLabelGitIden
 SCREENS["git-account"] = { el: gitaccountContainer, render: renderGitAccountScreen };
 SCREENS["git-transfer"] = { el: gittransferContainer, alsoShow: [tabLabelGitImport], render: renderGitTransferScreen };
 SCREENS.agentskills = { el: agentskillsContainer, render: renderAgentSkillsScreen };
-SCREENS.aicontext = { el: aicontextContainer, alsoShow: [tabLabelAicDefine, tabLabelAicTransfer], render: renderAIContextScreen };
+SCREENS.aicontext = { el: aicontextContainer, render: renderAIContextScreen };
+SCREENS["aicontext-define"] = { el: aicdefineContainer, render: renderAicDefineScreen };
+SCREENS["aicontext-transfer"] = { el: aictransferContainer, render: renderAicTransferScreen };
 SCREENS.mcpservers = { el: mcpserversContainer, render: renderMCPServersScreen };
 
 // Item table screens (Pré-requisitos, Linguagens e SDKs, IDEs): re-fetches
@@ -59,4 +61,6 @@ ACTION_DONE_HANDLERS["git-account"] = function () { gacSetReady(gacReady); loadG
 ACTION_DONE_HANDLERS["git-transfer"] = function () { refreshGitTransferScreen(); };
 ACTION_DONE_HANDLERS.agentskills = function () { renderAgentSkillsTable(); };
 ACTION_DONE_HANDLERS.aicontext = function () { refreshAIContextScreen(); };
+ACTION_DONE_HANDLERS["aicontext-define"] = ACTION_DONE_HANDLERS.aicontext;
+ACTION_DONE_HANDLERS["aicontext-transfer"] = ACTION_DONE_HANDLERS.aicontext;
 ACTION_DONE_HANDLERS.mcpservers = function () { renderMCPServersTable(); };

@@ -317,14 +317,31 @@ var devCatalog = []sectionDef{
 			Tab:      "nav.tab.export",
 		},
 	}},
-	{id: "ai-contexts", label: "nav.aiContexts", icon: "brain", items: []MenuItem{{
-		// "IA: Contextos" mode (#aicontext-container), plus the "Definir
-		// Contexto" and "Exportar/Importar" inner tabs.
-		Title:    "nav.aiContexts",
-		Desc:     "Contextos de IA são regras para direcionar o seu agente na realização de tarefas.",
-		ActionID: "aicontext",
-		Tab:      "nav.tab.contexts",
-	}}},
+	{id: "ai-contexts", label: "nav.aiContexts", icon: "brain", items: []MenuItem{
+		{
+			// #aicdefine-container: the folder, agents and standards of one
+			// context.
+			Title:    "nav.aicDefine",
+			Desc:     "nav.aicDefine.desc",
+			ActionID: "aicontext-define",
+			Tab:      "nav.aicDefine",
+		},
+		{
+			// #aicontext-container: the registered folders.
+			Title:    "nav.aicManage",
+			Desc:     "nav.aicManage.desc",
+			ActionID: "aicontext",
+			Tab:      "nav.tab.contexts",
+		},
+		{
+			// #aictransfer-container: export and import the registered
+			// folders.
+			Title:    "nav.exportImport",
+			Desc:     "nav.aicTransfer.desc",
+			ActionID: "aicontext-transfer",
+			Tab:      "nav.exportImport",
+		},
+	}},
 	{id: "skills-mcps", label: "nav.skillsMCPs", icon: "plug", items: []MenuItem{
 		{
 			// "IA: SKILLs" mode (#agentskills-container): skills.sh skills

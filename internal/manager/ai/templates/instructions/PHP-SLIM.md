@@ -30,15 +30,6 @@ Check the project's `composer.json` (`require.php`, `config.platform.php`) and `
 
 ---
 
-## Docker Wrappers
-
-When the project runs in a Perci application container, use the host wrappers in `~/.local/bin/`, suffixed with the project's folder name, instead of a host PHP install: `php-<folder>`, `composer-<folder>`, `phpunit-<folder>`, `phpcs-<folder>`, `phpcbf-<folder>`. Each runs the tool inside that project's container, from the project root; host paths under the project folder are translated to container paths.
-
-- `phpunit-<folder>`, `phpcs-<folder>` and `phpcbf-<folder>` run the container's **global** PHAR builds, not the versions pinned in the project's `composer.lock`. To use the project's own tools, run them through the PHP wrapper: `php-<folder> vendor/bin/phpunit`, `php-<folder> vendor/bin/phpstan analyse`.
-- When no wrappers exist, use the project's own documented commands.
-
----
-
 ## Project Layout
 
 ```text
@@ -428,7 +419,7 @@ location ~ \.php$ {
 
 ## Quality
 
-Run every check before reporting a task as done (through the project's Docker wrappers when they exist, e.g. `php-<folder> vendor/bin/phpunit`):
+Run every check before reporting a task as done (through the app command of the PHP Perci82 standard when the project has it):
 
 ```bash
 composer validate --strict

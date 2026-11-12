@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -47,8 +48,9 @@ type Model struct {
 	// DetectActiveModels, and are deleted once the current file is written
 	// (or when the model is removed).
 	Legacy []string
-	// Description says, in Portuguese, what the standard covers; shown on
-	// the IA: Contextos screen.
+	// Description is the message key of what the standard covers, shown on
+	// the Contextos de IA screens; DescriptionText returns it in the
+	// current language.
 	Description string
 	// Paths lists globs of the files the standard covers: Claude Code gets
 	// it as a rule that loads only when it works on a matching file. Empty
@@ -69,80 +71,83 @@ const (
 
 // models is the catalog of supported instruction models, in output order.
 var models = []Model{
-	{Name: "Linux Bash", Description: "Scripts Bash/shell, ferramentas de linha de comando e instaladores.", Instruction: "templates/instructions/BASH.md",
+	{Name: "Linux Bash", Description: "aic.model.bash.desc", Instruction: "templates/instructions/BASH.md",
 		AppliesTo: "Writing or reviewing Bash/shell scripts, CLI tools and installers",
 		Paths:     []string{"**/*.sh", "**/*.bash"}},
-	{Name: goBase, Description: "Código Go: estrutura, erros, concorrência, testes, lint e releases.", Instruction: "templates/instructions/GO.md",
+	{Name: goBase, Description: "aic.model.go.desc", Instruction: "templates/instructions/GO.md",
 		AppliesTo: "Writing Go code (CLI tools, MCP servers, desktop backends): layout, errors, concurrency, tests, linting, releases",
 		Paths:     []string{"**/*.go", "go.mod", "go.sum", ".golangci.yml"}},
-	{Name: "Go: Servidor MCP", Description: "Servidor MCP com o SDK oficial em Go. Complementa o guia Go.", Instruction: "templates/instructions/GO-MCP.md", Requires: goBase,
+	{Name: "Go: Servidor MCP", Description: "aic.model.go-mcp.desc", Instruction: "templates/instructions/GO-MCP.md", Requires: goBase,
 		AppliesTo: "Building an MCP server with the official Go SDK — together with GO.md",
 		Paths:     []string{"**/*.go"}},
-	{Name: "Go: Wails v3", Description: "Aplicativo desktop com Wails v3: serviços, bindings, frontend e empacotamento. Complementa o guia Go.", Instruction: "templates/instructions/WAILS.md", Requires: goBase,
+	{Name: "Go: Wails v3", Description: "aic.model.wails.desc", Instruction: "templates/instructions/WAILS.md", Requires: goBase,
 		AppliesTo: "Building a Wails v3 desktop app (services, bindings, frontend, packaging) — together with GO.md",
 		Paths:     []string{"**/*.go", "frontend/**"}},
-	{Name: tauriBase, Description: "Aplicativo Rust + Tauri v2: comandos, permissões, CSP, build e atualizador.", Instruction: "templates/instructions/TAURI.md",
+	{Name: tauriBase, Description: "aic.model.tauri.desc", Instruction: "templates/instructions/TAURI.md",
 		AppliesTo: "Building a Rust + Tauri v2 app (commands, capabilities, CSP, build, updater)",
 		Paths:     []string{"src-tauri/**", "**/*.rs"}},
-	{Name: "Tauri: Vanilla TS + Vite", Description: "Frontend em TypeScript puro com Vite. Complementa o guia Tauri.", Instruction: "templates/instructions/TAURI-VANILLA.md", Requires: tauriBase,
+	{Name: "Tauri: Vanilla TS + Vite", Description: "aic.model.tauri-vanilla.desc", Instruction: "templates/instructions/TAURI-VANILLA.md", Requires: tauriBase,
 		AppliesTo: "Frontend of a Tauri v2 app in vanilla TypeScript + Vite — together with TAURI.md",
 		Paths:     []string{"src/**/*.ts", "index.html", "vite.config.*"}},
-	{Name: "Tauri: SvelteKit", Description: "Frontend em SvelteKit (estático). Complementa o guia Tauri.", Instruction: "templates/instructions/TAURI-SVELTEKIT.md", Requires: tauriBase,
+	{Name: "Tauri: SvelteKit", Description: "aic.model.tauri-sveltekit.desc", Instruction: "templates/instructions/TAURI-SVELTEKIT.md", Requires: tauriBase,
 		AppliesTo: "Frontend of a Tauri v2 app in SvelteKit (static) — together with TAURI.md",
 		Paths:     []string{"src/**/*.{ts,svelte}", "svelte.config.*", "vite.config.*"}},
-	{Name: "Tauri: React + Vite", Description: "Frontend em React + TypeScript com Vite. Complementa o guia Tauri.", Instruction: "templates/instructions/TAURI-REACT.md", Requires: tauriBase,
+	{Name: "Tauri: React + Vite", Description: "aic.model.tauri-react.desc", Instruction: "templates/instructions/TAURI-REACT.md", Requires: tauriBase,
 		AppliesTo: "Frontend of a Tauri v2 app in React + TypeScript + Vite — together with TAURI.md",
 		Paths:     []string{"src/**/*.{ts,tsx}", "index.html", "vite.config.*"}},
-	{Name: slimBase, Description: "Sistemas PHP com Slim 4: estrutura, rotas, middleware, injeção de dependências, segurança e testes.", Instruction: "templates/instructions/PHP-SLIM.md",
+	{Name: slimBase, Description: "aic.model.php-slim.desc", Instruction: "templates/instructions/PHP-SLIM.md",
 		AppliesTo: "Building PHP systems with Slim 4 (layout, routing, middleware, DI, security, tests)",
 		Paths:     []string{"**/*.php", "composer.json"}},
-	{Name: "Slim: PDO", Description: "Acesso a dados com PDO. Complementa o guia Slim.", Instruction: "templates/instructions/SLIM-PDO.md", Requires: slimBase,
+	{Name: "Slim: PDO", Description: "aic.model.slim-pdo.desc", Instruction: "templates/instructions/SLIM-PDO.md", Requires: slimBase,
 		AppliesTo: "Data access with PDO in a Slim 4 system — together with PHP-SLIM.md",
 		Paths:     []string{"**/*.php"}},
-	{Name: "Slim: Doctrine DBAL", Description: "Acesso a dados com Doctrine DBAL. Complementa o guia Slim.", Instruction: "templates/instructions/SLIM-DBAL.md", Requires: slimBase,
+	{Name: "Slim: Doctrine DBAL", Description: "aic.model.slim-dbal.desc", Instruction: "templates/instructions/SLIM-DBAL.md", Requires: slimBase,
 		AppliesTo: "Data access with Doctrine DBAL in a Slim 4 system — together with PHP-SLIM.md",
 		Paths:     []string{"**/*.php"}},
-	{Name: "Slim: Eloquent", Description: "Acesso a dados com Eloquent. Complementa o guia Slim.", Instruction: "templates/instructions/SLIM-ELOQUENT.md", Requires: slimBase,
+	{Name: "Slim: Eloquent", Description: "aic.model.slim-eloquent.desc", Instruction: "templates/instructions/SLIM-ELOQUENT.md", Requires: slimBase,
 		AppliesTo: "Data access with Eloquent (illuminate/database) in a Slim 4 system — together with PHP-SLIM.md",
 		Paths:     []string{"**/*.php"}},
-	{Name: "Moodle", Description: "Plugins Moodle: estrutura de arquivos, APIs e arquitetura.", Instruction: "templates/instructions/MOODLE.md",
+	{Name: "Moodle", Description: "aic.model.moodle.desc", Instruction: "templates/instructions/MOODLE.md",
 		AppliesTo: "Developing Moodle plugins (file structure, Moodle APIs, architecture)",
 		Paths:     []string{"**/*.php", "db/**", "templates/**/*.mustache", "amd/**", "lang/**"}},
-	{Name: "Dart + Flutter", Description: "Apps Dart/Flutter: arquitetura, estado, testes e publicação.", Instruction: "templates/instructions/FLUTTER.md",
+	{Name: phpPerciName, Description: "aic.model.php-perci82.desc", Instruction: "templates/instructions/PHP-PERCI82.md",
+		AppliesTo: "Running PHP code, its tools and tests, and reaching the database, in this project's Perci82 Dev Docker container",
+		Paths:     []string{"**/*.php", "composer.json"}},
+	{Name: "Dart + Flutter", Description: "aic.model.flutter.desc", Instruction: "templates/instructions/FLUTTER.md",
 		AppliesTo: "Building Dart/Flutter apps (architecture, state, testing, release)",
 		Paths:     []string{"**/*.dart", "pubspec.yaml", "analysis_options.yaml"}},
-	{Name: "Godot 4 (GDScript)", Description: "Jogos em Godot 4 com GDScript, publicados no Android.", Instruction: "templates/instructions/GODOT.md",
+	{Name: "Godot 4 (GDScript)", Description: "aic.model.godot.desc", Instruction: "templates/instructions/GODOT.md",
 		AppliesTo: "Building games in Godot 4 with GDScript, targeting Android",
 		Paths:     []string{"**/*.gd", "**/*.tscn", "**/*.tres", "project.godot"}},
-	{Name: "MySQL/MariaDB", Description: "Esquema, migrations, otimização de consultas e configuração de MySQL/MariaDB.", Instruction: "templates/instructions/MYSQL-MARIADB.md",
+	{Name: "MySQL/MariaDB", Description: "aic.model.mysql-mariadb.desc", Instruction: "templates/instructions/MYSQL-MARIADB.md",
 		AppliesTo: "MySQL/MariaDB schema design, migrations, query tuning and configuration",
 		Paths:     []string{"**/*.sql", "**/migrations/**"}},
-	{Name: "TypeScript/Node", Description: "TypeScript e Node.js: backends, CLIs e bibliotecas — tsconfig, módulos, tipos, erros, segurança e testes.", Instruction: "templates/instructions/TYPESCRIPT-NODE.md",
+	{Name: "TypeScript/Node", Description: "aic.model.typescript-node.desc", Instruction: "templates/instructions/TYPESCRIPT-NODE.md",
 		AppliesTo: "Writing TypeScript or Node.js code (backends, CLIs, libraries): tsconfig, modules, typing, errors, security, tests",
 		Paths:     []string{"**/*.{ts,tsx,js,mjs,cjs}", "package.json", "tsconfig*.json"}},
-	{Name: "Docker/Compose", Description: "Dockerfiles e Compose do projeto: imagens, build, segurança e execução.", Instruction: "templates/instructions/DOCKER.md",
+	{Name: "Docker/Compose", Description: "aic.model.docker.desc", Instruction: "templates/instructions/DOCKER.md",
 		AppliesTo: "Writing Dockerfiles and Compose files (images, builds, security, runtime)",
 		Paths:     []string{"**/Dockerfile*", "**/*compose*.y*ml", ".dockerignore"}},
-	{Name: "CI (GitHub Actions)", Description: "Workflows do GitHub Actions: gatilhos, permissões, segurança, cache e releases.", Instruction: "templates/instructions/GITHUB-ACTIONS.md",
+	{Name: "CI (GitHub Actions)", Description: "aic.model.github-actions.desc", Instruction: "templates/instructions/GITHUB-ACTIONS.md",
 		AppliesTo: "Writing GitHub Actions workflows (triggers, permissions, security, caching, releases)",
 		Paths:     []string{".github/workflows/**"}},
-	{Name: "Website", Description: "Sites: estrutura, acessibilidade, desempenho, SEO e hospedagem.", Instruction: "templates/instructions/WEBSITE.md",
+	{Name: "Website", Description: "aic.model.website.desc", Instruction: "templates/instructions/WEBSITE.md",
 		AppliesTo: "Building websites (structure, accessibility, performance, SEO, hosting)"},
-	{Name: "Landing Page Design", Description: "Design e construção de landing pages.", Instruction: "templates/instructions/LANDING-PAGE.md",
+	{Name: "Landing Page Design", Description: "aic.model.landing-page.desc", Instruction: "templates/instructions/LANDING-PAGE.md",
 		AppliesTo: "Designing or building landing pages"},
-	{Name: docsBase, Description: "Documentação do projeto: README, docs/, CONTRIBUTING, licença, arquivos do GitHub e releases.", Instruction: "templates/instructions/PROJECT-DOCUMENTATION.md", Legacy: []string{"DOCUMENTATION-SITE.md"},
+	{Name: docsBase, Description: "aic.model.project-documentation.desc", Instruction: "templates/instructions/PROJECT-DOCUMENTATION.md", Legacy: []string{"DOCUMENTATION-SITE.md"},
 		AppliesTo: "Creating or updating project documentation (README, docs/, CONTRIBUTING, CODE_OF_CONDUCT, LICENSE, license headers, GitHub community files, repository metadata, releases)"},
-	{Name: "Documentação: Servidor MCP", Description: "Documentação de um servidor MCP. Complementa a Documentação de projeto.", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-MCP.md", Requires: docsBase,
+	{Name: "Documentação: Servidor MCP", Description: "aic.model.project-documentation-mcp.desc", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-MCP.md", Requires: docsBase,
 		AppliesTo: "Documentation of an MCP server — together with PROJECT-DOCUMENTATION.md"},
-	{Name: "Documentação: Plugin Moodle", Description: "Documentação de um plugin Moodle. Complementa a Documentação de projeto.", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-MOODLE.md", Requires: docsBase,
+	{Name: "Documentação: Plugin Moodle", Description: "aic.model.project-documentation-moodle.desc", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-MOODLE.md", Requires: docsBase,
 		AppliesTo: "Documentation of a Moodle plugin — together with PROJECT-DOCUMENTATION.md"},
-	{Name: "Documentação: Aplicação Desktop", Description: "Documentação de um aplicativo desktop. Complementa a Documentação de projeto.", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-DESKTOP.md", Requires: docsBase,
+	{Name: "Documentação: Aplicação Desktop", Description: "aic.model.project-documentation-desktop.desc", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-DESKTOP.md", Requires: docsBase,
 		AppliesTo: "Documentation of a desktop application — together with PROJECT-DOCUMENTATION.md"},
-	{Name: "Documentação: Aplicação Mobile", Description: "Documentação de um aplicativo mobile. Complementa a Documentação de projeto.", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-MOBILE.md", Requires: docsBase,
+	{Name: "Documentação: Aplicação Mobile", Description: "aic.model.project-documentation-mobile.desc", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-MOBILE.md", Requires: docsBase,
 		AppliesTo: "Documentation of a mobile application — together with PROJECT-DOCUMENTATION.md"},
-	{Name: "Documentação: Aplicação Web", Description: "Documentação de uma aplicação web. Complementa a Documentação de projeto.", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-WEB.md", Requires: docsBase,
+	{Name: "Documentação: Aplicação Web", Description: "aic.model.project-documentation-web.desc", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-WEB.md", Requires: docsBase,
 		AppliesTo: "Documentation of a web application — together with PROJECT-DOCUMENTATION.md"},
-	{Name: "Documentação: Jogo", Description: "Documentação de um jogo. Complementa a Documentação de projeto.", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-GAME.md", Requires: docsBase,
+	{Name: "Documentação: Jogo", Description: "aic.model.project-documentation-game.desc", Instruction: "templates/instructions/PROJECT-DOCUMENTATION-GAME.md", Requires: docsBase,
 		AppliesTo: "Documentation of a game — together with PROJECT-DOCUMENTATION.md"},
 }
 
@@ -151,20 +156,77 @@ var models = []Model{
 type Preset struct {
 	Name   string
 	Models []string
-	Hint   string
+	// Hint is the message key of what to add by hand, or "".
+	Hint string
+}
+
+// modelLabelKeys maps the standards whose name is in Portuguese to the
+// message key of their label; the other names are shown as they are.
+// The names themselves identify the standards in config.yaml and in
+// export files, so they never change.
+var modelLabelKeys = map[string]string{
+	docsBase:                          "aic.model.docs",
+	"Documentação: Servidor MCP":      "aic.model.docsMCP",
+	"Documentação: Plugin Moodle":     "aic.model.docsMoodle",
+	"Documentação: Aplicação Desktop": "aic.model.docsDesktop",
+	"Documentação: Aplicação Mobile":  "aic.model.docsMobile",
+	"Documentação: Aplicação Web":     "aic.model.docsWeb",
+	"Documentação: Jogo":              "aic.model.docsGame",
+}
+
+// presetLabelKeys maps each project type to the message key of its label.
+var presetLabelKeys = map[string]string{
+	"Servidor MCP em Go":         "aic.preset.goMCP",
+	"Aplicativo Go + Wails":      "aic.preset.wails",
+	"Plugin Moodle":              "aic.preset.moodle",
+	"Aplicativo Rust + Tauri v2": "aic.preset.tauri",
+	"Website":                    "aic.preset.website",
+	"Sistema PHP + Slim":         "aic.preset.slim",
+	"Jogo Godot (Android)":       "aic.preset.godot",
+}
+
+// ModelLabel returns how the screens name the standard called name, in the
+// current language.
+func ModelLabel(name string) string {
+	if key, ok := modelLabelKeys[name]; ok {
+		return i18n.Tr(key, nil)
+	}
+	return name
+}
+
+// DescriptionText returns what the standard covers, in the current
+// language.
+func (m Model) DescriptionText() string {
+	return i18n.Tr(m.Description, nil)
+}
+
+// LabelText returns the project type's label in the current language.
+func (p Preset) LabelText() string {
+	if key, ok := presetLabelKeys[p.Name]; ok {
+		return i18n.Tr(key, nil)
+	}
+	return p.Name
+}
+
+// HintText returns the project type's hint in the current language, or "".
+func (p Preset) HintText() string {
+	if p.Hint == "" {
+		return ""
+	}
+	return i18n.Tr(p.Hint, nil)
 }
 
 // presets lists the project types, in display order.
 var presets = []Preset{
 	{Name: "Servidor MCP em Go", Models: []string{goBase, "Go: Servidor MCP", docsBase, "Documentação: Servidor MCP"}},
 	{Name: "Aplicativo Go + Wails", Models: []string{goBase, "Go: Wails v3", docsBase, "Documentação: Aplicação Desktop"}},
-	{Name: "Plugin Moodle", Models: []string{"Moodle", "MySQL/MariaDB", docsBase, "Documentação: Plugin Moodle"}},
+	{Name: "Plugin Moodle", Models: []string{"Moodle", phpPerciName, "MySQL/MariaDB", docsBase, "Documentação: Plugin Moodle"}},
 	{Name: "Aplicativo Rust + Tauri v2", Models: []string{tauriBase, docsBase, "Documentação: Aplicação Desktop"},
-		Hint: "Marque também o complemento do frontend do projeto (Vanilla TS, SvelteKit ou React)."},
+		Hint: "aic.preset.tauri.hint"},
 	{Name: "Website", Models: []string{"Website", docsBase, "Documentação: Aplicação Web"},
-		Hint: "Marque também Landing Page Design se o site tiver landing pages."},
-	{Name: "Sistema PHP + Slim", Models: []string{slimBase, "MySQL/MariaDB", docsBase, "Documentação: Aplicação Web"},
-		Hint: "Marque também o complemento da camada de dados do projeto (PDO, Doctrine DBAL ou Eloquent)."},
+		Hint: "aic.preset.website.hint"},
+	{Name: "Sistema PHP + Slim", Models: []string{slimBase, phpPerciName, "MySQL/MariaDB", docsBase, "Documentação: Aplicação Web"},
+		Hint: "aic.preset.slim.hint"},
 	{Name: "Jogo Godot (Android)", Models: []string{"Godot 4 (GDScript)", docsBase, "Documentação: Jogo"}},
 }
 
@@ -300,7 +362,7 @@ func moodleVarsFor(dir string) (vars map[string]string, detected bool) {
 func moodleVars(stdout io.Writer, dir string) map[string]string {
 	vars, detected := moodleVarsFor(dir)
 	if !detected {
-		ui.Warning(stdout, "version.php não encontrado — a versão do Moodle ficou como \"unknown\" no MOODLE.md.")
+		ui.Warning(stdout, i18n.Tr("aic.run.noVersionPHP", nil))
 	}
 	return vars
 }
@@ -344,18 +406,50 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 	}
 	active, added := withRequired(active)
 	for _, name := range added {
-		ui.Info(stdout, "Contexto \""+name+"\" incluído automaticamente (necessário para os complementos selecionados).")
+		ui.Info(stdout, i18n.Tr("aic.run.baseAdded", i18n.Args{"name": ModelLabel(name)}))
 	}
+	active, dropped := applicable(gitDir, active)
+	if dropped {
+		ui.Warning(stdout, i18n.Tr("aic.run.noApp", nil))
+	}
+	g := grants{}
 
 	// Rules hand-written into AGENTS.md move to PROJECT.md before AGENTS.md
-	// is regenerated.
-	if err := ensureProjectRules(dir, overwrite, stdout); err != nil {
-		return err
+	// is regenerated: the notes folder's when the project has one, written
+	// only on a real run (a preview copy never reaches the notes folder).
+	notesDir := NotesDir(gitDir)
+	g.notesDir = notesDir
+	switch {
+	case notesDir == "":
+		if err := ensureProjectRules(dir, overwrite, stdout); err != nil {
+			return err
+		}
+	case dir == gitDir:
+		if err := ensureNotes(dir, notesDir, overwrite, stdout); err != nil {
+			return err
+		}
 	}
 
 	// Each referenced standard on disk.
 	rendered := make(map[string]string, len(active))
 	for _, m := range active {
+		if m.Name == phpPerciName {
+			// Written from the settings of the Docker app holding the real
+			// project (gitDir), also on a preview copy.
+			content, command, _, err := phpGuideFor(gitDir)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Join(dir, ".instructions"), 0o755); err != nil {
+				return err
+			}
+			if err := WriteFile(filepath.Join(dir, ".instructions", filepath.Base(m.Instruction)), content, overwrite, stdout); err != nil {
+				return err
+			}
+			rendered[m.Name] = content
+			g.commands = append(g.commands, command)
+			continue
+		}
 		var vars map[string]string
 		if m.Name == "Moodle" {
 			vars = moodleVars(stdout, dir)
@@ -370,7 +464,7 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 		rendered[m.Name] = substitute(content, vars)
 	}
 
-	agentsContent, err := agentsFile(active, selected)
+	agentsContent, err := agentsFile(active, selected, notesDir)
 	if err != nil {
 		return err
 	}
@@ -378,7 +472,7 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 		return err
 	}
 
-	if err := writeAgentFiles(dir, gitDir, selected, active, rendered, overwrite, stdout); err != nil {
+	if err := writeAgentFiles(dir, gitDir, selected, active, rendered, g, overwrite, stdout); err != nil {
 		return err
 	}
 
@@ -398,7 +492,7 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 		}
 		current := filepath.Join(dir, ".instructions", filepath.Base(m.Instruction))
 		if _, err := os.Stat(current); err == nil && !isPristine(dir, m) {
-			ui.Warning(stdout, ".instructions/"+filepath.Base(m.Instruction)+" foi editado e foi mantido — apague-o manualmente se não precisar mais dele.")
+			ui.Warning(stdout, i18n.Tr("aic.run.editedKept", i18n.Args{"path": ".instructions/" + filepath.Base(m.Instruction)}))
 			if overwrite {
 				removeLegacy(dir, m, stdout)
 			}
@@ -418,8 +512,10 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 // agentsFile is the AGENTS.md content for the models of active (already
 // resolved by withRequired) and the agents of selected: the base rules,
 // the list of standards (one line per model, the file named in a code
-// span so no agent imports it) and the marker naming the agents.
-func agentsFile(active []Model, selected map[string]bool) (string, error) {
+// span so no agent imports it), the notes section when notesDir is not ""
+// (the rules then name notesDir's PROJECT.md) and the marker naming the
+// agents.
+func agentsFile(active []Model, selected map[string]bool, notesDir string) (string, error) {
 	rawBasic, err := readTpl("templates/BASIC.md")
 	if err != nil {
 		return "", err
@@ -434,12 +530,21 @@ func agentsFile(active []Model, selected map[string]bool) (string, error) {
 	if len(active) > 0 {
 		content += standardsHeader(claudeRules) + list.String()
 	}
+	content = withNotes(content, notesDir)
+	if notesDir != "" {
+		section, err := notesSection(notesDir)
+		if err != nil {
+			return "", err
+		}
+		content += "\n\n" + section
+	}
 	return content + "\n\n" + agentsMarker(selected) + "\n", nil
 }
 
-// writeAgentFiles writes the files of the selected agents and removes
-// those of the others while they are still what Perci wrote.
-func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Model, rendered map[string]string, overwrite bool, stdout io.Writer) error {
+// writeAgentFiles writes the files of the selected agents, with what g
+// grants them, and removes those of the others while they are still what
+// Perci wrote.
+func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Model, rendered map[string]string, g grants, overwrite bool, stdout io.Writer) error {
 	claudeStub, err := readTpl("templates/CLAUDE-STUB.md")
 	if err != nil {
 		return err
@@ -466,7 +571,7 @@ func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Mode
 	}
 
 	if selected[AgentClaude] {
-		if err := writeStub(dir, "CLAUDE.md", claudeStub, overwrite, stdout); err != nil {
+		if err := writeStub(dir, "CLAUDE.md", withNotes(claudeStub, g.notesDir), overwrite, stdout); err != nil {
 			return err
 		}
 		if err := syncClaudeRules(dir, active, rendered, overwrite, stdout); err != nil {
@@ -478,10 +583,10 @@ func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Mode
 			return err
 		}
 		if _, err := os.Stat(filepath.Join(dir, ".claudeignore")); err == nil {
-			ui.Warning(stdout, ".claudeignore não tem efeito no Claude Code — as regras de leitura equivalentes estão em .claude/settings.json. Remova o arquivo se foi gerado por uma versão anterior do Perci.")
+			ui.Warning(stdout, i18n.Tr("aic.run.claudeignore", nil))
 		}
 	} else {
-		removeIfPristine(filepath.Join(dir, "CLAUDE.md"), stdout, claudeStub, oldClaudeStub)
+		removeIfPristine(filepath.Join(dir, "CLAUDE.md"), stdout, claudeStub, oldClaudeStub, withNotes(claudeStub, NotesDir(gitDir)))
 		if err := syncClaudeRules(dir, nil, nil, overwrite, stdout); err != nil {
 			return err
 		}
@@ -494,7 +599,7 @@ func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Mode
 	}
 
 	if selected[AgentGemini] {
-		if err := writeStub(dir, "GEMINI.md", geminiStub, overwrite, stdout); err != nil {
+		if err := writeStub(dir, "GEMINI.md", withNotes(geminiStub, g.notesDir), overwrite, stdout); err != nil {
 			return err
 		}
 		// .aiexclude is read by Gemini Code Assist, .geminiignore by Gemini CLI.
@@ -505,7 +610,7 @@ func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Mode
 			return err
 		}
 	} else {
-		removeIfPristine(filepath.Join(dir, "GEMINI.md"), stdout, geminiStub)
+		removeIfPristine(filepath.Join(dir, "GEMINI.md"), stdout, geminiStub, withNotes(geminiStub, NotesDir(gitDir)))
 		oldIgnores := []string{aiexclude}
 		for _, path := range legacyIgnoreFiles {
 			old, err := readTpl(path)
@@ -518,13 +623,32 @@ func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Mode
 		removeIfPristine(filepath.Join(dir, ".geminiignore"), stdout, geminiignore)
 	}
 
-	// OpenCode gets no read rules: its documented "permission" setting is
-	// marked deprecated in its configuration schema, and neither form says
-	// how a path pattern is matched.
+	// OpenCode gets no read rules (its documented settings don't say how a
+	// path pattern is matched); its "permissions" list only grants what g
+	// holds.
 	if selected[AgentOpenCode] {
-		return addOpenCodeProjectRules(dir, stdout)
+		if err := writeOpenCodeConfigFor(dir, withNotes(openCodeRulesEntry, g.notesDir), g, stdout); err != nil {
+			return err
+		}
+	} else if err := writeOpenCodeConfigFor(dir, "", grants{}, stdout); err != nil {
+		return err
 	}
-	return removeOpenCodeProjectRules(dir, stdout)
+
+	// What each agent may reach beyond the project; Antigravity reads
+	// AGENTS.md only and has no per-project setting for it.
+	pick := func(id string) grants {
+		if selected[id] {
+			return g
+		}
+		return grants{}
+	}
+	if err := writeClaudeGrants(dir, pick(AgentClaude), stdout); err != nil {
+		return err
+	}
+	if err := writeGeminiGrants(dir, pick(AgentGemini), stdout); err != nil {
+		return err
+	}
+	return writeCodexGrants(dir, pick(AgentCodex), stdout)
 }
 
 // sameFile reports whether a and b exist and are the same file after
@@ -545,9 +669,9 @@ func WriteFile(path, content string, overwrite bool, stdout io.Writer) error {
 		return nil
 	}
 	if err := fsutil.WriteGenerated(path, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("escrever %s: %w", path, err)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
-	ui.Info(stdout, "Criado: "+path)
+	ui.Info(stdout, i18n.Tr("aic.run.created", i18n.Args{"path": path}))
 	return nil
 }
 
@@ -581,7 +705,7 @@ func removeLegacy(dir string, model Model, stdout io.Writer) {
 	for _, name := range model.Legacy {
 		dest := filepath.Join(dir, ".instructions", name)
 		if err := os.Remove(dest); err == nil {
-			ui.Info(stdout, "Removido (nome antigo): "+dest)
+			ui.Info(stdout, i18n.Tr("aic.run.removedOld", i18n.Args{"path": dest}))
 		}
 	}
 }
@@ -590,9 +714,9 @@ func removeLegacy(dir string, model Model, stdout io.Writer) {
 func RemoveInstruction(dir string, model Model, stdout io.Writer) {
 	dest := filepath.Join(dir, ".instructions", filepath.Base(model.Instruction))
 	if err := os.Remove(dest); err != nil && !os.IsNotExist(err) {
-		ui.Warning(stdout, "Falha ao remover "+dest+": "+err.Error())
+		ui.Warning(stdout, i18n.Tr("aic.run.removeFailed", i18n.Args{"path": dest, "error": err.Error()}))
 	} else if err == nil {
-		ui.Info(stdout, "Removido: "+dest)
+		ui.Info(stdout, i18n.Tr("aic.run.removed", i18n.Args{"path": dest}))
 	}
 	removeLegacy(dir, model, stdout)
 }
@@ -615,6 +739,9 @@ func isPristine(dir string, model Model) bool {
 	if model.Name == "Moodle" {
 		vars, _ := moodleVarsFor(dir)
 		return string(got) == substitute(tpl, vars)
+	}
+	if model.Name == phpPerciName {
+		return signedUnedited(string(got))
 	}
 	return false
 }
@@ -648,13 +775,20 @@ func renderInstruction(dir string, model Model) (string, error) {
 		vars, _ := moodleVarsFor(dir)
 		content = substitute(content, vars)
 	}
+	if model.Name == phpPerciName {
+		guide, _, ok, err := phpGuideFor(dir)
+		if err != nil || !ok {
+			return "", fmt.Errorf("no Docker app holds %s", dir)
+		}
+		content = guide
+	}
 	return content, nil
 }
 
 func readTpl(path string) (string, error) {
 	data, err := templateFS.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("template %s não encontrado: %w", path, err)
+		return "", fmt.Errorf("template %s not found: %w", path, err)
 	}
 	return string(data), nil
 }

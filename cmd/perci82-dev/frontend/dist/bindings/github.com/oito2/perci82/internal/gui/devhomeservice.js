@@ -57,6 +57,15 @@ export function GetLanguageOptions() {
 }
 
 /**
+ * GetProjectNotesPath returns the persisted project notes folder, "" when
+ * unset or when the config can't be read.
+ * @returns {$CancellablePromise<string>}
+ */
+export function GetProjectNotesPath() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetProjectNotesPath");
+}
+
+/**
  * GetSections returns Perci82 Dev's sections, labeled in its language,
  * with one "Repositórios" item per registered Git account (an unreadable
  * config lists none).
@@ -119,6 +128,15 @@ export function GetThemeOptions() {
  */
 export function GetWorkspacePath() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetWorkspacePath");
+}
+
+/**
+ * PickProjectNotesFolder opens the native folder picker for the project
+ * notes folder.
+ * @returns {$CancellablePromise<string>}
+ */
+export function PickProjectNotesFolder() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.PickProjectNotesFolder");
 }
 
 /**
@@ -222,6 +240,18 @@ export function SetLanguage(choice) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.SetLanguage", choice).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType0($result);
     }));
+}
+
+/**
+ * SetProjectNotesPath persists the project notes folder chosen via
+ * PickProjectNotesFolder, or clears it with "". Only a path picked in that
+ * dialog this session is accepted: the AI contexts give the coding agents
+ * write access to it.
+ * @param {string} path
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetProjectNotesPath(path) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.SetProjectNotesPath", path);
 }
 
 /**

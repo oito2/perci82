@@ -17,39 +17,19 @@ Last verified: 2026-11-04
 
 ---
 
-## Docker Development Environment
-
-When the project was created by Perci as an application container of type **Moodle** (one project, one PHP version, one URL), Perci writes host-side wrapper scripts to `~/.local/bin/`, suffixed with the project's folder name. Each wrapper runs the tool inside that project's container, from the project root (`/var/www/html` in the container); host paths under the project folder are translated to container paths.
-
-| Command | Runs |
-|---|---|
-| `php-<folder>` | The container's PHP CLI — use it for Moodle CLI scripts and for the project's own `vendor/bin/*` tools |
-| `composer-<folder>` | Composer |
-| `phpunit-<folder>` | The container's **global** PHPUnit PHAR — **not** Moodle's PHPUnit from `composer.json`; do not use it for Moodle tests |
-| `phpcs-<folder>` / `phpcbf-<folder>` | The container's **global** PHP_CodeSniffer, which does not know the `moodle` standard |
-
-For Moodle tests and the Moodle coding standard, always run the project's own tools through the PHP wrapper (`php-<folder> vendor/bin/phpunit`, `php-<folder> vendor/bin/phpcs --standard=moodle`). Examples for a project in folder `mdle`:
-
-```bash
-php-mdle admin/cli/purge_caches.php                 # Moodle 5.1+: php-mdle public/admin/cli/purge_caches.php
-php-mdle admin/cli/upgrade.php --non-interactive    # after a version.php bump
-```
-
----
-
 ## Target Moodle Version
 
 Use only APIs available in the plugin's minimum supported Moodle version (`$plugin->requires` in the plugin's `version.php`; for a new plugin, this project's target release: {{MOODLE_VERSION}}). **Strictly avoid** deprecated functions.
 
 ### Moodle / PHP Support Matrix
 
-| Moodle | PHP | Security support until | Perci container option → PHP |
-|---|---|---|---|
-| 4.5 (LTS) | 8.1 – 8.3 | 2027-10-04 | `4.4-4.5` → 8.1, 8.2, 8.3 |
-| 5.1 | 8.2 – 8.4 | 2027-04-19 | `5.1+` → 8.3, 8.4 |
-| 5.2 | 8.3 – 8.4 | 2027-10-04 | `5.1+` → 8.3, 8.4 |
-| 5.3 (LTS) | 8.3 – 8.4 | 2029-10-01 | `5.1+` → 8.3, 8.4 |
-| 4.1 – 4.4, 5.0 | — | **Out of support** | — |
+| Moodle | PHP | Security support until |
+|---|---|---|
+| 4.5 (LTS) | 8.1 – 8.3 | 2027-10-04 |
+| 5.1 | 8.2 – 8.4 | 2027-04-19 |
+| 5.2 | 8.3 – 8.4 | 2027-10-04 |
+| 5.3 (LTS) | 8.3 – 8.4 | 2029-10-01 |
+| 4.1 – 4.4, 5.0 | — | **Out of support** |
 
 Write PHP code compatible with the lowest PHP version supported by the plugin's minimum Moodle release, not just the PHP running in this project's container. If unsure whether that minimum matters for this project, ask the user before relying on newer syntax (e.g. enums, readonly properties, first-class callable syntax). Do not drop support for an older Moodle release on your own — ask first.
 
@@ -101,7 +81,6 @@ From Moodle 5.1 the checkout has a `public/` directory: the web server's documen
 
 - **Check where `admin/` is before running any CLI script** (`ls public/admin/cli` vs `ls admin/cli`) — never hard-code one layout. The same applies to `admin/tool/phpunit/cli/` and `admin/tool/behat/cli/`.
 - Plugin code keeps the same relative structure under `public/` (`public/local/<plugin>`). Never hard-code the Moodle root path in code; use `$CFG->dirroot` and `new moodle_url(...)`.
-- In a Perci container created with the `5.1+` option, nginx already serves `public/`; `$CFG->wwwroot` is the app URL without a `/public` suffix.
 - Moving an existing install to the 5.1 layout is out of scope unless the user asks for it.
 - Do not implement routes for the Routing Engine unless explicitly asked — default to standard script-based pages.
 
@@ -575,7 +554,7 @@ This stack's database is **MariaDB** (MySQL-compatible) — the priority target 
 
 ## Quality
 
-Run from the Moodle root, through the Docker wrappers when they exist (`php-<folder> ...`, `composer-<folder> ...`). Paths under `admin/` are under `public/admin/` from Moodle 5.1 — check the checkout. Replace `local/example` and `local_example` with the plugin's path and component.
+Run from the Moodle root (when the project has the PHP Perci82 standard, through the app command it describes). Paths under `admin/` are under `public/admin/` from Moodle 5.1 — check the checkout. Replace `local/example` and `local_example` with the plugin's path and component.
 
 ```bash
 # Coding style (install the standard once per checkout)

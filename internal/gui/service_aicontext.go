@@ -32,6 +32,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	managerai "github.com/oito2/perci82/internal/manager/ai"
 	"github.com/oito2/perci82/internal/ui"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -61,7 +62,7 @@ func (t *DevToolsService) GetAIContextItems(folder string) []AIContextItem {
 	all := managerai.Models()
 	items := make([]AIContextItem, len(all))
 	for i, m := range all {
-		items[i] = AIContextItem{ID: m.Name, Label: m.Name, Description: m.Description, Base: m.Requires}
+		items[i] = AIContextItem{ID: m.Name, Label: managerai.ModelLabel(m.Name), Description: m.DescriptionText(), Base: m.Requires}
 		if known {
 			items[i].Status = managerai.GuideStatus(folder, m)
 		}
@@ -143,6 +144,7 @@ func (t *DevToolsService) GetAIContextAgents(folder string) []AIContextAgent {
 // models it checks at once and an optional hint about what to add by hand.
 type AIContextPreset struct {
 	Name   string   `json:"name"`
+	Label  string   `json:"label"`
 	Models []string `json:"models"`
 	Hint   string   `json:"hint,omitempty"`
 }
@@ -152,7 +154,7 @@ func (t *DevToolsService) GetAIContextPresets() []AIContextPreset {
 	all := managerai.Presets()
 	out := make([]AIContextPreset, len(all))
 	for i, p := range all {
-		out[i] = AIContextPreset{Name: p.Name, Models: p.Models, Hint: p.Hint}
+		out[i] = AIContextPreset{Name: p.Name, Label: p.LabelText(), Models: p.Models, Hint: p.HintText()}
 	}
 	return out
 }
@@ -170,7 +172,7 @@ func (t *DevToolsService) ApplyAIContext(folder, name string, selectedNames, age
 		return err
 	}
 	if len(agentIDs) == 0 {
-		return errors.New("marque ao menos um agente de IA")
+		return i18n.NewError("aic.noAgent")
 	}
 	if _, err := managerai.ValidateContextName(name, folder); err != nil {
 		return err
@@ -180,9 +182,9 @@ func (t *DevToolsService) ApplyAIContext(folder, name string, selectedNames, age
 			return err
 		}
 		if err := managerai.RecordContext(name, folder, selectedNames, agentIDs); err != nil {
-			return fmt.Errorf("contexto aplicado, mas o registro da pasta falhou: %w", err)
+			return fmt.Errorf("%s: %w", i18n.Tr("aic.registerFailed", nil), err)
 		}
-		ui.Success(stdout, "Contexto registrado como \""+strings.TrimSpace(name)+"\".")
+		ui.Success(stdout, i18n.Tr("aic.run.registered", i18n.Args{"name": strings.TrimSpace(name)}))
 		return nil
 	})
 }
@@ -289,7 +291,7 @@ func requireRegisteredContext(path string) (config.AIContext, error) {
 // paths, which must be at least one and not repeat.
 func requireRegisteredContexts(paths []string) ([]config.AIContext, error) {
 	if len(paths) == 0 {
-		return nil, errors.New("nenhuma pasta selecionada")
+		return nil, i18n.NewError("aic.noneSelected")
 	}
 	recs := make([]config.AIContext, 0, len(paths))
 	for _, p := range paths {
@@ -298,7 +300,7 @@ func requireRegisteredContexts(paths []string) ([]config.AIContext, error) {
 			return nil, err
 		}
 		if slices.ContainsFunc(recs, func(r config.AIContext) bool { return r.Path == rec.Path }) {
-			return nil, fmt.Errorf("pasta repetida: %s", p)
+			return nil, fmt.Errorf("folder repeated: %s", p)
 		}
 		recs = append(recs, rec)
 	}
@@ -368,7 +370,7 @@ func (t *DevToolsService) UpdateAIContexts(paths []string) error {
 		for i, rec := range recs {
 			ui.Step(stdout, i+1, len(recs), rec.Name)
 			if !folderExists(rec.Path) {
-				ui.Warning(stdout, "Pasta não encontrada, pulada: "+rec.Path)
+				ui.Warning(stdout, i18n.Tr("aic.run.missingSkipped", i18n.Args{"path": rec.Path}))
 				failed = true
 				continue
 			}
@@ -417,12 +419,12 @@ func (t *DevToolsService) RemoveAIContext(path string) error {
 				return err
 			}
 		} else {
-			ui.Info(stdout, "Pasta não encontrada: só o registro é removido.")
+			ui.Info(stdout, i18n.Tr("aic.run.recordOnly", nil))
 		}
 		if err := managerai.ForgetContext(rec.Path); err != nil {
 			return err
 		}
-		ui.Success(stdout, "\""+rec.Name+"\" removido da lista de contextos.")
+		ui.Success(stdout, i18n.Tr("aic.run.unregistered", i18n.Args{"name": rec.Name}))
 		return nil
 	})
 }
@@ -483,7 +485,7 @@ func loadAIContextImport(path string, paths []string) (managerai.TransferFile, e
 	}
 	for _, p := range paths {
 		if p != "" && requireApprovedPath(p) != nil {
-			return managerai.TransferFile{}, fmt.Errorf("escolha a pasta no seletor: %s", p)
+			return managerai.TransferFile{}, errors.New(i18n.Tr("aic.pickFolder", i18n.Args{"path": p}))
 		}
 	}
 	return managerai.LoadTransfer(path)

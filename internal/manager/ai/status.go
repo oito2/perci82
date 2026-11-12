@@ -51,6 +51,9 @@ func GuideStatus(dir string, model Model) string {
 	if current, err := renderInstruction(dir, model); err == nil && string(data) == current {
 		return StatusApplied
 	}
+	if model.Name == phpPerciName && signedUnedited(string(data)) {
+		return StatusOutdated
+	}
 	sum := sha256.Sum256(data)
 	if slices.Contains(templateHistory[filepath.Base(model.Instruction)], hex.EncodeToString(sum[:])) {
 		return StatusOutdated
@@ -99,6 +102,7 @@ type Change struct {
 var previewFiles = []string{
 	"AGENTS.md", "CLAUDE.md", "GEMINI.md", ".aiexclude", ".geminiignore", ".claudeignore",
 	openCodeConfig, "opencode.jsonc", claudeSettingsPath,
+	geminiSettingsPath, codexConfigPath, codexRulesPath,
 	"version.php", filepath.Join("public", "version.php"),
 }
 
@@ -131,7 +135,8 @@ func snapshot(root string) map[string][]byte {
 }
 
 // Preview tells what GenerateSharedFiles(dir, active, agentIDs, true, …)
-// would change in dir, without touching it: the generation runs on a
+// would change in dir and in its notes folder (notesChanges), without
+// touching them: the generation runs on a
 // temporary copy of the files it reads or writes, with git's file list
 // taken from dir. Links are copied as their content, so nothing they point
 // to is written; a CLAUDE.md or GEMINI.md linked to AGENTS.md is left out
@@ -140,9 +145,22 @@ func Preview(dir string, active []Model, agentIDs []string) ([]Change, error) {
 	if _, err := agentSet(agentIDs); err != nil {
 		return nil, err
 	}
-	return previewRun(dir, func(tmp string) error {
+	changes, err := previewRun(dir, func(tmp string) error {
 		return generate(tmp, dir, active, agentIDs, true, io.Discard)
 	})
+	if err != nil {
+		return nil, err
+	}
+	notes, err := notesChanges(dir, NotesDir(dir))
+	if err != nil {
+		return nil, err
+	}
+	changes = append(changes, notes...)
+	resolved, _ := withRequired(active)
+	if _, dropped := applicable(dir, resolved); dropped {
+		changes = append(changes, Change{Path: ".instructions/PHP-PERCI82.md", Action: "skip"})
+	}
+	return changes, nil
 }
 
 // previewRun tells what run changes when it works on a temporary copy of

@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -30,6 +31,7 @@ import (
 	"time"
 
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -179,23 +181,23 @@ func mergeDenyRules(existing []byte, rules, managed []string) (merged []byte, ch
 		dec := json.NewDecoder(bytes.NewReader(existing))
 		dec.UseNumber() // keeps numbers exactly as written
 		if err := dec.Decode(&doc); err != nil {
-			return nil, false, fmt.Errorf("não é um JSON válido: %w", err)
+			return nil, false, fmt.Errorf("not valid JSON: %w", err)
 		}
 		if doc == nil {
-			return nil, false, fmt.Errorf("não contém um objeto JSON")
+			return nil, false, errors.New("does not hold a JSON object")
 		}
 	}
 
 	permissions := map[string]any{}
 	if raw, ok := doc["permissions"]; ok {
 		if permissions, ok = raw.(map[string]any); !ok {
-			return nil, false, fmt.Errorf(`"permissions" não é um objeto`)
+			return nil, false, errors.New(`"permissions" is not an object`)
 		}
 	}
 	var deny []any
 	if raw, ok := permissions["deny"]; ok {
 		if deny, ok = raw.([]any); !ok {
-			return nil, false, fmt.Errorf(`"permissions.deny" não é uma lista`)
+			return nil, false, errors.New(`"permissions.deny" is not a list`)
 		}
 	}
 	kept := deny[:0:0]
@@ -246,7 +248,7 @@ func writeClaudeSettings(dir string, rules []string, stdout io.Writer) error {
 	path := filepath.Join(dir, claudeSettingsPath)
 	existing, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("ler %s: %w", path, err)
+		return fmt.Errorf("read %s: %w", path, err)
 	}
 	if len(rules) == 0 && len(existing) == 0 {
 		return nil
@@ -257,29 +259,29 @@ func writeClaudeSettings(dir string, rules []string, stdout io.Writer) error {
 	}
 	merged, changed, err := mergeDenyRules(existing, rules, managed)
 	if err != nil {
-		ui.Warning(stdout, path+": "+err.Error()+" — as regras de leitura do Claude Code não foram adicionadas; corrija o arquivo manualmente.")
+		ui.Warning(stdout, i18n.Tr("aic.run.claudeSettingsBad", i18n.Args{"path": path, "error": err.Error()}))
 		return nil
 	}
 	if !changed {
 		if len(rules) > 0 {
-			ui.Info(stdout, "Já existente: "+path)
+			ui.Info(stdout, i18n.Tr("aic.run.exists", i18n.Args{"path": path}))
 		}
 		return nil
 	}
 	if string(bytes.TrimSpace(merged)) == "{}" {
 		// Nothing but Perci's rules was in it.
 		if err := os.Remove(path); err != nil {
-			return fmt.Errorf("remover %s: %w", path, err)
+			return fmt.Errorf("remove %s: %w", path, err)
 		}
-		ui.Info(stdout, "Removido: "+path)
+		ui.Info(stdout, i18n.Tr("aic.run.removed", i18n.Args{"path": path}))
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("criar %s: %w", filepath.Dir(path), err)
+		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
 	}
 	if err := fsutil.WriteGenerated(path, merged, 0o644); err != nil {
-		return fmt.Errorf("escrever %s: %w", path, err)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
-	ui.Info(stdout, "Atualizado: "+path)
+	ui.Info(stdout, i18n.Tr("aic.run.updated", i18n.Args{"path": path}))
 	return nil
 }

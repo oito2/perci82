@@ -147,7 +147,7 @@ func TestGenerateSharedFiles_UncheckedAgentFilesRemoved(t *testing.T) {
 			t.Errorf("%s left behind", f)
 		}
 	}
-	if readFile(t, filepath.Join(dir, "GEMINI.md")) != "# mine\n" || !strings.Contains(out.String(), "GEMINI.md não foi gerado pelo Perci ou foi editado") {
+	if readFile(t, filepath.Join(dir, "GEMINI.md")) != "# mine\n" || !strings.Contains(out.String(), "GEMINI.md não foi gerado pelo Perci82 Dev ou foi editado") {
 		t.Errorf("the edited GEMINI.md was not kept with a warning:\n%s", out.String())
 	}
 	if c := readFile(t, filepath.Join(dir, "opencode.json")); strings.Contains(c, "PROJECT.md") || !strings.Contains(c, "anthropic/claude") {
@@ -267,13 +267,13 @@ func TestProjectContent_GeneratedHasNothing(t *testing.T) {
 	if err := GenerateSharedFiles(dir, models, AgentIDs(), true, io.Discard); err != nil {
 		t.Fatal(err)
 	}
-	moved, err := projectContent(readFile(t, filepath.Join(dir, "AGENTS.md")))
+	moved, err := projectContent(readFile(t, filepath.Join(dir, "AGENTS.md")), "")
 	if err != nil || moved != "" {
 		t.Errorf("projectContent of a generated AGENTS.md = %q, %v", moved, err)
 	}
 	for _, f := range []string{"templates/legacy/BASIC-1.0.md", "templates/legacy/BASIC-1.2.md"} {
 		tpl, _ := readTpl(f)
-		if moved, _ := projectContent(tpl); moved != "" {
+		if moved, _ := projectContent(tpl, ""); moved != "" {
 			t.Errorf("%s: %q", f, moved)
 		}
 	}
@@ -310,7 +310,7 @@ func TestOpenCodeConfig_LeftAloneWhenItCannotBeMerged(t *testing.T) {
 	if err := GenerateSharedFiles(broken, nil, []string{AgentOpenCode}, true, &out); err != nil {
 		t.Fatal(err)
 	}
-	if readFile(t, filepath.Join(broken, "opencode.json")) != "{ not json" || !strings.Contains(out.String(), "não é um objeto JSON") {
+	if readFile(t, filepath.Join(broken, "opencode.json")) != "{ not json" || !strings.Contains(out.String(), "is not a valid JSON object") {
 		t.Errorf("broken opencode.json touched:\n%s", out.String())
 	}
 }

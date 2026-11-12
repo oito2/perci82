@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -52,16 +53,16 @@ func removeContext(dir, gitDir string, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		own, err := projectContent(string(data))
+		own, err := projectContent(string(data), NotesDir(gitDir))
 		if err != nil {
 			return err
 		}
 		if own != "" || !info.Mode().IsRegular() {
-			ui.Warning(stdout, agentsPath+" tem regras escritas à mão ou não é um arquivo comum — mantido; apague-o manualmente se não precisar mais dele.")
+			ui.Warning(stdout, i18n.Tr("aic.run.agentsKept", i18n.Args{"path": agentsPath}))
 		} else if err := os.Remove(agentsPath); err != nil {
-			ui.Warning(stdout, "Falha ao remover "+agentsPath+": "+err.Error())
+			ui.Warning(stdout, i18n.Tr("aic.run.removeFailed", i18n.Args{"path": agentsPath, "error": err.Error()}))
 		} else {
-			ui.Info(stdout, "Removido: "+agentsPath)
+			ui.Info(stdout, i18n.Tr("aic.run.removed", i18n.Args{"path": agentsPath}))
 		}
 	}
 
@@ -70,11 +71,11 @@ func removeContext(dir, gitDir string, stdout io.Writer) error {
 		case StatusApplied, StatusOutdated:
 			RemoveInstruction(dir, m, stdout)
 		case StatusEdited:
-			ui.Warning(stdout, ".instructions/"+filepath.Base(m.Instruction)+" foi editado e foi mantido — apague-o manualmente se não precisar mais dele.")
+			ui.Warning(stdout, i18n.Tr("aic.run.editedKept", i18n.Args{"path": ".instructions/" + filepath.Base(m.Instruction)}))
 		}
 	}
 
-	if err := writeAgentFiles(dir, gitDir, map[string]bool{}, nil, nil, true, stdout); err != nil {
+	if err := writeAgentFiles(dir, gitDir, map[string]bool{}, nil, nil, grants{}, true, stdout); err != nil {
 		return err
 	}
 	// Only an empty folder goes; PROJECT.md keeps it.

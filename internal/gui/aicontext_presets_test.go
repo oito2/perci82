@@ -31,7 +31,7 @@ func TestGetAIContextPresets(t *testing.T) {
 		t.Fatalf("got %d presets, want %d", len(got), len(want))
 	}
 	for i := range want {
-		if got[i].Name != want[i].Name || len(got[i].Models) != len(want[i].Models) || got[i].Hint != want[i].Hint {
+		if got[i].Name != want[i].Name || len(got[i].Models) != len(want[i].Models) || got[i].Hint != want[i].HintText() || got[i].Label != want[i].LabelText() {
 			t.Errorf("preset %d = %+v, want %+v", i, got[i], want[i])
 		}
 	}

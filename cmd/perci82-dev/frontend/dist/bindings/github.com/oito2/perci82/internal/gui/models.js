@@ -286,6 +286,13 @@ export class AIContextPreset {
              */
             this["name"] = "";
         }
+        if (!("label" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
         if (!("models" in $$source)) {
             /**
              * @member
@@ -310,10 +317,10 @@ export class AIContextPreset {
      * @returns {AIContextPreset}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
-            $$parsedSource["models"] = $$createField1_0($$parsedSource["models"]);
+            $$parsedSource["models"] = $$createField2_0($$parsedSource["models"]);
         }
         return new AIContextPreset(/** @type {Partial<AIContextPreset>} */($$parsedSource));
     }
