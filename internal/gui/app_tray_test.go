@@ -18,9 +18,11 @@ package gui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -271,41 +273,37 @@ func TestTrayIconsAreTheOnesRunSet(t *testing.T) {
 	}
 }
 
-// enableSelfManagement switches on the self-update and uninstall bindings
-// for the duration of the test.
-func enableSelfManagement(t *testing.T) {
-	t.Helper()
-	prev := selfManagementEnabled
-	selfManagementEnabled = true
-	t.Cleanup(func() { selfManagementEnabled = prev })
+// Each application looks up its own releases: System the system-v* tags,
+// Dev the dev-v* tags.
+func TestSelfUpdateInfo_PerApp(t *testing.T) {
+	var apps []string
+	prev := latestRelease
+	latestRelease = func(_ context.Context, app string) (*selfupdate.Release, error) {
+		apps = append(apps, app)
+		if app == "dev" {
+			return nil, errors.New("offline")
+		}
+		return &selfupdate.Release{App: app, Version: "v99.0.0"}, nil
+	}
+	t.Cleanup(func() { latestRelease = prev })
+
+	sys := (&SystemHomeService{}).GetSelfUpdateInfo()
+	if sys.LatestVersion != "v99.0.0" || !sys.UpdateAvailable || sys.Error != "" {
+		t.Errorf("System info = %+v, want v99.0.0 available", sys)
+	}
+	dev := (&DevHomeService{}).GetSelfUpdateInfo()
+	if dev.Error != "offline" || dev.UpdateAvailable {
+		t.Errorf("Dev info = %+v, want the lookup error", dev)
+	}
+	if !slices.Equal(apps, []string{"system", "dev"}) {
+		t.Errorf("looked up %v, want [system dev]", apps)
+	}
 }
 
-// The self-update and uninstall bindings refuse to run while
-// selfManagementEnabled is off, before touching anything.
-func TestSelfManagementDisabledByDefault(t *testing.T) {
-	calls := 0
-	prev := uninstallPerci
-	uninstallPerci = func(_ context.Context, _ *executor.Executor, _ io.Writer, _ bool) error {
-		calls++
-		return nil
-	}
-	t.Cleanup(func() { uninstallPerci = prev })
-	dev := &DevHomeService{}
-	if err := dev.RunSelfUninstall(true, true, "", "", ""); !errors.Is(err, errSelfManagementUnavailable) {
-		t.Errorf("Dev RunSelfUninstall = %v, want errSelfManagementUnavailable", err)
-	}
-	if err := (&SystemHomeService{}).RunSelfUninstall(true); !errors.Is(err, errSelfManagementUnavailable) {
-		t.Errorf("System RunSelfUninstall = %v, want errSelfManagementUnavailable", err)
-	}
-	if err := dev.RunSelfUpdate(); !errors.Is(err, errSelfManagementUnavailable) {
-		t.Errorf("RunSelfUpdate = %v, want errSelfManagementUnavailable", err)
-	}
-	if info := dev.GetSelfUpdateInfo(); info.Error == "" || info.UpdateAvailable {
-		t.Errorf("GetSelfUpdateInfo = %+v, want an error and no update", info)
-	}
-	if calls != 0 {
-		t.Errorf("uninstall ran %d times", calls)
-	}
+// uninstallCall records one call of uninstallApp.
+type uninstallCall struct {
+	app  string
+	opts selfupdate.UninstallOptions
 }
 
 // newUninstallHome prepares a temp HOME with a registered Nginx (so a
@@ -313,18 +311,36 @@ func TestSelfManagementDisabledByDefault(t *testing.T) {
 // recorder that never touches the real binary.
 func newUninstallHome(t *testing.T, onUninstall func() error) (*DevHomeService, *int) {
 	t.Helper()
-	enableSelfManagement(t)
 	t.Setenv("HOME", t.TempDir())
 	calls := 0
-	prev := uninstallPerci
-	uninstallPerci = func(_ context.Context, _ *executor.Executor, _ io.Writer, _ bool) error {
+	prev := uninstallApp
+	uninstallApp = func(_ context.Context, _ *executor.Executor, _ io.Writer, app string, opts selfupdate.UninstallOptions) error {
 		calls++
+		lastUninstall = uninstallCall{app, opts}
 		return onUninstall()
 	}
-	t.Cleanup(func() { uninstallPerci = prev })
+	t.Cleanup(func() { uninstallApp = prev; lastUninstall = uninstallCall{} })
 	exe := executor.New(nil, nil)
 	exe.DryRun = true
 	return &DevHomeService{homeCore: homeCore{serviceBase{exe: exe}}}, &calls
+}
+
+// lastUninstall is the last call newUninstallHome's recorder received.
+var lastUninstall uninstallCall
+
+// Perci82 Dev uninstalls itself as "dev", and "Também remover
+// configurações" also takes its folders under ~/.perci.
+func TestDevSelfUninstall_PassesItsAppAndDataDirs(t *testing.T) {
+	h, _ := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
+	for _, removeConfig := range []bool{false, true} {
+		if err := h.selfUninstall(io.Discard, removeConfig, false, "", "", ""); !errors.Is(err, selfupdate.ErrUninstalled) {
+			t.Fatalf("selfUninstall: %v", err)
+		}
+		got := lastUninstall
+		if got.app != "dev" || got.opts.RemoveConfig != removeConfig || !slices.Equal(got.opts.DataDirs, []string{"appstack", "git"}) {
+			t.Errorf("removeConfig=%v: uninstall got %+v", removeConfig, got)
+		}
+	}
 }
 
 func registerNginx(t *testing.T) {
@@ -523,5 +539,33 @@ func TestSelfUninstall_RemoveConfigForgetsGitAccounts(t *testing.T) {
 	out.Reset()
 	if err := failing.selfUninstall(&out, true, false, "", "", ""); err == nil || strings.Contains(out.String(), "Regra da conta") {
 		t.Errorf("a failed uninstall forgot the accounts (err=%v):\n%s", err, out.String())
+	}
+}
+
+// Perci82 System's "Desinstalar" runs the uninstall of "system" as an
+// action, with the "Também remover configurações" choice; a failed
+// uninstall is reported in action-done and keeps the window open.
+func TestSystemSelfUninstall_RunsAsAction(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	var got []uninstallCall
+	prev := uninstallApp
+	uninstallApp = func(_ context.Context, _ *executor.Executor, _ io.Writer, app string, opts selfupdate.UninstallOptions) error {
+		got = append(got, uninstallCall{app, opts})
+		return errors.New("cancelled")
+	}
+	t.Cleanup(func() { uninstallApp = prev })
+	b, rec := newTestBase(t)
+	if err := (&SystemHomeService{homeCore{*b}}).RunSelfUninstall(true); err != nil {
+		t.Fatal(err)
+	}
+	<-rec.done
+	if len(got) != 1 || got[0].app != "system" || !got[0].opts.RemoveConfig || len(got[0].opts.DataDirs) != 0 {
+		t.Errorf("uninstall calls = %+v, want one system call removing the config", got)
+	}
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	last := rec.events[len(rec.events)-1]
+	if last.name != "action-done" || !strings.Contains(fmt.Sprint(last.data), "cancelled") {
+		t.Errorf("last event = %+v, want action-done with the error", last)
 	}
 }

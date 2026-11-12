@@ -25,7 +25,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -54,39 +53,71 @@ func withTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	return srv
 }
 
-func TestLatestRelease_Success(t *testing.T) {
-	assetName := fmt.Sprintf("prci-linux-%s", runtime.GOARCH)
+// release is one entry of the test release list.
+type release struct {
+	tag               string
+	draft, prerelease bool
+	assets            []string // asset names, served under the server URL
+}
+
+// releasesJSON renders releases as the GitHub API's release list, with
+// every asset URL under base.
+func releasesJSON(base string, releases ...release) string {
+	var parts []string
+	for _, r := range releases {
+		var assets []string
+		for _, a := range r.assets {
+			assets = append(assets, fmt.Sprintf(`{"name":%q,"browser_download_url":%q}`, a, base+"/"+r.tag+"/"+a))
+		}
+		parts = append(parts, fmt.Sprintf(`{"tag_name":%q,"draft":%v,"prerelease":%v,"assets":[%s]}`,
+			r.tag, r.draft, r.prerelease, strings.Join(assets, ",")))
+	}
+	return "[" + strings.Join(parts, ",") + "]"
+}
+
+const releasesPath = "/repos/oito2/perci82/releases"
+
+// Among the monorepo's releases, each application gets its own highest
+// published version: other applications' tags, drafts, prereleases and
+// malformed tags are skipped, and versions compare numerically.
+func TestLatestRelease_PicksTheAppsNewestRelease(t *testing.T) {
+	sysAsset, devAsset := assetName("system"), assetName("dev")
 	binContent := []byte("fake-binary-content")
-	sum := sha256.Sum256(binContent)
-	wantChecksum := hex.EncodeToString(sum[:])
+	wantChecksum := sha256Hex(binContent)
 
 	var srv *httptest.Server
 	srv = withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/repos/oito2/perci/releases/latest":
-			fmt.Fprintf(w, `{"tag_name":"v1.2.3","assets":[
-				{"name":%q,"browser_download_url":%q},
-				{"name":"checksums.txt","browser_download_url":%q}
-			]}`, assetName, srv.URL+"/"+assetName, srv.URL+"/checksums.txt")
-		case "/checksums.txt":
-			fmt.Fprintf(w, "%s  %s\ndeadbeef  some-other-file\n", wantChecksum, assetName)
+		case releasesPath:
+			if r.URL.Query().Get("per_page") != "100" {
+				t.Errorf("query = %q, want per_page=100", r.URL.RawQuery)
+			}
+			fmt.Fprint(w, releasesJSON(srv.URL,
+				release{tag: "dev-v9.0.0", assets: []string{devAsset, "checksums.txt"}},
+				release{tag: "system-v1.2.3", assets: []string{sysAsset, "checksums.txt"}},
+				release{tag: "system-v1.2.10", assets: []string{sysAsset, "checksums.txt"}},
+				release{tag: "system-v1.9.0", draft: true, assets: []string{sysAsset, "checksums.txt"}},
+				release{tag: "system-v2.0.0", prerelease: true, assets: []string{sysAsset, "checksums.txt"}},
+				release{tag: "system-v3.0.0-rc.1", assets: []string{sysAsset, "checksums.txt"}},
+				release{tag: "system-v4.0", assets: []string{sysAsset, "checksums.txt"}},
+				release{tag: "v5.0.0", assets: []string{sysAsset, "checksums.txt"}},
+			))
+		case "/system-v1.2.10/checksums.txt":
+			fmt.Fprintf(w, "%s  %s\ndeadbeef  some-other-file\n", wantChecksum, sysAsset)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 
-	rel, err := LatestRelease(context.Background())
+	rel, err := LatestRelease(context.Background(), "system")
 	if err != nil {
-		t.Fatalf("LatestRelease: %v", err)
+		t.Fatalf("LatestRelease(system): %v", err)
 	}
-	if rel.Version != "v1.2.3" {
-		t.Errorf("Version = %q, want v1.2.3", rel.Version)
+	if rel.App != "system" || rel.Version != "v1.2.10" {
+		t.Errorf("got %s %s, want system v1.2.10", rel.App, rel.Version)
 	}
-	if rel.DownloadURL != srv.URL+"/"+assetName {
-		t.Errorf("DownloadURL = %q, want %q", rel.DownloadURL, srv.URL+"/"+assetName)
-	}
-	if rel.ChecksumsURL != srv.URL+"/checksums.txt" {
-		t.Errorf("ChecksumsURL = %q", rel.ChecksumsURL)
+	if want := srv.URL + "/system-v1.2.10/" + sysAsset; rel.DownloadURL != want {
+		t.Errorf("DownloadURL = %q, want %q", rel.DownloadURL, want)
 	}
 	if rel.ChecksumSHA256 != "" {
 		t.Errorf("LatestRelease must not resolve the checksum, got %q", rel.ChecksumSHA256)
@@ -97,25 +128,45 @@ func TestLatestRelease_Success(t *testing.T) {
 	if rel.ChecksumSHA256 != wantChecksum {
 		t.Errorf("ChecksumSHA256 = %q, want %q", rel.ChecksumSHA256, wantChecksum)
 	}
+
+	dev, err := LatestRelease(context.Background(), "dev")
+	if err != nil || dev.Version != "v9.0.0" || dev.DownloadURL != srv.URL+"/dev-v9.0.0/"+devAsset {
+		t.Errorf("LatestRelease(dev) got %+v, %v", dev, err)
+	}
+}
+
+// An application without a published release gets a clear error.
+func TestLatestRelease_NoReleaseOfTheApp(t *testing.T) {
+	var srv *httptest.Server
+	srv = withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, releasesJSON(srv.URL, release{tag: "dev-v1.0.0", assets: []string{assetName("dev")}}))
+	})
+	_, err := LatestRelease(context.Background(), "system")
+	if err == nil || !strings.Contains(err.Error(), "Perci82 System") {
+		t.Errorf("got %v, want an error naming Perci82 System", err)
+	}
+}
+
+func TestLatestRelease_UnknownApp(t *testing.T) {
+	hits := 0
+	withTestServer(t, func(w http.ResponseWriter, r *http.Request) { hits++ })
+	if _, err := LatestRelease(context.Background(), "other"); err == nil || hits != 0 {
+		t.Errorf("got err=%v with %d requests, want an error and no request", err, hits)
+	}
 }
 
 // A plain version check never requests checksums.txt.
 func TestLatestRelease_DoesNotDownloadChecksums(t *testing.T) {
-	assetName := fmt.Sprintf("prci-linux-%s", runtime.GOARCH)
 	var srv *httptest.Server
 	checksumHits := 0
 	srv = withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/repos/oito2/perci/releases/latest":
-			fmt.Fprintf(w, `{"tag_name":"v1.2.3","assets":[
-				{"name":%q,"browser_download_url":%q},
-				{"name":"checksums.txt","browser_download_url":%q}
-			]}`, assetName, srv.URL+"/"+assetName, srv.URL+"/checksums.txt")
-		case "/checksums.txt":
-			checksumHits++
+		if r.URL.Path == releasesPath {
+			fmt.Fprint(w, releasesJSON(srv.URL, release{tag: "dev-v1.2.3", assets: []string{assetName("dev"), "checksums.txt"}}))
+			return
 		}
+		checksumHits++
 	})
-	if _, err := LatestRelease(context.Background()); err != nil {
+	if _, err := LatestRelease(context.Background(), "dev"); err != nil {
 		t.Fatal(err)
 	}
 	if checksumHits != 0 {
@@ -125,25 +176,22 @@ func TestLatestRelease_DoesNotDownloadChecksums(t *testing.T) {
 
 func TestLatestRelease_MissingAsset(t *testing.T) {
 	withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"tag_name":"v1.2.3","assets":[{"name":"prci-linux-riscv64","browser_download_url":"https://example.invalid/x"}]}`)
+		fmt.Fprint(w, releasesJSON("https://example.invalid", release{tag: "system-v1.2.3", assets: []string{"perci82-system-linux-riscv64"}}))
 	})
-
-	if _, err := LatestRelease(context.Background()); err == nil {
-		t.Error("esperava erro por asset da arquitetura atual não encontrado, mas passou")
+	if _, err := LatestRelease(context.Background(), "system"); err == nil {
+		t.Error("a release without the running architecture's asset must fail")
 	}
 }
 
 // A release without checksums.txt is still reported (the version check
 // works); only applying it is refused.
 func TestLatestRelease_MissingChecksumsFileStillReported(t *testing.T) {
-	assetName := fmt.Sprintf("prci-linux-%s", runtime.GOARCH)
 	var srv *httptest.Server
 	srv = withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, `{"tag_name":"v1.2.3","assets":[{"name":%q,"browser_download_url":%q}]}`,
-			assetName, srv.URL+"/"+assetName)
+		fmt.Fprint(w, releasesJSON(srv.URL, release{tag: "system-v1.2.3", assets: []string{assetName("system")}}))
 	})
 
-	rel, err := LatestRelease(context.Background())
+	rel, err := LatestRelease(context.Background(), "system")
 	if err != nil {
 		t.Fatalf("LatestRelease: %v", err)
 	}
@@ -161,7 +209,7 @@ func TestResolveChecksum_NotListedForAsset(t *testing.T) {
 			fmt.Fprint(w, "deadbeef  algum-outro-arquivo\n")
 		}
 	})
-	rel := &Release{Version: "v1.2.3", ChecksumsURL: srv.URL + "/checksums.txt"}
+	rel := &Release{App: "system", Version: "v1.2.3", ChecksumsURL: srv.URL + "/checksums.txt"}
 	if err := resolveChecksum(context.Background(), rel); err == nil {
 		t.Error("esperava erro por checksum do asset não estar listado em checksums.txt, mas passou")
 	}
@@ -172,7 +220,7 @@ func TestLatestRelease_APIError(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
 
-	if _, err := LatestRelease(context.Background()); err == nil {
+	if _, err := LatestRelease(context.Background(), "system"); err == nil {
 		t.Error("esperava erro por status 500 da API, mas passou")
 	}
 }

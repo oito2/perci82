@@ -16,6 +16,8 @@
 package gui
 
 import (
+	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -24,6 +26,8 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/dev/agentskills"
+	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/selfupdate"
 )
 
 // Every bound method that takes a folder or file path from the frontend
@@ -33,7 +37,13 @@ import (
 // before the refusal). Bad means: empty, relative, missing, or (for files
 // read or written) not picked in a native dialog this session.
 func TestBoundMethods_RefuseBadPathsBeforeRunning(t *testing.T) {
-	enableSelfManagement(t)
+	// A refused backup path must stop the uninstall before it runs.
+	prevUninstall := uninstallApp
+	uninstallApp = func(context.Context, *executor.Executor, io.Writer, string, selfupdate.UninstallOptions) error {
+		t.Error("the uninstall ran despite a bad backup path")
+		return nil
+	}
+	t.Cleanup(func() { uninstallApp = prevUninstall })
 	t.Setenv("HOME", t.TempDir())
 	missing := filepath.Join(t.TempDir(), "missing")
 	// An existing file: refused as a folder, and as a file not picked.

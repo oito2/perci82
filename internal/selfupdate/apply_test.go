@@ -25,7 +25,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -37,7 +37,7 @@ import (
 // "old") in dir for the duration of the test.
 func withExecutable(t *testing.T, dir string) string {
 	t.Helper()
-	exe := filepath.Join(dir, "prci")
+	exe := filepath.Join(dir, "perci82-system")
 	if err := os.WriteFile(exe, []byte("old"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -52,17 +52,17 @@ func sha256Hex(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// serveBinary serves body at /prci and returns the release pointing at it.
+// serveBinary serves body at /bin and returns the release pointing at it.
 func serveBinary(t *testing.T, body []byte, checksum string) *Release {
 	t.Helper()
 	srv := withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/prci" {
+		if r.URL.Path != "/bin" {
 			http.NotFound(w, r)
 			return
 		}
 		_, _ = w.Write(body)
 	})
-	return &Release{Version: "v9.9.9", DownloadURL: srv.URL + "/prci", ChecksumSHA256: checksum}
+	return &Release{App: "system", Version: "v9.9.9", DownloadURL: srv.URL + "/bin", ChecksumSHA256: checksum}
 }
 
 func dryRunExecutor(buf *bytes.Buffer) *executor.Executor {
@@ -72,7 +72,7 @@ func dryRunExecutor(buf *bytes.Buffer) *executor.Executor {
 // No leftover download next to the binary, whatever the outcome.
 func assertNoTempFiles(t *testing.T, dir string) {
 	t.Helper()
-	matches, _ := filepath.Glob(filepath.Join(dir, "perci-*.new"))
+	matches, _ := filepath.Glob(filepath.Join(dir, "perci82-*.new"))
 	if len(matches) > 0 {
 		t.Errorf("temp files left behind: %v", matches)
 	}
@@ -186,17 +186,19 @@ func TestRun_OnlyNewerVersionsApply(t *testing.T) {
 			version.Version = tc.current
 			dir := t.TempDir()
 			exe := withExecutable(t, dir)
-			assetName := fmt.Sprintf("prci-linux-%s", runtime.GOARCH)
+			asset := assetName("system")
 			body := []byte("new-binary")
 			var srvURL string
 			srv := withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
-				case "/repos/oito2/perci/releases/latest":
-					fmt.Fprintf(w, `{"tag_name":"v1.2.3","assets":[{"name":%q,"browser_download_url":%q},{"name":"checksums.txt","browser_download_url":%q}]}`,
-						assetName, srvURL+"/"+assetName, srvURL+"/checksums.txt")
-				case "/checksums.txt":
-					fmt.Fprintf(w, "%s  %s\n", sha256Hex(body), assetName)
-				case "/" + assetName:
+				case releasesPath:
+					fmt.Fprint(w, releasesJSON(srvURL,
+						release{tag: "system-v1.2.3", assets: []string{asset, "checksums.txt"}},
+						release{tag: "dev-v9.0.0", assets: []string{assetName("dev"), "checksums.txt"}},
+					))
+				case "/system-v1.2.3/checksums.txt":
+					fmt.Fprintf(w, "%s  %s\n", sha256Hex(body), asset)
+				case "/system-v1.2.3/" + asset:
 					_, _ = w.Write(body)
 				default:
 					http.NotFound(w, r)
@@ -205,7 +207,7 @@ func TestRun_OnlyNewerVersionsApply(t *testing.T) {
 			srvURL = srv.URL
 
 			var buf bytes.Buffer
-			if err := Run(context.Background(), dryRunExecutor(&buf), &buf); err != nil {
+			if err := Run(context.Background(), dryRunExecutor(&buf), &buf, "system"); err != nil {
 				t.Fatalf("Run: %v\n%s", err, buf.String())
 			}
 			got, _ := os.ReadFile(exe)
@@ -216,27 +218,54 @@ func TestRun_OnlyNewerVersionsApply(t *testing.T) {
 	}
 }
 
-// Uninstall removes a user-owned binary and its 'perci' alias without
-// escalating, removes ~/.perci only when asked, and reports ErrUninstalled.
+// withInstallDirs makes installDirs return dirs for the duration of the
+// test.
+func withInstallDirs(t *testing.T, dirs ...string) {
+	t.Helper()
+	orig := installDirs
+	installDirs = func(string) []string { return dirs }
+	t.Cleanup(func() { installDirs = orig })
+}
+
+// withMenuPaths makes uninstallMenuPaths return paths for the duration of
+// the test.
+func withMenuPaths(t *testing.T, paths ...string) {
+	t.Helper()
+	orig := uninstallMenuPaths
+	uninstallMenuPaths = func(string) []string { return paths }
+	t.Cleanup(func() { uninstallMenuPaths = orig })
+}
+
+// writeConfig writes data as ~/.perci/config.yaml under a fresh HOME and
+// returns ~/.perci.
+func writeConfig(t *testing.T, data string) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	dir := filepath.Join(home, ".perci")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+// Uninstall removes a user-owned binary without escalating, keeps the
+// settings unless asked, and reports ErrUninstalled; root-owned menu files
+// go in one privileged batch.
 func TestUninstall_UserOwnedBinary(t *testing.T) {
 	for _, removeConfig := range []bool{false, true} {
 		t.Run(fmt.Sprint("removeConfig=", removeConfig), func(t *testing.T) {
-			home := t.TempDir()
-			t.Setenv("HOME", home)
-			cfgDir := filepath.Join(home, ".perci")
-			if err := os.MkdirAll(cfgDir, 0o700); err != nil {
-				t.Fatal(err)
-			}
+			cfgDir := writeConfig(t, "flatpak_scope: user\n")
 			dir := t.TempDir()
 			exe := withExecutable(t, dir)
-			alias := filepath.Join(dir, "perci")
-			if err := os.Symlink(exe, alias); err != nil {
-				t.Fatal(err)
-			}
+			withInstallDirs(t, dir)
 
 			// Menu files: one the user can delete, and two in a read-only
 			// directory that need root.
-			userEntry := filepath.Join(t.TempDir(), "perci.desktop")
+			userEntry := filepath.Join(t.TempDir(), "io.github.oito2.perci82.system.desktop")
 			sysDir := t.TempDir()
 			sysIcons := []string{filepath.Join(sysDir, "a.png"), filepath.Join(sysDir, "b.png")}
 			for _, p := range append([]string{userEntry}, sysIcons...) {
@@ -248,22 +277,18 @@ func TestUninstall_UserOwnedBinary(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { _ = os.Chmod(sysDir, 0o755) })
-			origMenu := uninstallMenuPaths
-			uninstallMenuPaths = func() []string { return append([]string{userEntry}, sysIcons...) }
-			t.Cleanup(func() { uninstallMenuPaths = origMenu })
+			withMenuPaths(t, append([]string{userEntry}, sysIcons...)...)
 
 			var buf bytes.Buffer
-			err := Uninstall(context.Background(), dryRunExecutor(&buf), &buf, removeConfig)
+			err := Uninstall(context.Background(), dryRunExecutor(&buf), &buf, "system", UninstallOptions{RemoveConfig: removeConfig})
 			if !errors.Is(err, ErrUninstalled) {
 				t.Fatalf("err = %v, want ErrUninstalled", err)
 			}
-			for _, p := range []string{exe, alias} {
-				if _, statErr := os.Lstat(p); !os.IsNotExist(statErr) {
-					t.Errorf("%s still exists", p)
-				}
+			if _, statErr := os.Lstat(exe); !os.IsNotExist(statErr) {
+				t.Errorf("%s still exists", exe)
 			}
 			if _, statErr := os.Stat(cfgDir); os.IsNotExist(statErr) != removeConfig {
-				t.Errorf("~/.perci removed = %v, want %v", os.IsNotExist(statErr), removeConfig)
+				t.Errorf("~/.perci removed = %v, want %v\n%s", os.IsNotExist(statErr), removeConfig, buf.String())
 			}
 			if _, statErr := os.Stat(userEntry); !os.IsNotExist(statErr) {
 				t.Error("a user-removable menu file must be removed directly")
@@ -280,8 +305,77 @@ func TestUninstall_UserOwnedBinary(t *testing.T) {
 	}
 }
 
-// Binary, alias and menu files that all need root are removed by ONE
-// privileged batch.
+// "Também remover configurações" removes only the application's own keys
+// and data folders; ~/.perci goes only when nothing else needs it.
+func TestUninstall_RemoveConfigKeepsWhatOthersNeed(t *testing.T) {
+	cases := []struct {
+		name      string
+		config    string
+		installed string // another binary next to the removed one
+		wantDir   bool
+	}{
+		{"last application, nothing else left", "language: en\ntray_enabled: true\n", "", false},
+		{"Perci82 System still installed", "language: en\n", "perci82-system", true},
+		{"old Perci still installed", "language: en\n", "prci", true},
+		{"other settings left", "language: en\nflatpak_scope: user\n", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfgDir := writeConfig(t, tc.config)
+			for _, d := range []string{"appstack/nginx", "git"} {
+				if err := os.MkdirAll(filepath.Join(cfgDir, d), 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			outside := filepath.Join(filepath.Dir(cfgDir), "escape")
+			if err := os.Mkdir(outside, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			dir := t.TempDir()
+			exe := filepath.Join(dir, "perci82-dev")
+			if err := os.WriteFile(exe, []byte("old"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			orig := executablePath
+			executablePath = func() (string, error) { return exe, nil }
+			t.Cleanup(func() { executablePath = orig })
+			if tc.installed != "" {
+				if err := os.WriteFile(filepath.Join(dir, tc.installed), nil, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			withInstallDirs(t, dir)
+			withMenuPaths(t)
+
+			var buf bytes.Buffer
+			opts := UninstallOptions{RemoveConfig: true, DataDirs: []string{"appstack", "git", "../escape", ""}}
+			if err := Uninstall(context.Background(), dryRunExecutor(&buf), &buf, "dev", opts); !errors.Is(err, ErrUninstalled) {
+				t.Fatalf("err = %v", err)
+			}
+			for _, d := range []string{"appstack", "git"} {
+				if _, err := os.Stat(filepath.Join(cfgDir, d)); !os.IsNotExist(err) {
+					t.Errorf("~/.perci/%s left behind", d)
+				}
+			}
+			if _, err := os.Stat(outside); err != nil {
+				t.Errorf("a data folder outside ~/.perci was removed: %v", err)
+			}
+			_, err := os.Stat(cfgDir)
+			if gotDir := err == nil; gotDir != tc.wantDir {
+				t.Fatalf("~/.perci kept = %v, want %v\n%s", gotDir, tc.wantDir, buf.String())
+			}
+			if tc.wantDir {
+				data, _ := os.ReadFile(filepath.Join(cfgDir, "config.yaml"))
+				if strings.Contains(string(data), "language") || strings.Contains(string(data), "tray_enabled") {
+					t.Errorf("Dev keys left in config.yaml:\n%s", data)
+				}
+			}
+		})
+	}
+}
+
+// Binary and menu files that all need root are removed by ONE privileged
+// batch.
 func TestUninstall_AllPrivilegedInOneBatch(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root ignores directory permissions")
@@ -289,10 +383,6 @@ func TestUninstall_AllPrivilegedInOneBatch(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	dir := t.TempDir()
 	exe := withExecutable(t, dir)
-	alias := filepath.Join(dir, "perci")
-	if err := os.Symlink(exe, alias); err != nil {
-		t.Fatal(err)
-	}
 	sysDir := t.TempDir()
 	icon := filepath.Join(sysDir, "a.png")
 	if err := os.WriteFile(icon, nil, 0o644); err != nil {
@@ -304,92 +394,53 @@ func TestUninstall_AllPrivilegedInOneBatch(t *testing.T) {
 		}
 		t.Cleanup(func() { _ = os.Chmod(d, 0o755) })
 	}
-	origMenu := uninstallMenuPaths
-	uninstallMenuPaths = func() []string { return []string{icon} }
-	t.Cleanup(func() { uninstallMenuPaths = origMenu })
+	withMenuPaths(t, icon)
 
 	var buf bytes.Buffer
-	if err := Uninstall(context.Background(), dryRunExecutor(&buf), &buf, false); !errors.Is(err, ErrUninstalled) {
+	if err := Uninstall(context.Background(), dryRunExecutor(&buf), &buf, "system", UninstallOptions{}); !errors.Is(err, ErrUninstalled) {
 		t.Fatalf("err = %v, want ErrUninstalled", err)
 	}
 	out := buf.String()
 	if n := strings.Count(out, "pkexec"); n != 1 {
 		t.Errorf("want exactly one pkexec call, got %d:\n%s", n, out)
 	}
-	for _, p := range []string{exe, alias, icon} {
+	for _, p := range []string{exe, icon} {
 		if !strings.Contains(out, p) {
 			t.Errorf("batch must remove %s:\n%s", p, out)
 		}
 	}
 }
 
-// Only a symlink to the binary counts as the 'perci' alias; anything else
-// with that name is left alone.
-func TestUninstall_KeepsForeignPerciEntry(t *testing.T) {
-	makers := map[string]func(t *testing.T, alias string){
-		"regular file": func(t *testing.T, alias string) {
-			if err := os.WriteFile(alias, []byte("other tool"), 0o755); err != nil {
-				t.Fatal(err)
-			}
-		},
-		"directory": func(t *testing.T, alias string) {
-			if err := os.Mkdir(alias, 0o755); err != nil {
-				t.Fatal(err)
-			}
-		},
-		"symlink elsewhere": func(t *testing.T, alias string) {
-			if err := os.Symlink("/usr/bin/true", alias); err != nil {
-				t.Fatal(err)
-			}
-		},
+// Each application removes only its own menu entry and icons.
+func TestUninstallMenuPaths_OnlyTheAppsFiles(t *testing.T) {
+	paths := uninstallMenuPaths("dev")
+	want := []string{
+		"/usr/share/applications/io.github.oito2.perci82.dev.desktop",
+		"/usr/share/icons/hicolor/512x512/apps/io.github.oito2.perci82.dev.png",
+		"/usr/share/icons/hicolor/scalable/apps/io.github.oito2.perci82.dev.svg",
+		"/usr/share/icons/hicolor/symbolic/apps/io.github.oito2.perci82.dev-symbolic.svg",
 	}
-	for name, mk := range makers {
-		t.Run(name, func(t *testing.T) {
-			t.Setenv("HOME", t.TempDir())
-			dir := t.TempDir()
-			withExecutable(t, dir)
-			alias := filepath.Join(dir, "perci")
-			mk(t, alias)
-			origMenu := uninstallMenuPaths
-			uninstallMenuPaths = func() []string { return nil }
-			t.Cleanup(func() { uninstallMenuPaths = origMenu })
-
-			var buf bytes.Buffer
-			if err := Uninstall(context.Background(), dryRunExecutor(&buf), &buf, false); !errors.Is(err, ErrUninstalled) {
-				t.Fatalf("err = %v", err)
-			}
-			if _, err := os.Lstat(alias); err != nil {
-				t.Errorf("foreign %s was removed: %v", name, err)
-			}
-		})
+	for _, w := range want {
+		if !slices.Contains(paths, w) {
+			t.Errorf("%s missing from %v", w, paths)
+		}
+	}
+	for _, p := range paths {
+		if !strings.Contains(p, "io.github.oito2.perci82.dev") {
+			t.Errorf("%s is not a Perci82 Dev file", p)
+		}
 	}
 }
 
-func TestIsOurAlias_RelativeLink(t *testing.T) {
+func TestUninstall_UnknownApp(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "prci")
-	alias := filepath.Join(dir, "perci")
-	if err := os.Symlink("prci", alias); err != nil {
-		t.Fatal(err)
+	exe := withExecutable(t, dir)
+	var buf bytes.Buffer
+	if err := Uninstall(context.Background(), dryRunExecutor(&buf), &buf, "other", UninstallOptions{}); err == nil || errors.Is(err, ErrUninstalled) {
+		t.Fatalf("err = %v, want a plain error", err)
 	}
-	if !isOurAlias(alias, target) {
-		t.Error("relative symlink to the binary must count as the alias")
-	}
-}
-
-// The alias counts when the link goes through a symlinked directory.
-func TestIsOurAlias_SymlinkedDirectory(t *testing.T) {
-	real := t.TempDir()
-	link := filepath.Join(t.TempDir(), "bin")
-	if err := os.Symlink(real, link); err != nil {
-		t.Fatal(err)
-	}
-	alias := filepath.Join(real, "perci")
-	if err := os.Symlink(filepath.Join(link, "prci"), alias); err != nil {
-		t.Fatal(err)
-	}
-	if !isOurAlias(alias, filepath.Join(real, "prci")) {
-		t.Error("a link through a symlinked directory must count as the alias")
+	if _, err := os.Stat(exe); err != nil {
+		t.Errorf("binary removed for an unknown app: %v", err)
 	}
 }
 
@@ -406,16 +457,14 @@ func TestUninstall_MenuWaitsForPrivilegedBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
-	entry := filepath.Join(t.TempDir(), "perci.desktop")
+	entry := filepath.Join(t.TempDir(), "io.github.oito2.perci82.system.desktop")
 	if err := os.WriteFile(entry, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	origMenu := uninstallMenuPaths
-	uninstallMenuPaths = func() []string { return []string{entry} }
-	t.Cleanup(func() { uninstallMenuPaths = origMenu })
+	withMenuPaths(t, entry)
 
 	var buf bytes.Buffer
-	_ = Uninstall(context.Background(), dryRunExecutor(&buf), &buf, false)
+	_ = Uninstall(context.Background(), dryRunExecutor(&buf), &buf, "system", UninstallOptions{})
 	if _, err := os.Stat(entry); err != nil {
 		t.Errorf("the menu entry was removed directly: %v", err)
 	}
@@ -450,7 +499,7 @@ func TestRun_RefusesDevBuild(t *testing.T) {
 	withTestServer(t, func(w http.ResponseWriter, r *http.Request) { hits++ })
 
 	var buf bytes.Buffer
-	if err := Run(context.Background(), dryRunExecutor(&buf), &buf); err == nil {
+	if err := Run(context.Background(), dryRunExecutor(&buf), &buf, "system"); err == nil {
 		t.Fatal("Run must refuse a dev build")
 	}
 	if hits != 0 {

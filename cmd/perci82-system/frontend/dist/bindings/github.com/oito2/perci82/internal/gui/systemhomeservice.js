@@ -74,13 +74,8 @@ export function GetSections() {
 }
 
 /**
- * GetSelfUpdateInfo checks GitHub Releases (internal/selfupdate.
- * LatestRelease) and compares against the running version; RunSelfUpdate
- * redoes the lookup before applying, never trusting this earlier check. A
- * 10s timeout keeps a dead network from hanging the screen open
- * indefinitely (LatestRelease itself has no timeout of its own). While
- * selfManagementEnabled is false it does no lookup and reports
- * errSelfManagementUnavailable in Error.
+ * GetSelfUpdateInfo reports the running and newest published versions of
+ * Perci82 System (tags system-v*).
  * @returns {$CancellablePromise<$models.SelfUpdateInfo>}
  */
 export function GetSelfUpdateInfo() {
@@ -123,8 +118,9 @@ export function GetThemeOptions() {
 }
 
 /**
- * RunSelfUninstall always returns errSelfManagementUnavailable: Perci82
- * System has no uninstall of its own yet.
+ * RunSelfUninstall removes Perci82 System — its binary, menu entry and
+ * icons and, with removeConfig, its settings (selfupdate.Uninstall) — in
+ * the Execução tab; a successful uninstall then closes the window.
  * @param {boolean} removeConfig
  * @returns {$CancellablePromise<void>}
  */
@@ -133,11 +129,8 @@ export function RunSelfUninstall(removeConfig) {
 }
 
 /**
- * RunSelfUpdate checks for and applies an update — internal/selfupdate.Run.
- * The GUI's "Atualizar agora" button click is itself the confirmation.
- * Recalculates the latest release itself instead of trusting
- * GetSelfUpdateInfo's earlier result. Returns errSelfManagementUnavailable
- * while selfManagementEnabled is false.
+ * RunSelfUpdate updates Perci82 System to its newest release; the
+ * "Atualizar" button click is itself the confirmation.
  * @returns {$CancellablePromise<void>}
  */
 export function RunSelfUpdate() {

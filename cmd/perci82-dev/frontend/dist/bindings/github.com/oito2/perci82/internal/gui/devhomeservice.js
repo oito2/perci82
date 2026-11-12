@@ -69,13 +69,8 @@ export function GetSections() {
 }
 
 /**
- * GetSelfUpdateInfo checks GitHub Releases (internal/selfupdate.
- * LatestRelease) and compares against the running version; RunSelfUpdate
- * redoes the lookup before applying, never trusting this earlier check. A
- * 10s timeout keeps a dead network from hanging the screen open
- * indefinitely (LatestRelease itself has no timeout of its own). While
- * selfManagementEnabled is false it does no lookup and reports
- * errSelfManagementUnavailable in Error.
+ * GetSelfUpdateInfo reports the running and newest published versions of
+ * Perci82 Dev (tags dev-v*).
  * @returns {$CancellablePromise<$models.SelfUpdateInfo>}
  */
 export function GetSelfUpdateInfo() {
@@ -167,8 +162,8 @@ export function PickWorkspaceFolder() {
 }
 
 /**
- * RunSelfUninstall removes the Perci binary — internal/selfupdate.Uninstall.
- * Four steps run first, all optional:
+ * RunSelfUninstall removes Perci82 Dev — its binary, menu entry and icons
+ * (selfupdate.Uninstall). Four steps run first, all optional:
  * 
  *   - backupPath != "": exports cfg.Docker and the Moodle plugin mounts to
  *     that path first (appstack.ExportConfig) — reimportable later via
@@ -178,8 +173,8 @@ export function PickWorkspaceFolder() {
  *     reimportable via "Repositórios :: Gerenciar Repositórios".
  *   - aiBackupPath != "": exports the registered AI context folders to
  *     that path (managerai.Exportable/WriteTransfer) — reimportable via
- *     "Dev Tools :: IA: Contextos"; the context files in those folders are
- *     never touched by the uninstall.
+ *     "Contextos de IA"; the context files in those folders are never
+ *     touched by the uninstall.
  *   - removeDocker: removes every registered container (apps, then
  *     MariaDB, then Nginx — apps first so nothing routes through infra
  *     that's about to disappear) via appstack.DeleteApp/DeleteMariaDB/
@@ -189,19 +184,12 @@ export function PickWorkspaceFolder() {
  * A failed backup aborts the uninstall before anything is removed; only
  * "nothing to export" is a warning.
  * 
- * With removeConfig, once the binary is removed, the includeIf rules,
- * gitconfig files and API tokens of the Git accounts go too
+ * With removeConfig, Perci82 Dev's settings and its folders under ~/.perci
+ * (devDataDirs) go too, and, once the binary is removed, the includeIf
+ * rules, gitconfig files and API tokens of the Git accounts
  * (gitaccount.Forget); their SSH keys and repositories stay.
  * 
- * Doesn't go through runAction: a successful uninstall must also close the
- * GUI window, and runAction's generic "ok/error" event has no notion of
- * that, so the goroutine/event/quit sequence is inlined here — with the
- * same runMu serialization, panic recovery and emitDone.
- * ErrUninstalled is success, not a failure, so it's translated to a nil
- * error (ok:true) before the "action-done" event is sent; the window
- * closes a short moment later (time enough to read the success line in
- * the terminal panel). Returns errSelfManagementUnavailable, before
- * anything else, while selfManagementEnabled is false.
+ * A successful uninstall closes the window (runUninstall).
  * @param {boolean} removeConfig
  * @param {boolean} removeDocker
  * @param {string} backupPath
@@ -214,11 +202,8 @@ export function RunSelfUninstall(removeConfig, removeDocker, backupPath, reposBa
 }
 
 /**
- * RunSelfUpdate checks for and applies an update — internal/selfupdate.Run.
- * The GUI's "Atualizar agora" button click is itself the confirmation.
- * Recalculates the latest release itself instead of trusting
- * GetSelfUpdateInfo's earlier result. Returns errSelfManagementUnavailable
- * while selfManagementEnabled is false.
+ * RunSelfUpdate updates Perci82 Dev to its newest release; the
+ * "Atualizar" button click is itself the confirmation.
  * @returns {$CancellablePromise<void>}
  */
 export function RunSelfUpdate() {

@@ -30,6 +30,23 @@ O Perci82 é um monorepo com dois aplicativos desktop independentes, feitos em G
 
 ## Pré-requisitos e instalação rápida
 
+### Instalar uma release
+
+Cada aplicativo é instalado separadamente, a partir da sua release mais recente (tags `system-v*` e `dev-v*`), em Linux amd64 com as bibliotecas de execução do GTK 4 e do WebKitGTK 6.0 (`libgtk-4-1` e `libwebkitgtk-6.0-4` no Debian/Ubuntu). Os instaladores precisam de `curl`, `jq`, `sha256sum`, `tar` e `sudo`.
+
+```bash
+# Perci82 System
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-system.sh | bash
+# Perci82 Dev
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-dev.sh | bash
+```
+
+O instalador confere o SHA-256 do binário (e a attestation de build, quando o GitHub CLI está logado), instala em `/usr/local/bin/perci82-system` ou `/usr/local/bin/perci82-dev` e cria a entrada no menu de aplicativos. Quando o Perci antigo (`prci`) está instalado, ele pergunta se deve removê-lo; as configurações em `~/.perci` são mantidas, porque os dois aplicativos as usam.
+
+A Visão Geral procura e aplica as atualizações das releases do próprio aplicativo, e **Desinstalar** remove o binário, a entrada no menu e os ícones do aplicativo. "Também remover configurações" remove só as configurações daquele aplicativo (e, no Perci82 Dev, os arquivos da stack Docker e das contas Git em `~/.perci`); a pasta `~/.perci` só é apagada quando nenhum outro aplicativo Perci82 nem o Perci antigo está instalado e não sobrou mais nada nela.
+
+### Compilar a partir do código
+
 Requisitos:
 
 - Linux em amd64.

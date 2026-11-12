@@ -29,14 +29,9 @@ import (
 )
 
 // hicolorDir is the system-wide hicolor icon theme root holding the
-// application menu icon (the desktop entry's Icon=perci resolves against
+// application menu icons (each desktop entry's Icon= resolves against
 // it).
 const hicolorDir = "/usr/share/icons/hicolor"
-
-// legacyIconPath is the single non-square PNG, referenced by absolute
-// path, that older installs used as the menu icon; Uninstall and the
-// install paths still remove it.
-const legacyIconPath = "/usr/share/pixmaps/perci.png"
 
 // menuIconPaths returns every installed hicolor icon file of an
 // application (packaging.AppSystem or packaging.AppDev), one per size.
@@ -44,20 +39,6 @@ func menuIconPaths(app string) []string {
 	paths := make([]string, len(packaging.IconSizes))
 	for i, size := range packaging.IconSizes {
 		paths[i] = filepath.Join(hicolorDir, packaging.IconRelPath(app, size))
-	}
-	return paths
-}
-
-// legacyMenuIconSizes lists the hicolor sizes the Perci 1.x installer
-// shipped, as <size>x<size>/apps/perci.png.
-var legacyMenuIconSizes = []int{512, 256, 128, 64, 48, 32}
-
-// legacyMenuIconPaths returns every hicolor icon file of the Perci 1.x
-// install, one per size.
-func legacyMenuIconPaths() []string {
-	paths := make([]string, len(legacyMenuIconSizes))
-	for i, size := range legacyMenuIconSizes {
-		paths[i] = filepath.Join(hicolorDir, fmt.Sprintf("%dx%d/apps/perci.png", size, size))
 	}
 	return paths
 }
@@ -95,7 +76,7 @@ func InstallMenuIcons(ctx context.Context, exe *executor.Executor, stdout io.Wri
 }
 
 // menuIconsTar builds the tar archive InstallMenuIcons streams to root:
-// <size>x<size>/apps/perci.png entries (plus their directories), relative
+// <size>x<size>/apps/<icon name>.png entries (plus their directories), relative
 // to hicolorDir, regular files only, mode 0644.
 func menuIconsTar(app string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer

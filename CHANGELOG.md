@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Perci82 System** (`perci82-system`) and **Perci82 Dev** (`perci82-dev`): two desktop apps split from Perci 1.9.0. System has the Linux screens (post-install, system update, fonts, file templates, Flatpak apps); Dev has the development screens (Desenvolvimento, Docker, Repositórios, Dev Tools) and the system tray.
 - New icons for both apps, under their application IDs `io.github.oito2.perci82.system` and `io.github.oito2.perci82.dev`.
+- Installers per app, `install-system.sh` and `install-dev.sh`: they install the app's newest release with its application menu entry and offer to remove the old Perci (`prci`), keeping `~/.perci`.
 - Configurações → Idioma in each app chooses between "Definido pelo sistema" (Portuguese when the system language is Portuguese, English otherwise), Português (Brasil) and English, saved per app (`system_language` in Perci82 System, `language` in Perci82 Dev). The switch applies at once, without a restart, including the tray menu of Perci82 Dev. Most screens are still in Portuguese; their translations arrive as each screen is migrated.
 
 ### Changed
@@ -17,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The tray of Perci82 Dev opens only the Contêineres window; the Atualizar Sistema shortcut was removed.
 - The login autostart entry of Perci82 Dev is `~/.config/autostart/io.github.oito2.perci82.dev.desktop`.
 - Releases are per app, tagged `system-vX.Y.Z` or `dev-vX.Y.Z`.
+- Self-update looks only at the app's own releases, and uninstall removes only the app's own binary, menu entry and icons; "Também remover configurações" removes only that app's settings, and `~/.perci` only when no other Perci82 app nor the old Perci is installed and nothing else is left in it.
 - Both apps share `~/.perci/config.yaml` safely: each app writes only its own settings and leaves the others, including settings it doesn't know, exactly as they were. Settings saved by Perci 1.9 and its export files keep working.
 - Perci82 System saves its theme apart from Perci82 Dev's (`system_gui_theme`), so the two apps can use different themes.
 - Actions that need administrator rights never run in both apps at once: while one app runs such an action, the other refuses with a message naming that app.
@@ -30,4 +32,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The sidebar mascot's app icon choice (Ícone do Aplicativo): each app has a single icon.
 - The daisyUI themes of Perci 1.9 (light, dark, cupcake, synthwave, retro, valentine, halloween, garden).
 - The sidebar, its breadcrumb and the mascot logo, replaced by the section tabs; the sidebar logo choice (Logo da Sidebar) in Configurações went first, and a logo saved by Perci 1.9 is kept in `config.yaml` but no longer shown.
-- Self-update and uninstall from the apps are not available yet; their buttons report that.

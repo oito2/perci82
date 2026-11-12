@@ -27,7 +27,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -38,8 +40,41 @@ import (
 	"github.com/oito2/perci82/internal/version"
 )
 
-const githubRepo = "oito2/perci"
+const githubRepo = "oito2/perci82"
 const checksumsAssetName = "checksums.txt"
+
+// Apps lists the application IDs this package updates and uninstalls
+// (packaging.AppSystem and packaging.AppDev).
+var Apps = []string{"system", "dev"}
+
+// appName returns the name of the application app shown to the user.
+func appName(app string) string {
+	switch app {
+	case "system":
+		return "Perci82 System"
+	case "dev":
+		return "Perci82 Dev"
+	}
+	return "Perci82"
+}
+
+// BinaryName returns the installed binary name of app ("perci82-system").
+func BinaryName(app string) string {
+	return "perci82-" + app
+}
+
+// tagPrefix returns the prefix of app's release tags ("system-v").
+func tagPrefix(app string) string {
+	return app + "-v"
+}
+
+// checkApp returns an error for an app not in Apps.
+func checkApp(app string) error {
+	if !slices.Contains(Apps, app) {
+		return fmt.Errorf("aplicativo desconhecido: %q", app)
+	}
+	return nil
+}
 
 // httpClient is used for the GitHub API request. Without an explicit
 // timeout, a stalled connection (slow server, dead network) would hang Run()
@@ -95,30 +130,36 @@ var executablePath = os.Executable
 // LatestRelease does not download the file, so a plain version check stays a
 // single API request; Apply resolves it and refuses to go on without it.
 type Release struct {
+	// App is the application the release belongs to ("system" or "dev").
+	App            string
 	Version        string
 	DownloadURL    string
 	ChecksumsURL   string
 	ChecksumSHA256 string
 }
 
-// assetName is the release asset for the running architecture.
-func assetName() string {
-	return fmt.Sprintf("prci-linux-%s", runtime.GOARCH)
+// assetName is app's release binary for the running architecture.
+func assetName(app string) string {
+	return fmt.Sprintf("%s-linux-%s", BinaryName(app), runtime.GOARCH)
 }
 
-// Run checks for a newer version and applies the update if one is available.
-func Run(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
+// Run checks for a newer version of app and applies the update if one is
+// available.
+func Run(ctx context.Context, exe *executor.Executor, stdout io.Writer, app string) error {
+	if err := checkApp(app); err != nil {
+		return err
+	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
-	ui.PrintHeader(stdout, "Atualizar PERCI // O GENIAL", distro.DisplayName())
+	ui.PrintHeader(stdout, "Atualizar "+appName(app), distro.DisplayName())
 	ui.Info(stdout, "Versão atual: "+version.Version)
 
 	if version.Version == "dev" {
 		return errors.New("esta é uma build de desenvolvimento — a atualização automática está desativada")
 	}
 
-	rel, err := LatestRelease(ctx)
+	rel, err := LatestRelease(ctx, app)
 	if err != nil {
 		return fmt.Errorf("verificar atualizações: %w", err)
 	}
@@ -135,20 +176,33 @@ func Run(ctx context.Context, exe *executor.Executor, stdout io.Writer) error {
 		return fmt.Errorf("atualizar binário: %w", err)
 	}
 
-	ui.Success(stdout, fmt.Sprintf("Perci atualizado para %s com sucesso. Reinicie o programa.", rel.Version))
+	ui.Success(stdout, fmt.Sprintf("%s atualizado para %s com sucesso. Reinicie o programa.", appName(app), rel.Version))
 	return nil
 }
 
-// LatestRelease queries the GitHub Releases API and returns the latest release.
-func LatestRelease(ctx context.Context) (*Release, error) {
-	url := fmt.Sprintf("%s/repos/%s/releases/latest", apiBaseURL, githubRepo)
+// maxReleasesSize caps the release list read from the GitHub API.
+const maxReleasesSize = 8 << 20
+
+// releaseVersion matches the version part of a release tag ("v1.2.3").
+var releaseVersion = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
+
+// LatestRelease lists the repository's releases on the GitHub API and
+// returns app's newest one: drafts, prereleases and other applications'
+// tags are skipped, and among the tags "<app>-vMAJOR.MINOR.PATCH" the
+// highest version wins. Release.Version has no application prefix
+// ("v1.2.3").
+func LatestRelease(ctx context.Context, app string) (*Release, error) {
+	if err := checkApp(app); err != nil {
+		return nil, err
+	}
+	url := fmt.Sprintf("%s/repos/%s/releases?per_page=100", apiBaseURL, githubRepo)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "perci/"+version.Version)
+	req.Header.Set("User-Agent", BinaryName(app)+"/"+version.Version)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -160,31 +214,55 @@ func LatestRelease(ctx context.Context) (*Release, error) {
 		return nil, fmt.Errorf("GitHub API retornou status %d", resp.StatusCode)
 	}
 
-	var payload struct {
-		TagName string `json:"tag_name"`
-		Assets  []struct {
-			Name               string `json:"name"`
-			BrowserDownloadURL string `json:"browser_download_url"`
-		} `json:"assets"`
+	type asset struct {
+		Name               string `json:"name"`
+		BrowserDownloadURL string `json:"browser_download_url"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&payload); err != nil {
+	var releases []struct {
+		TagName    string  `json:"tag_name"`
+		Draft      bool    `json:"draft"`
+		Prerelease bool    `json:"prerelease"`
+		Assets     []asset `json:"assets"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxReleasesSize)).Decode(&releases); err != nil {
 		return nil, fmt.Errorf("decodificar resposta: %w", err)
 	}
 
-	v := strings.TrimPrefix(payload.TagName, "v")
-	assetName := assetName()
+	best := -1
+	var bestVersion semver
+	for i, r := range releases {
+		if r.Draft || r.Prerelease || !strings.HasPrefix(r.TagName, tagPrefix(app)) {
+			continue
+		}
+		tag := strings.TrimPrefix(r.TagName, app+"-")
+		if !releaseVersion.MatchString(tag) {
+			continue
+		}
+		v, ok := parseSemver(tag)
+		if !ok {
+			continue
+		}
+		if best < 0 || compareSemver(v, bestVersion) > 0 {
+			best, bestVersion = i, v
+		}
+	}
+	if best < 0 {
+		return nil, fmt.Errorf("nenhuma versão do %s foi publicada ainda", appName(app))
+	}
+	rel := releases[best]
 
+	name := assetName(app)
 	var downloadURL, checksumsURL string
-	for _, a := range payload.Assets {
+	for _, a := range rel.Assets {
 		switch a.Name {
-		case assetName:
+		case name:
 			downloadURL = a.BrowserDownloadURL
 		case checksumsAssetName:
 			checksumsURL = a.BrowserDownloadURL
 		}
 	}
 	if downloadURL == "" {
-		return nil, fmt.Errorf("asset '%s' não encontrado na release %s", assetName, payload.TagName)
+		return nil, fmt.Errorf("asset '%s' não encontrado na release %s", name, rel.TagName)
 	}
 	if err := validateDownloadURL(downloadURL); err != nil {
 		return nil, err
@@ -195,7 +273,12 @@ func LatestRelease(ctx context.Context) (*Release, error) {
 		}
 	}
 
-	return &Release{Version: "v" + v, DownloadURL: downloadURL, ChecksumsURL: checksumsURL}, nil
+	return &Release{
+		App:          app,
+		Version:      strings.TrimPrefix(rel.TagName, app+"-"),
+		DownloadURL:  downloadURL,
+		ChecksumsURL: checksumsURL,
+	}, nil
 }
 
 // resolveChecksum fills rel.ChecksumSHA256 from the release's checksums.txt
@@ -211,7 +294,7 @@ func resolveChecksum(ctx context.Context, rel *Release) error {
 	if err := validateDownloadURL(rel.ChecksumsURL); err != nil {
 		return err
 	}
-	name := assetName()
+	name := assetName(rel.App)
 	checksum, err := fetchChecksum(ctx, rel.ChecksumsURL, name)
 	if err != nil {
 		return fmt.Errorf("obter checksum de %s: %w", name, err)
@@ -289,10 +372,10 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, rel *R
 	// landed in so the swap logic below knows whether a plain rename can
 	// even work.
 	sameFS := true
-	tmp, err := os.CreateTemp(filepath.Dir(currentExe), "perci-*.new")
+	tmp, err := os.CreateTemp(filepath.Dir(currentExe), "perci82-*.new")
 	if err != nil {
 		sameFS = false
-		tmp, err = os.CreateTemp("", "perci-*.new")
+		tmp, err = os.CreateTemp("", "perci82-*.new")
 		if err != nil {
 			return fmt.Errorf("criar arquivo temporário: %w", err)
 		}

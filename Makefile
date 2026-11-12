@@ -21,7 +21,7 @@ DIST     := dist
 # The production tag turns off Wails' debug mode (webview developer tools).
 TAGS     := production
 
-.PHONY: build build-system build-dev run-system run-dev test test-frontend lint clean release release-system release-dev generate-bindings generate check-generated parity-sync
+.PHONY: build build-system build-dev run-system run-dev test test-frontend lint lint-shell clean release release-system release-dev generate-bindings generate check-generated parity-sync
 
 # Builds both applications with the production tag only: GTK4 + WebKitGTK
 # 6.0 is the default stack. -trimpath keeps the builder's local paths out of
@@ -57,6 +57,14 @@ lint:
 	gofmt -l . | (! grep .)
 	go vet ./...
 	golangci-lint run
+
+# lint-shell checks the generated installers with ShellCheck and their
+# template's formatting with shfmt (4-space indentation, indented case
+# items); both tools must be installed.
+INSTALLERS := install-system.sh install-dev.sh
+lint-shell:
+	shellcheck --shell=bash $(INSTALLERS)
+	shfmt -d -i 4 -ci scripts/install.sh.in $(INSTALLERS)
 
 clean:
 	rm -f perci82-system perci82-dev
@@ -109,16 +117,19 @@ generate-bindings:
 		(cd cmd/$$app && wails3 generate bindings -names -b -d frontend/dist/bindings ./...) || exit 1; \
 	done
 
-# generate rewrites the files generated from the oito2_ui parity fixtures
-# (internal/gui/web/css/oito2.css and the common message catalogs in
-# internal/gui/web/i18n/oito2/); check-generated fails when they are out
-# of date, without writing anything.
+# generate rewrites the generated files: those built from the oito2_ui
+# parity fixtures (internal/gui/web/css/oito2.css and the common message
+# catalogs in internal/gui/web/i18n/oito2/) and the installers built from
+# scripts/install.sh.in; check-generated fails when they are out of date,
+# without writing anything.
 generate:
 	go generate ./internal/theme ./internal/i18n
+	go run ./tools/geninstall
 
 check-generated:
 	go run ./internal/theme/gencss -out internal/gui/web/css/oito2.css -check
 	go run ./internal/i18n/genoito2 -l10n internal/theme/parity/l10n.json -out internal/gui/web/i18n/oito2 -check
+	go run ./tools/geninstall -check
 
 # parity-sync copies the oito2_ui fixtures Perci82 uses from a checkout of
 # oito2_ui (default references/oito2_ui; OITO2_UI=<dir> picks another) and

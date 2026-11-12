@@ -52,6 +52,13 @@ jobs:
       - name: Check generated files
         run: make check-generated
 
+      # ShellCheck comes with the runner; shfmt is pinned.
+      - name: Lint the installers
+        run: |
+          shellcheck --version
+          go install mvdan.cc/sh/v3/cmd/shfmt@v3.14.1
+          make lint-shell
+
       - name: Run tests
         run: go test -race ./...
 

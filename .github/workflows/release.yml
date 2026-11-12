@@ -31,6 +31,7 @@ jobs:
       contents: read
     outputs:
       app: ${{ steps.tag.outputs.app }}
+      short: ${{ steps.tag.outputs.short }}
       title: ${{ steps.tag.outputs.title }}
       version: ${{ steps.tag.outputs.version }}
 
@@ -59,16 +60,19 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           case "$TAG" in
-            system-v*) app=perci82-system; title="Perci82 System"; version="${TAG#system-}" ;;
-            dev-v*)    app=perci82-dev;    title="Perci82 Dev";    version="${TAG#dev-}" ;;
+            system-v*) short=system; title="Perci82 System" ;;
+            dev-v*)    short=dev;    title="Perci82 Dev" ;;
             *) echo "::error::Unknown tag ${TAG}"; exit 1 ;;
           esac
+          app="perci82-$short"
+          version="${TAG#"$short"-}"
           if ! [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Tag ${TAG} is not <app>-vX.Y.Z"
             exit 1
           fi
           {
             echo "app=$app"
+            echo "short=$short"
             echo "title=$title"
             echo "version=$version"
           } >> "$GITHUB_OUTPUT"
@@ -137,6 +141,14 @@ jobs:
             ## ${{ needs.build.outputs.title }} ${{ needs.build.outputs.version }}
 
             Só linux/amd64: o aplicativo usa Wails v3 com cgo (GTK4/WebKitGTK 6.0).
+
+            ### Instalação
+
+            ```bash
+            curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-${{ needs.build.outputs.short }}.sh | bash
+            ```
+
+            O instalador baixa a versão mais recente do ${{ needs.build.outputs.title }}, confere o checksum (e a attestation, com o GitHub CLI logado), cria a entrada no menu de aplicativos e oferece remover o Perci antigo, mantendo as configurações em `~/.perci`.
 
             ### Instalação manual
 

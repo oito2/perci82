@@ -63,7 +63,7 @@ btnSu2Uninstall.addEventListener("click", function () {
   if (backupAI) message += "\nUm backup dos contextos de IA será salvo antes.";
   if (removeDocker) message += "\nOs contêineres Docker registrados serão removidos (dados em disco são mantidos).";
   message += removeConfig
-    ? "\nAs configurações em ~/.perci também serão removidas, junto com as regras das contas Git no ~/.gitconfig e os tokens do chaveiro (chaves SSH e repositórios ficam)."
+    ? "\nAs configurações do Perci82 Dev (no ~/.perci/config.yaml e as pastas appstack e git do ~/.perci) também serão removidas, junto com as regras das contas Git no ~/.gitconfig e os tokens do chaveiro (chaves SSH e repositórios ficam). As do Perci82 System são mantidas."
     : "\nAs configurações em ~/.perci serão mantidas.";
   message += "\n\nEsta ação não pode ser desfeita.";
 

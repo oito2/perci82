@@ -30,6 +30,23 @@ Perci82 is a monorepo with two independent desktop apps built with Go and [Wails
 
 ## Prerequisites & Quick Installation
 
+### Install a release
+
+Each app installs on its own, from its newest release (tags `system-v*` and `dev-v*`), on Linux amd64 with the GTK 4 and WebKitGTK 6.0 runtime libraries (`libgtk-4-1` and `libwebkitgtk-6.0-4` on Debian/Ubuntu). The installers need `curl`, `jq`, `sha256sum`, `tar` and `sudo`.
+
+```bash
+# Perci82 System
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-system.sh | bash
+# Perci82 Dev
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-dev.sh | bash
+```
+
+The installer checks the binary's SHA-256 (and its build attestation when the GitHub CLI is logged in), installs it as `/usr/local/bin/perci82-system` or `/usr/local/bin/perci82-dev` and adds the application menu entry. When the old Perci (`prci`) is installed, it asks whether to remove it; its settings in `~/.perci` are kept, since both apps read them.
+
+Visão Geral checks for and applies updates of the app's own releases, and **Desinstalar** removes the app's binary, menu entry and icons. "Também remover configurações" removes only that app's settings (and, in Perci82 Dev, its Docker stack files and Git account files in `~/.perci`); `~/.perci` itself goes only when no other Perci82 app nor the old Perci is installed and nothing else is left in it.
+
+### Build from source
+
 Requirements:
 
 - Linux on amd64.
