@@ -29,6 +29,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -308,7 +309,9 @@ func openCodePermissionManaged(v any) bool {
 }
 
 // setOpenCodePermissions sets Perci's entries of doc's "permissions" list
-// to want; changed is false when nothing changed.
+// to want, at the start of the list: OpenCode applies the last rule that
+// matches, so the user's own rules after them (a deny or an ask) keep the
+// last word. changed is false when nothing changed.
 func setOpenCodePermissions(doc map[string]any, want []openCodePermission) (changed bool, err error) {
 	var list []any
 	if raw, ok := doc["permissions"]; ok {
@@ -323,20 +326,22 @@ func setOpenCodePermissions(doc map[string]any, want []openCodePermission) (chan
 	wanted := func(v any) bool {
 		return slices.ContainsFunc(want, func(p openCodePermission) bool { return is(v, p) })
 	}
-	kept := list[:0:0]
-	for _, v := range list {
-		if !wanted(v) && openCodePermissionManaged(v) {
-			changed = true
-			continue
-		}
-		kept = append(kept, v)
-	}
+	var ours, theirs []any
 	for _, p := range want {
-		if !slices.ContainsFunc(kept, func(v any) bool { return is(v, p) }) {
-			kept = append(kept, map[string]any{"action": p.action, "resource": p.resource, "effect": "allow"})
-			changed = true
+		i := slices.IndexFunc(list, func(v any) bool { return is(v, p) })
+		if i >= 0 {
+			ours = append(ours, list[i])
+		} else {
+			ours = append(ours, map[string]any{"action": p.action, "resource": p.resource, "effect": "allow"})
 		}
 	}
+	for _, v := range list {
+		if !wanted(v) && !openCodePermissionManaged(v) {
+			theirs = append(theirs, v)
+		}
+	}
+	kept := append(ours, theirs...)
+	changed = (len(kept) != 0 || len(list) != 0) && !reflect.DeepEqual(kept, list)
 	if len(kept) == 0 {
 		delete(doc, "permissions")
 	} else {

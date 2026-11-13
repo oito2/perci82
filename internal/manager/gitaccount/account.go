@@ -167,6 +167,9 @@ func checkFolder(folder string) error {
 	if folder == "" || !filepath.IsAbs(folder) {
 		return i18n.NewError("git.noFolder")
 	}
+	if err := checkGlobFree(folder); err != nil {
+		return err
+	}
 	info, err := os.Stat(folder)
 	if err != nil {
 		return fmt.Errorf("%s: %w", i18n.Tr("git.folderLabel", nil), err)
@@ -196,6 +199,16 @@ func foldersOverlap(a, b string) bool {
 }
 
 // within reports whether path is dir itself or lies below it.
+// checkGlobFree refuses a folder with a character git reads as a pattern
+// in an includeIf gitdir: rule (* ? [ \): the rule would miss the
+// account's repositories, or match other folders.
+func checkGlobFree(folder string) error {
+	if strings.ContainsAny(folder, `*?[\`) {
+		return errors.New(i18n.Tr("git.folderGlob", i18n.Args{"path": folder}))
+	}
+	return nil
+}
+
 func within(path, dir string) bool {
 	rel, err := filepath.Rel(dir, path)
 	if err != nil {

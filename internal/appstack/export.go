@@ -192,11 +192,18 @@ func LoadExportedConfig(path string) (ExportedConfig, error) {
 	if err != nil {
 		return ExportedConfig{}, fmt.Errorf("read %s: %w", path, err)
 	}
-	var exported ExportedConfig
-	if err := yaml.Unmarshal(data, &exported); err != nil {
+	exported, err := ParseExportedConfig(data)
+	if err != nil {
 		return ExportedConfig{}, fmt.Errorf("parse %s: %w", path, err)
 	}
 	return exported, nil
+}
+
+// ParseExportedConfig parses the content of an export file.
+func ParseExportedConfig(data []byte) (ExportedConfig, error) {
+	var exported ExportedConfig
+	err := yaml.Unmarshal(data, &exported)
+	return exported, err
 }
 
 // ErrWorkspaceMismatch is returned (wrapped) by ImportConfig/

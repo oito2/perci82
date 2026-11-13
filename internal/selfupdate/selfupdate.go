@@ -145,13 +145,14 @@ func assetName(app string) string {
 }
 
 // Run checks for a newer version of app and applies the update if one is
-// available.
+// available. There is no overall deadline: the API requests have their
+// own timeout, the binary download stops when no data arrives for
+// stallTimeout (a slow link may take long, never forever), and the
+// privileged swap is never cut while the password dialog is open.
 func Run(ctx context.Context, exe *executor.Executor, stdout io.Writer, app string) error {
 	if err := checkApp(app); err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
 
 	ui.PrintHeader(stdout, i18n.Tr("selfupdate.header", i18n.Args{"app": appName(app)}), distro.DisplayName())
 	ui.Info(stdout, i18n.Tr("selfupdate.current", i18n.Args{"version": version.Version}))
@@ -424,7 +425,9 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, rel *R
 	// re-verifies the checksum on that copy and renames it over currentExe
 	// (executor.PrivilegedInstallSteps) — never a plain `mv` of a file the
 	// user can still rewrite while the password dialog is open.
-	if err := exe.PrivilegedInstall(ctx,
+	// Once the password dialog is shown, the batch runs to its end: killing
+	// pkexec half-way would leave a root-owned staged file behind.
+	if err := exe.PrivilegedInstall(context.WithoutCancel(ctx),
 		executor.Options{Stdout: stdout, Stderr: stdout},
 		tmpPath, currentExe, strings.ToLower(strings.TrimSpace(rel.ChecksumSHA256)), "0755",
 	); err != nil {
@@ -441,9 +444,14 @@ func downloadFile(ctx context.Context, url string, dest *os.File) error {
 		return err
 	}
 
-	resp, err := downloadClient(0).Do(req)
+	parent := ctx
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	stall := time.AfterFunc(stallTimeout, cancel)
+	defer stall.Stop()
+	resp, err := downloadClient(0).Do(req.WithContext(ctx))
 	if err != nil {
-		return err
+		return stalledOr(parent, ctx, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -451,9 +459,10 @@ func downloadFile(ctx context.Context, url string, dest *os.File) error {
 		return fmt.Errorf("download returned status %d", resp.StatusCode)
 	}
 
-	n, err := io.Copy(dest, io.LimitReader(resp.Body, maxBinarySize+1))
+	body := &stallReader{r: io.LimitReader(resp.Body, maxBinarySize+1), timer: stall}
+	n, err := io.Copy(dest, body)
 	if err != nil {
-		return err
+		return stalledOr(parent, ctx, err)
 	}
 	if n > maxBinarySize {
 		return fmt.Errorf("file larger than %d MiB — download refused", maxBinarySize>>20)
@@ -461,6 +470,33 @@ func downloadFile(ctx context.Context, url string, dest *os.File) error {
 	// Flush to disk before the rename: a power loss right after it must not
 	// leave a truncated binary in place.
 	return dest.Sync()
+}
+
+// stallTimeout is how long the binary download may go without receiving
+// any data before it is abandoned (a variable so tests shorten it).
+var stallTimeout = 60 * time.Second
+
+// stallReader restarts timer on every read that returns data.
+type stallReader struct {
+	r     io.Reader
+	timer *time.Timer
+}
+
+func (s *stallReader) Read(p []byte) (int, error) {
+	n, err := s.r.Read(p)
+	if n > 0 {
+		s.timer.Reset(stallTimeout)
+	}
+	return n, err
+}
+
+// stalledOr names a download cancelled by the stall timer (ctx done while
+// its parent is not); any other error is returned as it is.
+func stalledOr(parent, ctx context.Context, err error) error {
+	if parent.Err() == nil && ctx.Err() != nil {
+		return fmt.Errorf("no data received for %s: %w", stallTimeout, err)
+	}
+	return err
 }
 
 // verifyChecksum reports an error if the SHA-256 of the file at path does not

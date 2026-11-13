@@ -37,8 +37,35 @@ func TestRefreshPath(t *testing.T) {
 	RefreshPath(context.Background(), exe)
 
 	want := filepath.Join(home, ".local", "bin") + ":/usr/bin:/bin"
+	if info, err := os.Stat("/usr/local/go/bin"); err == nil && info.IsDir() {
+		want += ":/usr/local/go/bin"
+	}
 	if got := os.Getenv("PATH"); got != want {
 		t.Errorf("PATH = %q, want %q", got, want)
+	}
+}
+
+// The binary folders of the SDK and tool installers join PATH (after it)
+// once they exist, so Go, its tools, Rust and OpenCode are found when
+// Perci was started from the desktop menu.
+func TestRefreshPath_SDKFolders(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", "/usr/bin:/bin")
+	for _, d := range []string{"go/bin", ".opencode/bin"} {
+		if err := os.MkdirAll(filepath.Join(home, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	RefreshPath(context.Background(), executor.New(nil, nil))
+	got := os.Getenv("PATH")
+	for _, d := range []string{"go/bin", ".opencode/bin"} {
+		if !strings.Contains(got, ":"+filepath.Join(home, d)) {
+			t.Errorf("PATH %q lacks %s", got, d)
+		}
+	}
+	if strings.Contains(got, ".cargo") {
+		t.Errorf("a missing folder joined PATH: %q", got)
 	}
 }
 

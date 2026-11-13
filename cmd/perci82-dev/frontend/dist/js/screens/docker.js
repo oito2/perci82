@@ -27,6 +27,10 @@
 
 let __dcCatalog = null;
 
+// dockerQuickActionBusy is true while a Start, Stop or Restart of a row
+// runs.
+let dockerQuickActionBusy = false;
+
 function dcFinalKind() {
   return dcKind.value === "__app__" ? dcAppType.value : dcKind.value;
 }
@@ -148,14 +152,17 @@ function buildDockerRow(row) {
       tdStatus.innerHTML = updated ? statusBadgeHTML(updated.status, updated.dockerError) : statusBadgeHTML("");
     });
   }
+  // A quick action runs one at a time, on any row: the backend refuses a
+  // second one while the first runs.
   function wireQuickAction(btn, fn) {
     btn.addEventListener("click", function () {
-      if (running) return;
+      if (running || dockerQuickActionBusy) return;
+      dockerQuickActionBusy = true;
       setRowLoading();
       fn().then(refreshRowStatus).catch(function (err) {
         refreshRowStatus();
         openError(String(err));
-      });
+      }).finally(function () { dockerQuickActionBusy = false; });
     });
   }
 

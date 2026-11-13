@@ -65,7 +65,8 @@ func ComboImageName(phpVersion, nodeVersion string) string {
 // empty. When empty, the wrapper execs `sleep infinity` as an idle
 // placeholder, so the program never busy-loop-restarts. When set, the
 // command runs through its own sh -c, so variables, && and pipes work as
-// typed.
+// typed. user= only switches the user, so both programs get HOME=/tmp,
+// the way the app's command runs: npm and npx would otherwise use /root.
 const comboSupervisordConf = `[supervisord]
 logfile=/dev/null
 logfile_maxbytes=0
@@ -83,6 +84,7 @@ stderr_logfile_maxbytes=0
 command=%(ENV_DEV_COMMAND)s
 directory=/app
 user=www-data
+environment=HOME="/tmp"
 autorestart=true
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
@@ -93,6 +95,7 @@ stderr_logfile_maxbytes=0
 command=sh -c "if [ -n \"$WORKER_COMMAND\" ]; then exec sh -c \"$WORKER_COMMAND\"; else exec sleep infinity; fi"
 directory=/var/www/html
 user=www-data
+environment=HOME="/tmp"
 autorestart=true
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0

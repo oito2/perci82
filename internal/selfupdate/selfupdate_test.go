@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // withTestServer points apiBaseURL/httpClient/trustedDownloadHost at an
@@ -347,5 +348,44 @@ func TestVerifyChecksum_CaseInsensitive(t *testing.T) {
 	sum := sha256.Sum256(content)
 	if err := verifyChecksum(path, " "+strings.ToUpper(hex.EncodeToString(sum[:]))+"\n"); err != nil {
 		t.Fatalf("uppercase/whitespace checksum should match: %v", err)
+	}
+}
+
+// A download that stops sending data is abandoned after stallTimeout; one
+// that keeps sending is not cut, however long it takes.
+func TestDownloadFile_StallTimeout(t *testing.T) {
+	orig := stallTimeout
+	stallTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { stallTimeout = orig })
+
+	release := make(chan struct{})
+	srv := withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/slow" {
+			for i := 0; i < 6; i++ {
+				_, _ = w.Write([]byte("x"))
+				w.(http.Flusher).Flush()
+				time.Sleep(100 * time.Millisecond)
+			}
+			return
+		}
+		_, _ = w.Write([]byte("start"))
+		w.(http.Flusher).Flush()
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	})
+	t.Cleanup(func() { close(release) })
+	f, err := os.CreateTemp(t.TempDir(), "dl-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+
+	if err := downloadFile(context.Background(), srv.URL+"/stalled", f); err == nil || !strings.Contains(err.Error(), "no data received") {
+		t.Errorf("stalled download: %v, want the stall error", err)
+	}
+	if err := downloadFile(context.Background(), srv.URL+"/slow", f); err != nil {
+		t.Errorf("a slow download that keeps sending was cut: %v", err)
 	}
 }

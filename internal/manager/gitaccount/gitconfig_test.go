@@ -202,3 +202,46 @@ func TestForget(t *testing.T) {
 		t.Errorf("Forget removed the SSH key: %v", err)
 	}
 }
+
+// UndoApply removes a new account's rule and file, and gives an edited
+// account its previous folder's rule back.
+func TestUndoApply(t *testing.T) {
+	requireTool(t, "git")
+	home := isolate(t)
+	ctx := t.Context()
+	exe := quietExecutor()
+	acc := validAccount(t, home)
+
+	if err := Apply(ctx, exe, io.Discard, nil, acc); err != nil {
+		t.Fatal(err)
+	}
+	UndoApply(ctx, exe, nil, acc)
+	if rules := includeRules(t); len(rules) != 0 {
+		t.Errorf("rules after undoing a new account = %q, want none", rules)
+	}
+	if path, _ := GitconfigPath(acc.ID); fileExists(path) {
+		t.Error("the gitconfig file of the new account survived")
+	}
+
+	if err := Apply(ctx, exe, io.Discard, nil, acc); err != nil {
+		t.Fatal(err)
+	}
+	moved := acc
+	moved.Folder = filepath.Join(home, "repos", "moved")
+	if err := os.MkdirAll(moved.Folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(ctx, exe, io.Discard, &acc, moved); err != nil {
+		t.Fatal(err)
+	}
+	UndoApply(ctx, exe, &acc, moved)
+	rules := includeRules(t)
+	if len(rules) != 1 || !strings.Contains(rules[0], acc.Folder+"/") || strings.Contains(rules[0], "moved") {
+		t.Errorf("rules after undoing the move = %q, want the old folder's only", rules)
+	}
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}

@@ -299,7 +299,7 @@ func (s *RepositoriesService) finishSave(ctx context.Context, acc config.GitAcco
 	if err := gitaccount.Apply(ctx, s.exe, io.Discard, prev, acc); err != nil {
 		return err
 	}
-	return config.Update(func(c *config.Config) error {
+	err := config.Update(func(c *config.Config) error {
 		for i := range c.GitAccounts {
 			if c.GitAccounts[i].ID == acc.ID {
 				c.GitAccounts[i] = acc
@@ -309,6 +309,10 @@ func (s *RepositoriesService) finishSave(ctx context.Context, acc config.GitAcco
 		c.GitAccounts = append(c.GitAccounts, acc)
 		return nil
 	})
+	if err != nil {
+		gitaccount.UndoApply(ctx, s.exe, prev, acc)
+	}
+	return err
 }
 
 // setupKey applies in.KeyMode to acc: generates a new key, takes a picked

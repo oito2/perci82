@@ -21,7 +21,7 @@ DIST     := dist
 # The production tag turns off Wails' debug mode (webview developer tools).
 TAGS     := production
 
-.PHONY: build build-system build-dev run-system run-dev test test-frontend lint lint-shell clean release release-system release-dev generate-bindings generate check-generated parity-sync
+.PHONY: build build-system build-dev run-system run-dev test test-frontend lint lint-shell clean release release-system release-dev release-app generate-bindings generate check-generated parity-sync
 
 # Builds both applications with the production tag only: GTK4 + WebKitGTK
 # 6.0 is the default stack. -trimpath keeps the builder's local paths out of
@@ -75,12 +75,16 @@ clean:
 #
 # release-<app> writes dist/<app>-linux-amd64, dist/<app>-menu.tar.gz (the
 # application menu entry: share/applications/<id>.desktop and the app's
-# hicolor icons) and dist/checksums.txt covering both. The archive is built
-# reproducibly (sorted entries, fixed owner/mtime, gzip -n) so the same tag
-# yields the same hash.
+# hicolor icons) and adds both to dist/checksums.txt, keeping the lines of
+# the other application's files (release builds both into one checksums.txt).
+# The archive is built reproducibly (sorted entries, fixed owner/mtime,
+# gzip -n) so the same tag yields the same hash.
 MENU_STAGE := $(DIST)/menu
 
-release: release-system release-dev
+release:
+	rm -f $(DIST)/checksums.txt
+	$(MAKE) release-system
+	$(MAKE) release-dev
 
 release-system:
 	$(MAKE) release-app APP=perci82-system APP_ID=io.github.oito2.perci82.system
@@ -97,13 +101,14 @@ release-app:
 	mkdir -p $(MENU_STAGE)/share/applications $(MENU_STAGE)/share/icons
 	cp packaging/$(APP_ID).desktop $(MENU_STAGE)/share/applications/$(APP_ID).desktop
 	cd packaging && find hicolor -name '$(APP_ID).*' -o -name '$(APP_ID)-symbolic.*' | while read -r f; do \
-		install -D -m 644 "$$f" "../$(MENU_STAGE)/share/icons/$$f" || exit 1; \
+		install -D -m 644 "$$f" "$(abspath $(MENU_STAGE))/share/icons/$$f" || exit 1; \
 	done
 	chmod -R u=rwX,go=rX $(MENU_STAGE)
 	tar --sort=name --owner=0 --group=0 --numeric-owner --mtime='@0' \
 		-C $(MENU_STAGE) -cf - share | gzip -n > $(DIST)/$(APP)-menu.tar.gz
 	rm -rf $(MENU_STAGE)
-	cd $(DIST) && sha256sum $(APP)-linux-amd64 $(APP)-menu.tar.gz > checksums.txt
+	cd $(DIST) && { if [ -f checksums.txt ]; then grep -v -e '  $(APP)-linux-amd64$$' -e '  $(APP)-menu.tar.gz$$' checksums.txt || true; fi; \
+		sha256sum $(APP)-linux-amd64 $(APP)-menu.tar.gz; } > checksums.txt.new && mv checksums.txt.new checksums.txt
 	@echo "Binaries in $(DIST):"
 	@ls -lh $(DIST)/
 

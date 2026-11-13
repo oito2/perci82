@@ -58,7 +58,9 @@ func includeKey(folder string) string {
 }
 
 // sshArgs are the ssh options every connection of acc uses: its key only,
-// and the known_hosts file managed by perci.
+// and the known_hosts file managed by perci, whose keys are the only ones
+// accepted, whatever the user's ssh_config says (command-line options win
+// over it).
 func sshArgs(acc config.GitAccount) ([]string, error) {
 	kh, err := KnownHostsPath()
 	if err != nil {
@@ -67,7 +69,7 @@ func sshArgs(acc config.GitAccount) ([]string, error) {
 	if strings.ContainsAny(kh, " \t") {
 		return nil, errors.New(i18n.Tr("git.knownHostsSpaces", i18n.Args{"path": kh}))
 	}
-	return []string{"-i", acc.SSHKey, "-o", "IdentitiesOnly=yes", "-o", "UserKnownHostsFile=" + kh}, nil
+	return []string{"-i", acc.SSHKey, "-o", "IdentitiesOnly=yes", "-o", "UserKnownHostsFile=" + kh, "-o", "StrictHostKeyChecking=yes"}, nil
 }
 
 // SSHCommand is the core.sshCommand value of acc: ssh with sshArgs,
@@ -166,6 +168,18 @@ func Apply(ctx context.Context, exe *executor.Executor, stdout io.Writer, prev *
 	}
 	ui.Info(stdout, i18n.Tr("git.run.ruleAdded", i18n.Args{"folder": acc.Folder, "name": acc.Name}))
 	return nil
+}
+
+// UndoApply puts back what Apply(prev, acc) changed, after the account
+// could not be saved: a new account (prev nil) loses its rule and
+// gitconfig file; an edited one gets prev's file and rule back. Failures
+// are ignored: the save already failed.
+func UndoApply(ctx context.Context, exe *executor.Executor, prev *config.GitAccount, acc config.GitAccount) {
+	if prev == nil {
+		_ = Remove(ctx, exe, io.Discard, acc)
+		return
+	}
+	_ = Apply(ctx, exe, io.Discard, &acc, *prev)
 }
 
 // Remove deletes the global include rule of acc and its gitconfig file.

@@ -152,20 +152,34 @@ let multiselectExtraButtons = [];
 let running = false;
 
 // activeRun describes the action THIS window started (startExecution):
-// the actionId of the screen it was started from and the
-// buttons it disabled. null when this window isn't running anything — the
+// the actionId of the screen it was started from, the buttons it disabled
+// and runId, the number the backend gave the action ("action-start"; null
+// until it arrives). null when this window isn't running anything — the
 // log-line/step/action-done events reach every window (main + the tray's
-// compact window), and only the one that started the action handles them.
+// compact window), and only the one that started the action handles them,
+// by its number: another window's action never writes here.
 let activeRun = null;
+
+// ownsRunEvent reports whether an event of a run (log-line, step,
+// action-done) belongs to this window's action.
+function ownsRunEvent(data) {
+  return !!activeRun && activeRun.runId !== null && data && data.runId === activeRun.runId;
+}
+
+// The first action started after this window asked for one is its own:
+// the backend runs one action at a time and refuses the others.
+Events.On("action-start", function (ev) {
+  if (activeRun && activeRun.runId === null) activeRun.runId = ev.data.runId;
+});
 
 // Events.On delivers the payload inside ev.data.
 // Output is written once per frame instead of once per event: apt or
 // docker build emit thousands of small events.
 let pendingLog = "";
 Events.On("log-line", function (ev) {
-  if (!activeRun) return;
+  if (!ownsRunEvent(ev.data)) return;
   if (!pendingLog) requestAnimationFrame(flushLog);
-  pendingLog += ev.data;
+  pendingLog += ev.data.text;
 });
 function flushLog() {
   if (pendingLog) term.write(pendingLog);
@@ -173,7 +187,7 @@ function flushLog() {
 }
 
 Events.On("step", function (ev) {
-  if (!activeRun) return;
+  if (!ownsRunEvent(ev.data)) return;
   const step = ev.data;
   termTitle.textContent = t("term.running", { label: step.label });
   termProgress.value = step.index;
@@ -181,7 +195,7 @@ Events.On("step", function (ev) {
 });
 
 Events.On("action-done", function (ev) {
-  if (!activeRun) return;
+  if (!ownsRunEvent(ev.data)) return;
   finishRun(ev.data);
 });
 

@@ -21,10 +21,13 @@ package gui
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -645,13 +648,18 @@ func (s *DockerService) PreviewImportConfig(path string) (TransferItems, error) 
 	if err := requireApprovedPath(path); err != nil {
 		return TransferItems{}, err
 	}
-	exported, err := appstack.LoadExportedConfig(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return TransferItems{}, err
+		return TransferItems{}, fmt.Errorf("read %s: %w", path, err)
+	}
+	exported, err := appstack.ParseExportedConfig(data)
+	if err != nil {
+		return TransferItems{}, fmt.Errorf("parse %s: %w", path, err)
 	}
 	if err := exported.Validate(); err != nil {
 		return TransferItems{}, fmt.Errorf("%s: %w", i18n.Tr("transfer.invalidFile", nil), err)
 	}
+	previewedImports.remember(path, data)
 	cfg, err := config.Load()
 	if err != nil {
 		return TransferItems{}, err
@@ -680,12 +688,45 @@ func (s *DockerService) ImportDockerContainerConfig(path string, sel TransferSel
 		if err := requireApprovedPath(path); err != nil {
 			return err
 		}
-		exported, err := appstack.LoadExportedConfig(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("read %s: %w", path, err)
+		}
+		// The commands and folders the user confirmed are the previewed
+		// ones: a file changed since then is refused.
+		if !previewedImports.matches(path, data) {
+			return i18n.NewError("transfer.fileChanged")
+		}
+		exported, err := appstack.ParseExportedConfig(data)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", path, err)
 		}
 		return appstack.ImportConfig(context.Background(), s.exe, nil, stdout, exported, sel.domain())
 	})
+}
+
+// previewedImports holds the SHA-256 of each export file as
+// PreviewImportConfig read it.
+var previewedImports = importSums{sums: map[string][32]byte{}}
+
+// importSums maps file paths to the SHA-256 of their previewed content.
+type importSums struct {
+	mu   sync.Mutex
+	sums map[string][32]byte
+}
+
+func (s *importSums) remember(path string, data []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sums[filepath.Clean(path)] = sha256.Sum256(data)
+}
+
+// matches reports whether data is the content previewed at path.
+func (s *importSums) matches(path string, data []byte) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sum, ok := s.sums[filepath.Clean(path)]
+	return ok && sum == sha256.Sum256(data)
 }
 
 // ── Backup/Restore (só MariaDB) ───────────────────────────────────────────

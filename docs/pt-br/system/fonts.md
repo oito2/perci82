@@ -14,7 +14,7 @@ Instala e remove fontes. Cada caixa de seleção mostra se a fonte está instala
 | JetBrains Mono NF | A versão Nerd Fonts, baixada do GitHub (com SHA-256 conferido) para `~/.local/share/fonts/perci/jetbrains-mono-nf/` |
 | Carlito | Pacote `fonts-crosextra-carlito` (`apt`) ou `google-carlito-fonts` (`dnf`) |
 | Caladea | Pacote `fonts-crosextra-caladea` (`apt`) ou `google-crosextra-caladea-fonts` (`dnf`) |
-| Noto | Pacote `fonts-noto` (`apt`) ou `google-noto-sans-fonts` (`dnf`) |
+| Noto | Pacote `fonts-noto-core` (`apt`) ou `google-noto-sans-fonts` (`dnf`) |
 | Noto CJK | Pacote `fonts-noto-cjk` (`apt`) ou `google-noto-sans-cjk-fonts` (`dnf`) |
 | Noto Color Emoji | Pacote `fonts-noto-color-emoji` (`apt`) ou `google-noto-color-emoji-fonts` (`dnf`) |
 

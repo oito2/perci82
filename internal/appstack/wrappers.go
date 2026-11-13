@@ -456,9 +456,10 @@ func MigrateAppCommand(stdout io.Writer, folder string) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	app, found := FindAppByFolder(cfg.Docker.Apps, folder)
-	if !found {
-		return errors.New(i18n.Tr("docker.appNotRegistered", i18n.Args{"app": folder}))
+	// Validated: the folder name becomes a file name in ~/.local/bin.
+	app, err := registeredApp(folder)
+	if err != nil {
+		return err
 	}
 	workspace, err := resolveWorkspace(cfg)
 	if err != nil {

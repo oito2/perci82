@@ -72,15 +72,29 @@ test("failRun ends only a run this window started", () => {
 
 test("action-done and step events reach only the window that runs", () => {
   const { ctx, element, emit } = load();
-  emit("action-done", { ok: true, error: "" }); // another window's run
+  emit("action-done", { runId: 1, ok: true, error: "" }); // another window's run
   assert.equal(element("term-title").textContent, "");
   ctx.startExecution("Fazer");
-  emit("step", { index: 1, total: 4, label: "passo" });
+  emit("action-start", { runId: 2 });
+  emit("step", { runId: 2, index: 1, total: 4, label: "passo" });
   assert.equal(element("term-title").textContent, "Executando: passo");
   assert.equal(element("term-progress").max, 4);
-  emit("action-done", { ok: false, error: "x" });
+  emit("action-done", { runId: 2, ok: false, error: "x" });
   assert.equal(element("term-title").textContent, "Falhou.");
   assert.equal(state(ctx, "running"), false);
+});
+
+test("run events of another window's action never land in this window's run", () => {
+  const { ctx, element, emit } = load();
+  emit("action-start", { runId: 7 }); // the tray window's action
+  ctx.startExecution("Fazer");
+  emit("step", { runId: 7, index: 2, total: 3, label: "dela" });
+  emit("action-done", { runId: 7, ok: true, error: "" });
+  assert.equal(state(ctx, "running"), true, "the other action's end does not end this run");
+  assert.notEqual(element("term-title").textContent, "Concluído.");
+  emit("action-start", { runId: 8 });
+  emit("action-done", { runId: 8, ok: true, error: "" });
+  assert.equal(element("term-title").textContent, "Concluído.");
 });
 
 test("beginRun: one run at a time, refusals and sync errors end the run", async () => {

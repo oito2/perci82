@@ -30,11 +30,11 @@ Each row has its own **Install**, **Update** and **Uninstall** buttons. An item 
 | WebKitGTK 4.1 Dev Headers | `libwebkit2gtk-4.1-dev` / `webkit2gtk4.1-devel` | |
 | Libxdo Dev | `libxdo-dev` / `libxdo-devel` | |
 | Wails3 CLI | `go install` of `wails3` v3.0.0-beta.28 into Go's binary folder | Requires Go ([Languages & SDKs](#languages--sdks)); no password |
-| Libsecret Tools | `libsecret-1-0`, `libsecret-1-dev`, `libsecret-tools` (`apt`) or `libsecret`, `libsecret-devel`, `git-credential-libsecret` (`dnf`) | Uninstall keeps `libsecret-1-0` |
+| Libsecret Tools | `libsecret-1-0`, `libsecret-1-dev`, `libsecret-tools` (`apt`) or `libsecret`, `libsecret-devel`, `git-credential-libsecret` (`dnf`) | Uninstall keeps the runtime library (`libsecret-1-0`, or `libsecret` on Fedora), which the desktop uses |
 | Librsvg Tools | `librsvg2-bin` + `librsvg2-dev` (`apt`) or `librsvg2-tools` + `librsvg2-devel` (`dnf`) | |
 | GitHub CLI (gh) | On `apt`, adds GitHub's signed repository (`/etc/apt/sources.list.d/github-cli.list`) and installs `gh`; on `dnf`, package `gh` | Requires Curl; uninstall also removes the repository |
 | Docker Engine | `docker.io`, `docker-compose-v2` (`docker-compose` on Debian), `docker-buildx` (`apt`) or `moby-engine`, `docker-compose`, `docker-buildx` (`dnf`) | Enables the `docker` service and adds you to the `docker` group (root-equivalent access); log out and back in afterwards |
-| Node.js | The LTS version through nvm v0.40.8 (official script) in `~/.nvm` | Requires Curl; no password. Update moves to the newest LTS, carrying over the global npm packages. Uninstall deletes the whole `~/.nvm` (every version and global package, Codex CLI included) and the nvm lines in the shell startup files |
+| Node.js | The LTS version through nvm v0.40.8 (official script, checked by SHA-256 before it runs) in `~/.nvm` | Requires Curl; no password. Update moves to the newest LTS, carrying over the global npm packages. Uninstall deletes the whole `~/.nvm` (every version and global package, Codex CLI included) and the nvm lines in the shell startup files |
 | Flatpak Builder Tools | Packages `pipx`, `python3-aiohttp`, `python3-tomlkit`; clones `flatpak-builder-tools` into `~/tools/flatpak-builder-tools` at a fixed commit and installs `flatpak-node-generator` with `pipx` | Requires Git and Flatpak Builder. Uninstall keeps the three packages |
 | Libfuse2 | `libfuse2t64` (`apt`) or `fuse-libs` (`dnf`) | |
 | AppImageTool | Release 1.9.1 downloaded from GitHub (SHA-256 checked against the release's digest) into `/usr/local/bin/appimagetool` | Requires Curl |

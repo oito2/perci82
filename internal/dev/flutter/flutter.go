@@ -439,10 +439,17 @@ func ensureChromeEnvInBashrc(stdout io.Writer, home, wrapperPath string) {
 	}
 }
 
-// CloneFlutter clones the stable channel into flutterDir.
+// CloneFlutter clones the stable channel into flutterDir. The clone goes
+// into flutterDir + ".partial" and is renamed only once complete, so a
+// failed or cancelled clone never leaves a flutterDir that blocks the next
+// install.
 func CloneFlutter(ctx context.Context, exe *executor.Executor, stdout io.Writer, home, flutterDir string) error {
 	if err := os.MkdirAll(filepath.Join(home, "development"), 0o755); err != nil {
 		return fmt.Errorf("create the development folder: %w", err)
+	}
+	partial := flutterDir + ".partial"
+	if err := os.RemoveAll(partial); err != nil {
+		return fmt.Errorf("remove the unfinished clone %s: %w", partial, err)
 	}
 
 	ui.Info(stdout, i18n.Tr("sdk.run.flutterClone", i18n.Args{"repo": flutterRepo}))
@@ -451,9 +458,17 @@ func CloneFlutter(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 	if err := exe.Run(ctx,
 		executor.Options{Stdout: stdout, Stderr: stdout},
 		"git", "-c", "http.lowSpeedLimit=1000", "-c", "http.lowSpeedTime=120",
-		"clone", "--branch", "stable", flutterRepo, flutterDir,
+		"clone", "--branch", "stable", "--", flutterRepo, partial,
 	); err != nil {
+		_ = os.RemoveAll(partial)
 		return fmt.Errorf("git clone: %w", err)
+	}
+	if exe.DryRun {
+		return nil
+	}
+	if err := os.Rename(partial, flutterDir); err != nil {
+		_ = os.RemoveAll(partial)
+		return fmt.Errorf("move the clone into %s: %w", flutterDir, err)
 	}
 	return nil
 }

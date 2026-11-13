@@ -143,3 +143,18 @@ func TestSSHURL(t *testing.T) {
 		t.Errorf("SSHURL with port 22 = %q", got)
 	}
 }
+
+// A folder git would read as a pattern in the includeIf rule is refused.
+func TestValidate_RefusesGlobFolders(t *testing.T) {
+	home := isolate(t)
+	for _, name := range []string{"dev[1]", "proj*", "what?"} {
+		acc := validAccount(t, home)
+		acc.Folder = filepath.Join(home, name)
+		if err := os.MkdirAll(acc.Folder, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := Validate(acc, nil); err == nil || !strings.Contains(err.Error(), "padrão") {
+			t.Errorf("%s: %v, want the pattern refusal", name, err)
+		}
+	}
+}

@@ -55,6 +55,19 @@ First release of Perci82 Dev.
 - Gerenciar Contextos → Alterar opens Configurar Projeto on the row's folder (it opened without a folder).
 - "Também remover configurações" removes `~/.perci/appstack` only together with the Docker containers, which still use it, and always keeps the MariaDB backups in `~/.perci/appstack/backups`.
 - Two projects in different places with the same folder name no longer share a notes folder: the second gets `<name>-2` (`-3`…), saved in its context's record as `notes`, so it never moves.
+- Ambiente finds the tools whose installers only change the shell startup files when Perci82 Dev was opened from the desktop menu: Go (`/usr/local/go/bin`, `~/go/bin`), Rust (`~/.cargo/bin`) and OpenCode (`~/.opencode/bin`). The Wails3 CLI no longer reads "Requires Go" after Go is installed, and OpenCode shows as installed and can be removed.
+- Uninstalling Libsecret Tools on Fedora keeps the `libsecret` package, which GNOME Shell, gvfs and KWallet need: the removal no longer stops.
+- A Flutter clone that fails or is cancelled no longer leaves a `~/development/flutter` that blocks the next install.
+- Listing an account's repositories tells a token without permission (HTTP 403) apart from the rate limit.
+- An account folder with `*`, `?`, `[` or `\` in its path is refused: Git reads them as a pattern in the `includeIf` rule, which then missed the account's repositories.
+- When saving an account fails, its `includeIf` rule and gitconfig file are put back as they were.
+- An app folder must start with a letter or digit and have at least 2 characters, as Docker requires for a container name: such names were accepted and failed only after the image was built.
+- Editing an app never creates a second container for a folder that isn't registered, and switching an app's command validates its entry first.
+- In PHP + Node apps, the start command and the worker run with `HOME=/tmp`, like the app's command: npm and npx no longer fail on `/root`.
+- Docker → Importar applies exactly the file the tab listed: a file changed after it was chosen is refused.
+- Self-update has no fixed 5-minute limit: a slow download is never cut (it stops only when no data arrives for a minute), and the password dialog of the final step is never interrupted.
+- The Execução tab shows only its own action: a window no longer takes the output or the result of an action another window (the tray's) started.
+- Docker → Gerenciar: Iniciar, Parar and Reiniciar run one at a time, so a second click no longer shows an error.
 
 ### Security
 
@@ -66,6 +79,9 @@ First release of Perci82 Dev.
 - `install-dev.sh` checks, when the GitHub CLI is logged in, that `checksums.txt` was attested by the release workflow (covering the binary and the menu entry archive), and extracts only menu entries and icons from the archive.
 - Installing or updating the Antigravity IDE refuses an extracted app folder or a `chrome-sandbox` replaced by a symbolic link while the password dialog is open, so the setuid bit can only land on the verified copy in `/opt/antigravity`.
 - The systemd units of Docker → Pastas de Desenvolvimento refuse to mount when a folder on the way to the development folder or to the destination has become a symbolic link, and a destination reached through a link is refused when the mount is created. Mounts made earlier show a warning on the Pastas montadas tab with Atualizar unidades, which rewrites their units.
+- The SSH command of the Git accounts accepts only the server keys in Perci82 Dev's `known_hosts` (`StrictHostKeyChecking=yes`), whatever the user's `~/.ssh/config` says; repository URLs from an import file reach git only in Perci's own SSH form; a key's passphrase goes to ssh-keygen and ssh-add through a 0600 file instead of an environment variable.
+- In `opencode.json`, Perci's `allow` permissions go first, so the user's later `deny` or `ask` rules keep the last word (OpenCode applies the last matching rule).
+- The nvm installer is run only after its SHA-256 matches.
 
 ## [System 1.0.0] - 2026-11-12
 
@@ -97,6 +113,13 @@ First release of Perci82 System, split from Perci 1.9.0.
 - The app icon choice (Ícone do Aplicativo): the app has a single icon.
 - The daisyUI themes of Perci 1.9 (light, dark, cupcake, synthwave, retro, valentine, halloween, garden).
 - The sidebar, its breadcrumb and the mascot logo, replaced by the section tabs, and the sidebar logo choice (Logo da Sidebar).
+
+### Fixed
+
+- Gerenciar Fontes installs Noto from `fonts-noto-core`, the package that holds "Noto Sans": removing the `fonts-noto` metapackage left the font installed and checked.
+- Self-update has no fixed 5-minute limit: a slow download is never cut (it stops only when no data arrives for a minute), and the password dialog of the final step is never interrupted.
+- The Execução tab shows only the action this window started.
+- `make release` writes one `checksums.txt` covering both applications.
 
 ### Security
 

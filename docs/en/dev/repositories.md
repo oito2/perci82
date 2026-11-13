@@ -14,7 +14,7 @@ Git accounts and their repositories. Each account owns a folder: every repositor
 An account is a personal GitHub or GitLab account, on the public service or on a server of your own. Saving it:
 
 - sets up its SSH key (a new ed25519 key at `~/.ssh/perci_<id>`, or an existing one);
-- writes `~/.perci/git/<id>.gitconfig` with `user.name`, `user.email` and a `core.sshCommand` that uses only the account's key and Perci82 Dev's own `known_hosts` file;
+- writes `~/.perci/git/<id>.gitconfig` with `user.name`, `user.email` and a `core.sshCommand` that uses only the account's key and Perci82 Dev's own `known_hosts` file, refusing any other server key whatever your `~/.ssh/config` says;
 - adds an `includeIf` rule to the global Git configuration, so that file applies to every repository under the account's folder:
 
 ```ini
@@ -41,7 +41,7 @@ The **Accounts** tab lists the accounts with **Account**, **Provider**, **Folder
 | **SSH port** | Only for a server of your own; empty means 22 |
 | **User** | The owner of the repositories on the provider |
 | **Name in commits** / **E-mail in commits** | The commit identity inside the account's folder |
-| **Account folder** | Chosen with **Choose folder**. Must exist and can't contain nor be inside another account's folder |
+| **Account folder** | Chosen with **Choose folder**. Must exist and can't contain nor be inside another account's folder, nor have `*`, `?`, `[` or `\` in its path (Git reads them as a pattern in the `includeIf` rule) |
 | **SSH key** | **Generate a new key (ed25519)**, with an optional passphrase; **Use an existing key** (the `.pub` must be next to it); or, when editing, **Keep the current key** |
 | **API token (optional)** | Kept in the keyring, never in `config.yaml`. When editing, **Remove the saved token** deletes it |
 

@@ -65,3 +65,33 @@ test("Gerenciar: Atualizar imagens confirms, then updates every container", () =
   evalIn(ctx, "__confirmCallback()");
   assert.equal(calls.filter((c) => c.name === "UpdateAllDockerImages").length, 1);
 });
+
+test("Docker: a quick action runs one at a time, on any row", async () => {
+  let finish;
+  const loaded = loadScripts(scriptOrder(), {
+    fixtures: { GetContainerRows: ROWS, StopDockerContainer: () => new Promise((r) => { finish = r; }) },
+  });
+  loaded.ctx.renderDockerListScreen();
+  await tick();
+  const rows = loaded.element("dockerlist-rows").children;
+  const button = (i, title) => {
+    const found = [];
+    const walk = (el) => { (el.children || []).forEach((c) => { if (c.title === title) found.push(c); walk(c); }); };
+    walk(rows[i]);
+    return found[0];
+  };
+  const click = (el) => (el.listeners.click || []).forEach((fn) => fn({}));
+  const count = (name) => loaded.calls.filter((c) => c.name === name).length;
+
+  click(button(2, "Parar"));
+  click(button(2, "Parar"));
+  click(button(0, "Iniciar"));
+  assert.equal(count("StopDockerContainer"), 1);
+  assert.equal(count("StartDockerContainer"), 0, "another row waits for the running action");
+
+  finish();
+  await tick();
+  await tick();
+  click(button(0, "Iniciar"));
+  assert.equal(count("StartDockerContainer"), 1, "the next action runs once the first is done");
+});

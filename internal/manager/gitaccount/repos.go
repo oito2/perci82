@@ -131,6 +131,18 @@ func ParseRemote(raw string) (Remote, bool) {
 	return r, true
 }
 
+// canonicalRemote is the SSH address Perci writes for raw's repository on
+// acc's server (SSHURL): the user, port and form raw was written with are
+// dropped, so a URL from an import file reaches git only in Perci's own
+// form. A value that does not parse is returned unchanged.
+func canonicalRemote(acc config.GitAccount, raw string) string {
+	r, ok := ParseRemote(raw)
+	if !ok {
+		return raw
+	}
+	return SSHURL(acc, r.Owner, r.Repo)
+}
+
 // RedactURL removes the password (a token, usually) from the user info
 // of an HTTP(S) URL; any other value is returned unchanged.
 func RedactURL(raw string) string {

@@ -77,7 +77,7 @@ It writes `dist/perci82-system-linux-amd64`, `dist/perci82-system-menu.tar.gz` (
 
 ## Updating
 
-**Overview → Updates → Check** looks for a newer Perci82 System release; **Update** appears only when there is one. The update downloads the new binary, checks its SHA-256 against the release's `checksums.txt`, replaces the installed binary and asks you to restart the app. The checksum comes from the same GitHub release as the binary, so the update trusts that release; it does not check the build attestation. To check it yourself, use the command in [Manual install](#manual-install) before updating. See [Overview](overview.md).
+**Overview → Updates → Check** looks for a newer Perci82 System release; **Update** appears only when there is one. The update downloads the new binary, checks its SHA-256 against the release's `checksums.txt`, replaces the installed binary and asks you to restart the app. A slow download is never cut; it stops only when no data arrives for a minute. The checksum comes from the same GitHub release as the binary, so the update trusts that release; it does not check the build attestation. To check it yourself, use the command in [Manual install](#manual-install) before updating. See [Overview](overview.md).
 
 Running the install script again also installs the newest release.
 

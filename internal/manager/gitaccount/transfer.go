@@ -408,6 +408,9 @@ func checkNewAccount(acc config.GitAccount, accounts []config.GitAccount) error 
 	if !filepath.IsAbs(acc.Folder) {
 		return i18n.NewError("git.mustBeAbs")
 	}
+	if err := checkGlobFree(acc.Folder); err != nil {
+		return err
+	}
 	if info, err := os.Stat(acc.Folder); err == nil && !info.IsDir() {
 		return errors.New(i18n.Tr("git.notAFolder", i18n.Args{"path": acc.Folder}))
 	}
@@ -498,6 +501,14 @@ func Import(ctx context.Context, exe *executor.Executor, stdout io.Writer, f Tra
 			skipped++
 			continue
 		}
+		// The account the repositories go to: their URLs are written in its
+		// SSH form.
+		target := t.account()
+		for _, a := range cfg.GitAccounts {
+			if a.ID == plan.ExistingID {
+				target = a
+			}
+		}
 		var pending []config.PendingRepo
 		emails := map[string]string{}
 		for i, st := range plan.States {
@@ -506,7 +517,7 @@ func Import(ctx context.Context, exe *executor.Executor, stdout io.Writer, f Tra
 			}
 			switch st.State {
 			case ImportNew:
-				pending = append(pending, config.PendingRepo{Path: st.Path, URL: t.Repos[i].URL})
+				pending = append(pending, config.PendingRepo{Path: st.Path, URL: canonicalRemote(target, t.Repos[i].URL)})
 			case ImportPending:
 				ui.Info(stdout, i18n.Tr("git.run.alreadyPending", i18n.Args{"name": t.Name, "path": st.Path}))
 			case ImportPresent:
@@ -579,12 +590,15 @@ func createAccount(ctx context.Context, exe *executor.Executor, stdout io.Writer
 	err = TrustPinnedHostKeys(acc)
 	if err == nil {
 		err = Apply(ctx, exe, stdout, nil, acc)
-	}
-	if err == nil {
-		err = config.Update(func(c *config.Config) error {
-			c.GitAccounts = append(c.GitAccounts, acc)
-			return nil
-		})
+		if err == nil {
+			err = config.Update(func(c *config.Config) error {
+				c.GitAccounts = append(c.GitAccounts, acc)
+				return nil
+			})
+			if err != nil {
+				UndoApply(ctx, exe, nil, acc)
+			}
+		}
 	}
 	if err != nil {
 		if generated {
@@ -700,7 +714,7 @@ func ClonePending(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 			dest, err = DestDir(acc, p.Path)
 		}
 		if err == nil {
-			err = Clone(ctx, exe, stdout, acc, p.URL, dest)
+			err = Clone(ctx, exe, stdout, acc, canonicalRemote(acc, p.URL), dest)
 		}
 		if err != nil {
 			ui.Err(stdout, "✗ "+p.Path+": "+err.Error())

@@ -280,3 +280,32 @@ func TestNotesDir_SameFolderNameElsewhere(t *testing.T) {
 		t.Errorf("after removing the first, second notes = %s, want %s-2", got, notes)
 	}
 }
+
+// Perci's OpenCode allow rules go first, so the user's later rules (OpenCode
+// applies the last match) keep the last word; running again changes
+// nothing.
+func TestSetOpenCodePermissions_UserRulesStayLast(t *testing.T) {
+	isAppCommand = func(name string) bool { return name == "mdle" }
+	t.Cleanup(func() { isAppCommand = defaultIsAppCommand })
+	deny := map[string]any{"action": "shell", "resource": "mdle composer *", "effect": "deny"}
+	doc := map[string]any{"permissions": []any{deny}}
+	want := []openCodePermission{{action: "shell", resource: "mdle *"}}
+
+	changed, err := setOpenCodePermissions(doc, want)
+	if err != nil || !changed {
+		t.Fatalf("changed = %v, err = %v", changed, err)
+	}
+	list := doc["permissions"].([]any)
+	if len(list) != 2 || list[0].(map[string]any)["resource"] != "mdle *" || list[1].(map[string]any)["effect"] != "deny" {
+		t.Errorf("permissions = %v, want Perci's allow first and the user's deny last", list)
+	}
+	if changed, _ := setOpenCodePermissions(doc, want); changed {
+		t.Error("a second run changed the list")
+	}
+
+	// An allow left at the end by an earlier version moves to the start.
+	doc["permissions"] = []any{deny, map[string]any{"action": "shell", "resource": "mdle *", "effect": "allow"}}
+	if changed, _ := setOpenCodePermissions(doc, want); !changed || doc["permissions"].([]any)[1].(map[string]any)["effect"] != "deny" {
+		t.Errorf("the old allow was not moved before the deny: %v", doc["permissions"])
+	}
+}

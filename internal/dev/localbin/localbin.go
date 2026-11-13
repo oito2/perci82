@@ -33,11 +33,17 @@ const (
 	fishExportLine = `fish_add_path $HOME/.local/bin`
 )
 
-// shellPrelude puts ~/.local/bin on PATH and loads nvm (which activates
-// the default Node version) — what a new login shell would see, so tools
+// shellPrelude puts ~/.local/bin on PATH, appends the binary folders the
+// SDK and tool installers use when they exist (Go in /usr/local/go/bin and
+// ~/go/bin, Rust in ~/.cargo/bin, OpenCode in ~/.opencode/bin: their
+// installers only add them to shell rc files, which a session started
+// from the desktop menu doesn't read) and loads nvm (which activates the
+// default Node version) — what a new terminal would see, so tools
 // installed during this session are found without restarting Perci.
 const shellPrelude = `export NVM_DIR="$HOME/.nvm"; ` +
-	`case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) PATH="$HOME/.local/bin:$PATH" ;; esac; export PATH; ` +
+	`case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) PATH="$HOME/.local/bin:$PATH" ;; esac; ` +
+	`for d in /usr/local/go/bin "$HOME/go/bin" "$HOME/.cargo/bin" "$HOME/.opencode/bin"; do ` +
+	`case ":$PATH:" in *":$d:"*) ;; *) [ -d "$d" ] && PATH="$PATH:$d" ;; esac; done; export PATH; ` +
 	`[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" >/dev/null 2>&1; `
 
 // inheritedPath is the PATH Perci was started with — what the user's

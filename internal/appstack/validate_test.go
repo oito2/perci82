@@ -25,7 +25,10 @@ func TestValidAppFolder(t *testing.T) {
 	}{
 		{"simple lowercase", "meucurso", true},
 		{"with hyphen and underscore", "meu-curso_2026", true},
-		{"single char", "a", true},
+		{"single char (Docker needs 2)", "a", false},
+		{"two chars", "ab", true},
+		{"leading hyphen", "-x", false},
+		{"leading underscore", "_app", false},
 		{"64 letters", repeat('a', 64), true},
 		{"65 letters, one over the limit", repeat('a', 65), false},
 		{"empty", "", false},

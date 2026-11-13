@@ -569,6 +569,11 @@ func replaceAppContainer(ctx context.Context, exe *executor.Executor, stdout io.
 // the running container is touched, then replaces the container with one
 // created from the new parameters and reloads Nginx's routing.
 func UpdateApp(ctx context.Context, exe *executor.Executor, stdout io.Writer, app config.AppContainer) error {
+	// An edit never changes the folder: a folder that is not registered
+	// would make a second container next to the old one.
+	if _, err := registeredApp(app.Folder); err != nil {
+		return err
+	}
 	if err := ValidateAppInStack(app); err != nil {
 		return err
 	}

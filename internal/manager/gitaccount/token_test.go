@@ -104,8 +104,10 @@ func TestRespondAskpass(t *testing.T) {
 	if err := os.WriteFile(counter, []byte("2"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(counter), "secret"), []byte("frase"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv(envAskpassCounter, counter)
-	t.Setenv(envAskpassSecret, "frase")
 	if !IsAskpassCall() {
 		t.Fatal("IsAskpassCall = false with the counter set")
 	}
@@ -126,5 +128,32 @@ func TestRespondAskpass(t *testing.T) {
 	t.Setenv(envAskpassCounter, filepath.Join(t.TempDir(), "missing"))
 	if code := RespondAskpass(&bytes.Buffer{}); code != 1 {
 		t.Errorf("missing counter: exit code %d, want 1", code)
+	}
+}
+
+// The askpass environment never carries the secret: it is in a 0600 file
+// of a temporary folder removed by the cleanup.
+func TestAskpassEnv_SecretNotInEnvironment(t *testing.T) {
+	env, cleanup, err := Askpass{Program: "/bin/true"}.env("frase-secreta", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var counter string
+	for _, kv := range env {
+		if strings.Contains(kv, "frase-secreta") {
+			t.Errorf("the secret is in the environment: %s", kv)
+		}
+		if v, ok := strings.CutPrefix(kv, envAskpassCounter+"="); ok {
+			counter = v
+		}
+	}
+	secret := filepath.Join(filepath.Dir(counter), "secret")
+	info, err := os.Stat(secret)
+	if err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("secret file: %v, %v", info, err)
+	}
+	cleanup()
+	if _, err := os.Stat(secret); !os.IsNotExist(err) {
+		t.Error("the secret file survived the cleanup")
 	}
 }

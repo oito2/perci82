@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -153,8 +154,26 @@ type eventWriter struct {
 	timer    *time.Timer
 }
 
-func (b *serviceBase) newEventWriter() *eventWriter {
-	return &eventWriter{emit: func(s string) { b.emit("log-line", s) }}
+// newEventWriter returns the writer of run id's output: "log-line" events
+// with the run's id and the text.
+func (b *serviceBase) newEventWriter(id uint64) *eventWriter {
+	return &eventWriter{emit: func(s string) { b.emit("log-line", map[string]any{"runId": id, "text": s}) }}
+}
+
+// runSeq numbers the actions; currentRun is the number of the action
+// running now (0 when none ran yet).
+var runSeq, currentRun atomic.Uint64
+
+// startRun numbers a new action, which the caller must already hold runMu
+// for, and announces it with an "action-start" event, before any of its
+// output: every window receives the action's events, and the window that
+// started it follows only the ones with this number ("log-line", "step",
+// "action-done").
+func (b *serviceBase) startRun() uint64 {
+	id := runSeq.Add(1)
+	currentRun.Store(id)
+	b.emit("action-start", map[string]any{"runId": id})
+	return id
 }
 
 func (w *eventWriter) batchInterval() time.Duration {
@@ -315,12 +334,13 @@ func (b *serviceBase) runAction(fn func(stdout io.Writer) error) error {
 	if !runMu.TryLock() {
 		return errActionRunning
 	}
+	id := b.startRun()
 	go func() {
 		err := func() error {
 			defer runMu.Unlock()
 			beginAction()
 			defer endAction()
-			w := b.newEventWriter()
+			w := b.newEventWriter(id)
 			err := runRecovered(func() error { return fn(w) })
 			w.Flush()
 			// The action may have installed a tool into ~/.local/bin or
@@ -329,7 +349,7 @@ func (b *serviceBase) runAction(fn func(stdout io.Writer) error) error {
 			localbin.RefreshPath(context.Background(), b.exe)
 			return err
 		}()
-		b.emitDone(err)
+		b.emitDone(id, err)
 	}()
 	return nil
 }
@@ -357,14 +377,15 @@ func runRecovered(fn func() error) (err error) {
 	return fn()
 }
 
-// emitDone sends the "action-done" event the frontend's run lifecycle
-// waits for.
-func (b *serviceBase) emitDone(err error) {
+// emitDone sends the "action-done" event of run id, which the frontend's
+// run lifecycle waits for.
+func (b *serviceBase) emitDone(id uint64, err error) {
 	msg := ""
 	if err != nil {
 		msg = err.Error()
 	}
 	b.emit("action-done", map[string]interface{}{
+		"runId": id,
 		"ok":    err == nil,
 		"error": msg,
 	})

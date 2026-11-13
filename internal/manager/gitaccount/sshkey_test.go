@@ -189,7 +189,7 @@ func TestTestConnection(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// The fake checks the options every account connection must use.
-			fakeBin(t, map[string]string{"ssh": `case "$*" in *"BatchMode=yes"*"-p 22"*"-i ` + acc.SSHKey + `"*"IdentitiesOnly=yes"*"UserKnownHostsFile="*"-- git@github.com") ;; *) echo "unexpected args: $*"; exit 99;; esac
+			fakeBin(t, map[string]string{"ssh": `case "$*" in *"BatchMode=yes"*"-p 22"*"-i ` + acc.SSHKey + `"*"IdentitiesOnly=yes"*"UserKnownHostsFile="*"StrictHostKeyChecking=yes"*"-- git@github.com") ;; *) echo "unexpected args: $*"; exit 99;; esac
 ` + tc.script})
 			user, err := TestConnection(t.Context(), quietExecutor(), acc)
 			if user != tc.wantUser {

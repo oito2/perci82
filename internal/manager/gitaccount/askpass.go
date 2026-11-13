@@ -27,10 +27,10 @@ import (
 
 // Environment variables of an askpass call: the passphrase, and the file
 // holding how many more times it may be handed out.
-const (
-	envAskpassSecret  = "PERCI_ASKPASS_SECRET"
-	envAskpassCounter = "PERCI_ASKPASS_COUNTER"
-)
+// envAskpassCounter names the counter file; the secret is in the file
+// "secret" next to it, so it never sits in an environment that child
+// processes inherit.
+const envAskpassCounter = "PERCI_ASKPASS_COUNTER"
 
 // Askpass is the program OpenSSH tools run, through SSH_ASKPASS, to read a
 // passphrase: perci's own executable, which answers when IsAskpassCall
@@ -62,7 +62,11 @@ func RespondAskpass(w io.Writer) int {
 	if err := os.WriteFile(counter, []byte(strconv.Itoa(left-1)), 0o600); err != nil {
 		return 1
 	}
-	if _, err := fmt.Fprintln(w, os.Getenv(envAskpassSecret)); err != nil {
+	secret, err := os.ReadFile(filepath.Join(filepath.Dir(counter), "secret"))
+	if err != nil {
+		return 1
+	}
+	if _, err := fmt.Fprintln(w, string(secret)); err != nil {
 		return 1
 	}
 	return 0
@@ -70,7 +74,7 @@ func RespondAskpass(w io.Writer) int {
 
 // env returns the environment that makes an OpenSSH tool take secret from
 // the askpass program at most answers times, and a cleanup function that
-// removes the counter file.
+// removes the counter and secret files (in a 0700 temporary folder).
 func (a Askpass) env(secret string, answers int) ([]string, func(), error) {
 	if a.Program == "" {
 		return nil, nil, errors.New("askpass program not set")
@@ -85,10 +89,13 @@ func (a Askpass) env(secret string, answers int) ([]string, func(), error) {
 		cleanup()
 		return nil, nil, fmt.Errorf("create counter: %w", err)
 	}
+	if err := os.WriteFile(filepath.Join(dir, "secret"), []byte(secret), 0o600); err != nil {
+		cleanup()
+		return nil, nil, fmt.Errorf("create the secret file: %w", err)
+	}
 	return []string{
 		"SSH_ASKPASS=" + a.Program,
 		"SSH_ASKPASS_REQUIRE=force",
 		envAskpassCounter + "=" + counter,
-		envAskpassSecret + "=" + secret,
 	}, cleanup, nil
 }

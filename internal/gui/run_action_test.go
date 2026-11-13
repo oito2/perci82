@@ -263,7 +263,7 @@ func (r *recorder) wait(t *testing.T) (logs string, done map[string]interface{})
 	for _, e := range r.events {
 		switch e.name {
 		case "log-line":
-			logs += e.data.(string)
+			logs += e.data.(map[string]any)["text"].(string)
 		case "action-done":
 			done = e.data.(map[string]interface{})
 		}
@@ -400,5 +400,34 @@ func TestValidateTarballPath(t *testing.T) {
 		if validateTarballPath(bad) == nil {
 			t.Errorf("%q must be refused", bad)
 		}
+	}
+}
+
+// Every action is announced by "action-start" before any of its output,
+// and its log lines and action-done carry the same number; the next action
+// gets another one.
+func TestRunAction_NumbersItsEvents(t *testing.T) {
+	var ids []uint64
+	for range 2 {
+		b, rec := newTestBase(t)
+		if err := b.runAction(func(w io.Writer) error { _, err := io.WriteString(w, "olá\n"); return err }); err != nil {
+			t.Fatal(err)
+		}
+		rec.wait(t)
+		rec.mu.Lock()
+		if len(rec.events) == 0 || rec.events[0].name != "action-start" {
+			t.Fatalf("first event = %+v, want action-start", rec.events)
+		}
+		id := rec.events[0].data.(map[string]any)["runId"].(uint64)
+		for _, e := range rec.events[1:] {
+			if got := e.data.(map[string]any)["runId"]; got != id {
+				t.Errorf("%s has run %v, want %d", e.name, got, id)
+			}
+		}
+		rec.mu.Unlock()
+		ids = append(ids, id)
+	}
+	if ids[0] == ids[1] {
+		t.Errorf("two actions got the same number %d", ids[0])
 	}
 }

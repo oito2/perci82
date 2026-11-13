@@ -233,7 +233,8 @@ func TestListRemoteRepos_Errors(t *testing.T) {
 	for status, want := range map[int]string{
 		http.StatusUnauthorized:        "recusou o token",
 		http.StatusNotFound:            "não encontrado",
-		http.StatusForbidden:           "limite",
+		http.StatusForbidden:           "permissão",
+		http.StatusTooManyRequests:     "limite",
 		http.StatusInternalServerError: "500",
 	} {
 		srv := newAPIServer(t, status)
@@ -241,6 +242,16 @@ func TestListRemoteRepos_Errors(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), want) || strings.Contains(err.Error(), "ghp_secret") {
 			t.Errorf("status %d: %v", status, err)
 		}
+	}
+
+	// A 403 with no request left is GitHub's rate limit, not a scope problem.
+	limited := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(limited.Close)
+	if _, err := ListRemoteRepos(t.Context(), limited.URL, acc, ""); err == nil || !strings.Contains(err.Error(), "limite") {
+		t.Errorf("rate-limited 403: %v", err)
 	}
 }
 

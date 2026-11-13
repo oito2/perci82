@@ -14,7 +14,7 @@ Contas Git e os seus repositórios. Cada conta tem uma pasta: todo repositório 
 Uma conta é uma conta pessoal do GitHub ou do GitLab, no serviço público ou num servidor próprio. Ao salvá-la:
 
 - a chave SSH é configurada (uma chave ed25519 nova em `~/.ssh/perci_<id>`, ou uma existente);
-- é gravado `~/.perci/git/<id>.gitconfig` com `user.name`, `user.email` e um `core.sshCommand` que usa só a chave da conta e o arquivo `known_hosts` do próprio Perci82 Dev;
+- é gravado `~/.perci/git/<id>.gitconfig` com `user.name`, `user.email` e um `core.sshCommand` que usa só a chave da conta e o arquivo `known_hosts` do próprio Perci82 Dev, recusando qualquer outra chave de servidor, seja qual for o seu `~/.ssh/config`;
 - é adicionada uma regra `includeIf` à configuração global do Git, para que esse arquivo valha em todo repositório dentro da pasta da conta:
 
 ```ini
@@ -41,7 +41,7 @@ A aba **Contas** lista as contas com **Conta**, **Provedor**, **Pasta** e o esta
 | **Porta SSH** | Só para um servidor próprio; vazio significa 22 |
 | **Usuário** | O dono dos repositórios no provedor |
 | **Nome nos commits** / **E-mail nos commits** | A identidade dos commits dentro da pasta da conta |
-| **Pasta da conta** | Escolhida em **Selecionar pasta**. Precisa existir e não pode conter nem estar dentro da pasta de outra conta |
+| **Pasta da conta** | Escolhida em **Selecionar pasta**. Precisa existir e não pode conter nem estar dentro da pasta de outra conta, nem ter `*`, `?`, `[` ou `\` no caminho (o Git os lê como padrão na regra `includeIf`) |
 | **Chave SSH** | **Gerar uma chave nova (ed25519)**, com senha opcional; **Usar uma chave existente** (a `.pub` precisa estar ao lado dela); ou, ao editar, **Manter a chave atual** |
 | **Token da API (opcional)** | Fica no chaveiro, nunca no `config.yaml`. Ao editar, **Remover o token salvo** apaga o token |
 

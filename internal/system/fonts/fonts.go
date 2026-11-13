@@ -78,7 +78,9 @@ var Catalogue = []Font{
 	// Fonts installed from distribution packages.
 	{Name: "Carlito", Check: "Carlito", AptPkg: "fonts-crosextra-carlito", DnfPkg: "google-carlito-fonts"},
 	{Name: "Caladea", Check: "Caladea", AptPkg: "fonts-crosextra-caladea", DnfPkg: "google-crosextra-caladea-fonts"},
-	{Name: "Noto", Check: "Noto Sans", AptPkg: "fonts-noto", DnfPkg: "google-noto-sans-fonts"},
+	// fonts-noto-core holds "Noto Sans" itself; fonts-noto is only a
+	// metapackage, whose removal would leave the font installed.
+	{Name: "Noto", Check: "Noto Sans", AptPkg: "fonts-noto-core", DnfPkg: "google-noto-sans-fonts"},
 	{Name: "Noto CJK", Check: "Noto Sans CJK JP", AptPkg: "fonts-noto-cjk", DnfPkg: "google-noto-sans-cjk-fonts"},
 	{Name: "Noto Color Emoji", Check: "Noto Color Emoji", AptPkg: "fonts-noto-color-emoji", DnfPkg: "google-noto-color-emoji-fonts"},
 }

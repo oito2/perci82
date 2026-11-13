@@ -25,8 +25,9 @@ import (
 // folder name. The folder name doubles as the container name and as the
 // fastcgi upstream hostname written into fastcgi_pass, and is used verbatim
 // as a `docker run --name` argument, so anything outside this set is
-// rejected before it can reach either.
-var ValidAppFolder = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+// rejected before it can reach either. Docker also requires a container
+// name to start with a letter or digit and to have at least 2 characters.
+var ValidAppFolder = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$`)
 
 // ValidAppURL matches the URL field of an AppContainer: a single DNS label
 // (letters, digits, hyphens, never leading/trailing with a hyphen) followed

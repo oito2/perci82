@@ -100,6 +100,7 @@ function startExecution(label, buttonsToDisable, maxSteps, announceText) {
   activeRun = {
     actionId: window.__selectedItem ? window.__selectedItem.actionId : null,
     buttons: buttons,
+    runId: null,
   };
   term.clear();
   term.writeln(announceText || t("term.starting", { label: label }));

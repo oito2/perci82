@@ -159,8 +159,11 @@ func fetchRepoPage(ctx context.Context, client *http.Client, base string, acc co
 		return repoPage{}, errors.New(i18n.Tr("git.tokenRefused", i18n.Args{"host": acc.Host}))
 	case resp.StatusCode == http.StatusNotFound:
 		return repoPage{}, errors.New(i18n.Tr("git.userNotFound", i18n.Args{"user": acc.Username, "host": acc.Host}))
-	case resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests:
+	case resp.StatusCode == http.StatusTooManyRequests ||
+		resp.StatusCode == http.StatusForbidden && resp.Header.Get("X-RateLimit-Remaining") == "0":
 		return repoPage{}, errors.New(i18n.Tr("git.rateLimited", i18n.Args{"host": acc.Host}))
+	case resp.StatusCode == http.StatusForbidden:
+		return repoPage{}, errors.New(i18n.Tr("git.forbidden", i18n.Args{"host": acc.Host}))
 	case resp.StatusCode != http.StatusOK:
 		return repoPage{}, fmt.Errorf("%s answered %s", acc.Host, resp.Status)
 	}

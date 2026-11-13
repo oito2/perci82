@@ -368,11 +368,12 @@ func (h *homeCore) runUninstall(body func(w io.Writer) error) error {
 	if !runMu.TryLock() {
 		return errActionRunning
 	}
+	id := h.startRun()
 	go func() {
 		defer runMu.Unlock()
 		beginAction()
 		defer endAction()
-		w := h.newEventWriter()
+		w := h.newEventWriter(id)
 		quit := false
 		err := runRecovered(func() error {
 			err := body(w)
@@ -383,7 +384,7 @@ func (h *homeCore) runUninstall(body func(w io.Writer) error) error {
 			return err
 		})
 		w.Flush()
-		h.emitDone(err)
+		h.emitDone(id, err)
 		if quit {
 			time.Sleep(uninstallQuitDelay)
 			quitAllowed.Store(true)

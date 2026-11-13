@@ -79,7 +79,7 @@ Isso gera `dist/perci82-dev-linux-amd64`, `dist/perci82-dev-menu.tar.gz` (a entr
 
 ## Atualizar
 
-**Visão Geral → Atualização → Verificar** procura uma versão mais nova do Perci82 Dev; **Atualizar** só aparece quando existe uma. A atualização baixa o novo binário, confere o SHA-256 dele pelo `checksums.txt` da release, substitui o binário instalado e pede que você reinicie o aplicativo. O checksum vem da mesma release do GitHub que o binário, então a atualização confia nessa release; ela não confere a attestation de build. Para conferir, use o comando de [Instalação manual](#instalação-manual) antes de atualizar. Veja a [Visão Geral](overview.md).
+**Visão Geral → Atualização → Verificar** procura uma versão mais nova do Perci82 Dev; **Atualizar** só aparece quando existe uma. A atualização baixa o novo binário, confere o SHA-256 dele pelo `checksums.txt` da release, substitui o binário instalado e pede que você reinicie o aplicativo. Um download lento nunca é interrompido; ele só para quando nenhum dado chega por um minuto. O checksum vem da mesma release do GitHub que o binário, então a atualização confia nessa release; ela não confere a attestation de build. Para conferir, use o comando de [Instalação manual](#instalação-manual) antes de atualizar. Veja a [Visão Geral](overview.md).
 
 Rodar o script de instalação de novo também instala a versão mais recente.
 

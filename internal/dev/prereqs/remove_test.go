@@ -202,8 +202,9 @@ func TestUninstallGH_DebianChecksCascade(t *testing.T) {
 	}
 }
 
-// The shared runtime library stays when Libsecret Tools is removed on
-// Debian; Fedora also handles the Git credential helper.
+// The shared runtime library stays when Libsecret Tools is removed:
+// libsecret-1-0 on Debian, libsecret on Fedora (GNOME Shell, gvfs and
+// KWallet depend on it); Fedora also handles the Git credential helper.
 func TestRemovalPackagesFor_Libsecret(t *testing.T) {
 	if got := removalPackagesFor("libsecret", distro.Debian); slices.Contains(got, "libsecret-1-0") || !slices.Contains(got, "libsecret-tools") {
 		t.Errorf("debian removal = %v", got)
@@ -215,6 +216,9 @@ func TestRemovalPackagesFor_Libsecret(t *testing.T) {
 		if !slices.Contains(got, "git-credential-libsecret") {
 			t.Errorf("fedora = %v", got)
 		}
+	}
+	if got := removalPackagesFor("libsecret", distro.Fedora); slices.Contains(got, "libsecret") {
+		t.Errorf("fedora removal takes the runtime: %v", got)
 	}
 }
 
@@ -262,5 +266,26 @@ func TestUninstallNode_RemovesNVMLinesFromRC(t *testing.T) {
 	gotZ, _ := os.ReadFile(filepath.Join(home, ".zshrc"))
 	if strings.Contains(string(gotZ), "NVM_DIR") {
 		t.Errorf(".zshrc = %q", gotZ)
+	}
+}
+
+// nvm's installer runs only after its SHA-256 matches: a changed download
+// stops the script before anything runs.
+func TestNodeInstallScript_ChecksTheInstaller(t *testing.T) {
+	home := t.TempDir()
+	bin := t.TempDir()
+	ran := filepath.Join(home, "ran")
+	curl := "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" = -o ] && { shift; out=$1; }; shift; done\nprintf 'touch %s\\n' '" + ran + "' > \"$out\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "curl"), []byte(curl), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.CommandContext(t.Context(), "bash", "-c", nodeInstallScript)
+	cmd.Env = []string{"HOME=" + home, "PATH=" + bin + ":" + os.Getenv("PATH")}
+	out, err := cmd.CombinedOutput()
+	if err == nil || !strings.Contains(string(out), "checksum mismatch") {
+		t.Errorf("a changed installer was accepted: %v\n%s", err, out)
+	}
+	if _, err := os.Stat(ran); !os.IsNotExist(err) {
+		t.Error("the changed installer ran")
 	}
 }

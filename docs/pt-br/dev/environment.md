@@ -30,11 +30,11 @@ Cada linha tem seus próprios botões **Instalar**, **Atualizar** e **Desinstala
 | WebKitGTK 4.1 Dev Headers | `libwebkit2gtk-4.1-dev` / `webkit2gtk4.1-devel` | |
 | Libxdo Dev | `libxdo-dev` / `libxdo-devel` | |
 | Wails3 CLI | `go install` do `wails3` v3.0.0-beta.28 na pasta de binários do Go | Requer o Go ([Linguagens e SDKs](#linguagens-e-sdks)); sem senha |
-| Libsecret Tools | `libsecret-1-0`, `libsecret-1-dev`, `libsecret-tools` (`apt`) ou `libsecret`, `libsecret-devel`, `git-credential-libsecret` (`dnf`) | Desinstalar mantém o `libsecret-1-0` |
+| Libsecret Tools | `libsecret-1-0`, `libsecret-1-dev`, `libsecret-tools` (`apt`) ou `libsecret`, `libsecret-devel`, `git-credential-libsecret` (`dnf`) | Desinstalar mantém a biblioteca de execução (`libsecret-1-0`, ou `libsecret` no Fedora), que o ambiente gráfico usa |
 | Librsvg Tools | `librsvg2-bin` + `librsvg2-dev` (`apt`) ou `librsvg2-tools` + `librsvg2-devel` (`dnf`) | |
 | GitHub CLI (gh) | No `apt`, adiciona o repositório assinado do GitHub (`/etc/apt/sources.list.d/github-cli.list`) e instala o `gh`; no `dnf`, pacote `gh` | Requer Curl; desinstalar também remove o repositório |
 | Docker Engine | `docker.io`, `docker-compose-v2` (`docker-compose` no Debian), `docker-buildx` (`apt`) ou `moby-engine`, `docker-compose`, `docker-buildx` (`dnf`) | Ativa o serviço `docker` e adiciona você ao grupo `docker` (acesso equivalente ao de root); depois, encerre a sessão e entre de novo |
-| Node.js | A versão LTS pelo nvm v0.40.8 (script oficial) em `~/.nvm` | Requer Curl; sem senha. Atualizar passa para a LTS mais recente, levando os pacotes npm globais. Desinstalar apaga o `~/.nvm` inteiro (todas as versões e pacotes globais, inclusive o Codex CLI) e as linhas do nvm nos arquivos de inicialização do shell |
+| Node.js | A versão LTS pelo nvm v0.40.8 (script oficial, conferido pelo SHA-256 antes de rodar) em `~/.nvm` | Requer Curl; sem senha. Atualizar passa para a LTS mais recente, levando os pacotes npm globais. Desinstalar apaga o `~/.nvm` inteiro (todas as versões e pacotes globais, inclusive o Codex CLI) e as linhas do nvm nos arquivos de inicialização do shell |
 | Flatpak Builder Tools | Pacotes `pipx`, `python3-aiohttp`, `python3-tomlkit`; clona o `flatpak-builder-tools` em `~/tools/flatpak-builder-tools` num commit fixo e instala o `flatpak-node-generator` com o `pipx` | Requer Git e Flatpak Builder. Desinstalar mantém os três pacotes |
 | Libfuse2 | `libfuse2t64` (`apt`) ou `fuse-libs` (`dnf`) | |
 | AppImageTool | Release 1.9.1 baixada do GitHub (SHA-256 conferido com o digest da release) para `/usr/local/bin/appimagetool` | Requer Curl |

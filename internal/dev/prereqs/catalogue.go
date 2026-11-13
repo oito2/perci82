@@ -392,10 +392,12 @@ func packagesFor(id, family string) []string {
 // certificate handling needs.
 func removalPackagesFor(id, family string) []string {
 	pkgs := packagesFor(id, family)
-	switch {
-	case id == "libsecret" && family != distro.Fedora:
-		return slices.DeleteFunc(slices.Clone(pkgs), func(p string) bool { return p == "libsecret-1-0" })
-	case id == "openssl":
+	switch id {
+	case "libsecret":
+		// The runtime library stays: the desktop (GNOME Shell, gvfs, KWallet,
+		// keyrings) depends on it. On Fedora it is the libsecret package.
+		return slices.DeleteFunc(slices.Clone(pkgs), func(p string) bool { return p == "libsecret-1-0" || p == "libsecret" })
+	case "openssl":
 		return slices.DeleteFunc(slices.Clone(pkgs), func(p string) bool { return p == "openssl" })
 	}
 	return pkgs
@@ -579,8 +581,12 @@ func installDocker(ctx context.Context, exe *executor.Executor, stdout io.Writer
 
 // ── Node.js ───────────────────────────────────────────────────────────────────
 
-// nvmVersion is the nvm release tag whose installer is downloaded.
-const nvmVersion = "v0.40.8"
+// nvmVersion is the nvm release tag whose installer is downloaded, and
+// nvmInstallSHA256 the SHA-256 of that installer (install.sh).
+const (
+	nvmVersion       = "v0.40.8"
+	nvmInstallSHA256 = "48a0eee9a60e07422dce0eb5774754c83889570ca1ee2566c516acbe8af03a9e"
+)
 
 // nvmRCLines are the lines nvm's installer appends to a shell rc file.
 var nvmRCLines = []string{
@@ -589,13 +595,18 @@ var nvmRCLines = []string{
 	`[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion`,
 }
 
-// nodeInstallScript installs nvm (when missing) at the pinned release and
-// the latest Node.js LTS through it. -u (nounset) is not set, because
-// nvm.sh references variables that may be unset.
+// nodeInstallScript installs nvm (when missing) at the pinned release,
+// running its installer only once its SHA-256 matches, and the latest
+// Node.js LTS through it. -u (nounset) is not set, because nvm.sh
+// references variables that may be unset.
 const nodeInstallScript = `set -Eeo pipefail
 export NVM_DIR="$HOME/.nvm"
 if [ ! -s "$NVM_DIR/nvm.sh" ]; then
-    curl -fsSL ` + nettimeout.CurlShellFlags + ` https://raw.githubusercontent.com/nvm-sh/nvm/` + nvmVersion + `/install.sh | bash
+    installer=$(mktemp)
+    trap 'rm -f -- "$installer"' EXIT
+    curl -fsSL ` + nettimeout.CurlShellFlags + ` -o "$installer" https://raw.githubusercontent.com/nvm-sh/nvm/` + nvmVersion + `/install.sh
+    printf '%s  %s\n' ` + nvmInstallSHA256 + ` "$installer" | sha256sum -c --status - || { echo "nvm installer checksum mismatch" >&2; exit 1; }
+    bash "$installer"
     export NVM_DIR="$HOME/.nvm"
 fi
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"

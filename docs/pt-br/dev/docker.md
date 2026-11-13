@@ -69,7 +69,7 @@ Campos do aplicativo:
 | Campo | Tipos | Observações |
 |---|---|---|
 | **Nome do aplicativo** | todos | Nome exibido |
-| **Pasta (nome técnico do contêiner)** | todos | Letras, números, `-` e `_` (de 1 a 64 caracteres); `nginx` e `mariadb` são reservados. Dá nome à pasta do projeto, ao contêiner e ao comando |
+| **Pasta (nome técnico do contêiner)** | todos | Letras, números, `-` e `_`, começando por letra ou número (de 2 a 64 caracteres, como o Docker exige para o nome de um contêiner); `nginx` e `mariadb` são reservados. Dá nome à pasta do projeto, ao contêiner e ao comando |
 | **URL** | todos | Um rótulo seguido de `.localhost`; preenchida a partir da pasta até você editá-la; uma URL por aplicativo |
 | **Versão do Moodle** | Moodle | `3.x`, `4.1`, `4.2-4.3`, `4.4-4.5`, `5.0` ou `5.1+` |
 | **Versão PHP** | Moodle, PHP, Genérico, PHP + Node | De `7.4` a `8.4`; no Moodle, só as versões que aquela versão do Moodle suporta |
@@ -173,6 +173,7 @@ O arquivo guarda só as definições: o caminho do workspace, os contêineres Ng
 
 **Importar**: **Selecionar arquivo**, marque os itens e clique em **Importar**. A aba mostra o workspace do arquivo, indica os itens que já existem aqui (eles são substituídos e recriados) e desabilita as pastas montadas que não podem ser feitas nesta máquina (por exemplo, uma pasta de desenvolvimento que não existe aqui, ou uma fora da sua pasta pessoal, a própria pasta pessoal ou uma dentro de uma pasta oculta dela, como `~/.ssh`; monte essa pasta à mão em [Pastas de Desenvolvimento](#pastas-de-desenvolvimento)). A confirmação lista os comandos de start e de worker que os aplicativos marcados vão rodar. Depois:
 
+- O arquivo precisa ser o que a aba listou: quando ele mudou depois de escolhido, a importação é recusada e você o escolhe de novo.
 - O arquivo inteiro é conferido antes de qualquer mudança. Ele é recusado quando esta máquina tem outro caminho de workspace definido, e quando um aplicativo usa o banco e o MariaDB não existe aqui nem na seleção.
 - Os itens marcados são adicionados às configurações desta máquina, substituindo os de mesma pasta; nada mais muda. Quando não há caminho de workspace definido aqui, o do arquivo é adotado.
 - As pastas marcadas são montadas, e então Nginx, MariaDB e os aplicativos são recriados, nessa ordem. Contêineres rodando que ganharam uma montagem nova e não foram recriados são reiniciados.

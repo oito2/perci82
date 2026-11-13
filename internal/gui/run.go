@@ -230,6 +230,7 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 	// event to the frontend (title + progress bar in the Execução tab).
 	ui.SetStepHook(func(index, total int, label string) {
 		wailsApp.Event.Emit("step", map[string]interface{}{
+			"runId": currentRun.Load(),
 			"index": index,
 			"total": total,
 			"label": label,

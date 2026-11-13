@@ -362,7 +362,7 @@ func TestCloneUninstallAndPath(t *testing.T) {
 	if err := CloneFlutter(context.Background(), dryRun(&buf), &buf, home, flutterDir); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "clone --branch stable "+flutterRepo+" "+flutterDir) {
+	if !strings.Contains(buf.String(), "clone --branch stable -- "+flutterRepo+" "+flutterDir+".partial") {
 		t.Errorf("clone:\n%s", buf.String())
 	}
 
@@ -411,6 +411,34 @@ func TestCloneFlutter_LowSpeedLimit(t *testing.T) {
 	}
 	if out := buf.String(); !strings.Contains(out, "http.lowSpeedLimit=1000") || !strings.Contains(out, "http.lowSpeedTime=120") {
 		t.Errorf("clone command: %s", out)
+	}
+}
+
+// A failed clone leaves nothing behind (an unfinished clone of an earlier
+// run is cleared first), and a finished one is moved into place.
+func TestCloneFlutter_PartialFolder(t *testing.T) {
+	home := t.TempDir()
+	flutterDir := filepath.Join(home, "development", "flutter")
+	if err := os.MkdirAll(flutterDir+".partial", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fakeBin(t, map[string]string{"git": `for a; do last=$a; done; mkdir -p "$last/bin"; exit 1`})
+	var buf bytes.Buffer
+	if err := CloneFlutter(context.Background(), executor.New(&buf, &buf), &buf, home, flutterDir); err == nil {
+		t.Fatal("the failed clone succeeded")
+	}
+	for _, p := range []string{flutterDir, flutterDir + ".partial"} {
+		if _, err := os.Stat(p); !os.IsNotExist(err) {
+			t.Errorf("%s left behind", p)
+		}
+	}
+
+	fakeBin(t, map[string]string{"git": `for a; do last=$a; done; mkdir -p "$last/bin" && : > "$last/bin/flutter"`})
+	if err := CloneFlutter(context.Background(), executor.New(&buf, &buf), &buf, home, flutterDir); err != nil {
+		t.Fatal(err)
+	}
+	if !IsInstalled(filepath.Join(flutterDir, "bin", "flutter")) {
+		t.Error("the finished clone was not moved into place")
 	}
 }
 

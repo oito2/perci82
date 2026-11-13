@@ -45,6 +45,11 @@ func TestComboSupervisordConf(t *testing.T) {
 	if !strings.Contains(comboSupervisordConf, "user=www-data") {
 		t.Errorf("expected the dev-server program to drop to www-data (UID-matched to the host), got:\n%s", comboSupervisordConf)
 	}
+	// user= keeps root's HOME: both www-data programs set their own, so npm
+	// never reaches /root.
+	if n := strings.Count(comboSupervisordConf, `environment=HOME="/tmp"`); n != 2 {
+		t.Errorf("dev-server and worker must set HOME=/tmp (%d found), got:\n%s", n, comboSupervisordConf)
+	}
 	// php-fpm's [program:] block must NOT set user=: its master process
 	// needs to start as root and drops its own workers to www-data
 	// internally via its pool config.

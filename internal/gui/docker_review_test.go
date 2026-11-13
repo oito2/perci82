@@ -354,3 +354,19 @@ func TestUpdateDockerContainerImage_RefusesUnknownTargets(t *testing.T) {
 		})
 	}
 }
+
+// Only the content the preview read is imported: an unpreviewed or changed
+// file is refused.
+func TestImportSums(t *testing.T) {
+	s := importSums{sums: map[string][32]byte{}}
+	if s.matches("/x/export.yaml", []byte("a")) {
+		t.Error("a file never previewed matched")
+	}
+	s.remember("/x/export.yaml", []byte("a"))
+	if !s.matches("/x/./export.yaml", []byte("a")) {
+		t.Error("the previewed content did not match")
+	}
+	if s.matches("/x/export.yaml", []byte("b")) {
+		t.Error("changed content matched")
+	}
+}

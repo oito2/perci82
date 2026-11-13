@@ -69,7 +69,7 @@ App fields:
 | Field | Types | Notes |
 |---|---|---|
 | **App name** | all | Display name |
-| **Folder (the container's technical name)** | all | Letters, digits, `-` and `_` (1-64 characters); `nginx` and `mariadb` are reserved. Names the project folder, the container and the command |
+| **Folder (the container's technical name)** | all | Letters, digits, `-` and `_`, starting with a letter or digit (2-64 characters, as Docker requires for a container name); `nginx` and `mariadb` are reserved. Names the project folder, the container and the command |
 | **URL** | all | One label followed by `.localhost`; filled from the folder until you edit it; one URL per app |
 | **Moodle version** | Moodle | `3.x`, `4.1`, `4.2-4.3`, `4.4-4.5`, `5.0` or `5.1+` |
 | **PHP version** | Moodle, PHP, Generic, PHP + Node | `7.4` to `8.4`; for Moodle, only the versions that Moodle version supports |
@@ -173,6 +173,7 @@ The file holds only definitions: the workspace path, the Nginx and MariaDB conta
 
 **Import**: **Choose file**, check the items and click **Import**. The tab shows the file's workspace, marks the items that already exist here (they are replaced and recreated) and disables the mounted folders that can't be made on this machine (for example a development folder that doesn't exist here, or one outside your home folder, the home folder itself or inside a hidden folder of it, such as `~/.ssh`; mount such a folder by hand in [Development Folders](#development-folders)). The confirmation lists the start and worker commands the checked apps will run. Then:
 
+- The file must be the one the tab listed: when it changed since you chose it, the import is refused and you choose it again.
 - The whole file is checked before anything changes. It is refused when this machine has another workspace path set, and when an app uses the database and MariaDB exists neither here nor in the selection.
 - The checked items are added to this machine's settings, replacing the ones with the same folder; nothing else changes. When no workspace path is set here, the file's is adopted.
 - The checked folders are mounted, then Nginx, MariaDB and the apps are recreated in that order. Running containers that got a new mount and weren't recreated are restarted.
