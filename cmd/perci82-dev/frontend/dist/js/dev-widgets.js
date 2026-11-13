@@ -336,11 +336,12 @@ function readContainerFieldsValues(prefix, kind, catalog) {
   return req;
 }
 
-// createScopedTable drives a "scope + table" screen (IA: SKILLs, IA: MCPs):
-// a Global/Local select, the alert describing the scope (with the folder
+// createScopedTable drives a "scope + table" screen (SKILLs, MCPs): a
+// Global/Local select, the alert describing the scope (with the folder
 // picker for Local) and a keyed table of rows fetched for that scope.
 //   cfg.els      — { select, alertTitle, alertDesc, pickButton, rows }
-//   cfg.noun     — "das SKILLs" / "dos MCPs", used in the alert text
+//   cfg.globalDesc, cfg.localDesc — message keys of the alert text for
+//                  each scope
 //   cfg.latestKey, cfg.pickFolder(), cfg.fetchRows(global, folder)
 //   cfg.keyOf(row), cfg.sigOf(row, state), cfg.buildRow(row, state)
 //   cfg.onScope(state) — optional, after every scope/folder change
@@ -360,19 +361,19 @@ function createScopedTable(cfg) {
   function renderAlert() {
     if (cfg.onScope) cfg.onScope(state);
     if (state.isGlobal()) {
-      els.alertTitle.textContent = "Instalação Global";
-      els.alertDesc.textContent = "A instalação " + cfg.noun + " será feita globalmente.";
+      els.alertTitle.textContent = t("scope.globalTitle");
+      els.alertDesc.textContent = t(cfg.globalDesc);
       els.pickButton.classList.add("hidden");
       return;
     }
-    const desc = "A instalação " + cfg.noun + " será feita exclusivamente para este projeto.";
-    els.alertTitle.textContent = "Caminho da pasta";
+    const desc = t(cfg.localDesc);
+    els.alertTitle.textContent = t("scope.folderTitle");
     if (state.folder) {
       els.alertDesc.innerHTML = escHTML(desc) + '<br><span class="text-xs opacity-70">' + escHTML(state.folder) + "</span>";
     } else {
       els.alertDesc.textContent = desc;
     }
-    els.pickButton.textContent = state.folder ? "Alterar Pasta" : "Selecionar Pasta";
+    els.pickButton.textContent = t(state.folder ? "scope.changeFolder" : "scope.pickFolder");
     els.pickButton.classList.remove("hidden");
   }
 

@@ -21,6 +21,7 @@ package agentskills
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -28,16 +29,20 @@ import (
 
 	"github.com/oito2/perci82/internal/dev/nettimeout"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
 // Skill describes one installable skills.sh skill.
 type Skill struct {
 	Slug string // internal catalog id (config.AgentSkillInstall.Slug, DOM ids)
-	Name string // display name
-	Repo string // full GitHub URL of the repository
-	Ref  string // full commit SHA of Repo the skill is installed from
-	Arg  string // value passed to --skill; "*" installs every skill in Repo
+	Name string // display name, used when NameKey is empty
+	// NameKey is the message key of a display name that changes with the
+	// language; Label returns it in the current language.
+	NameKey string
+	Repo    string // full GitHub URL of the repository
+	Ref     string // full commit SHA of Repo the skill is installed from
+	Arg     string // value passed to --skill; "*" installs every skill in Repo
 
 	// Retired: the entry left the catalog. It is listed only where it is
 	// still installed, and can only be removed.
@@ -60,13 +65,13 @@ var Catalogue = []Skill{
 	{Slug: "daisyui", Name: "DaisyUI", Repo: "https://github.com/saadeghi/daisyui", Ref: "bf3bac3a397b543e55641ecb2d60a2ed961f09ec", Arg: "*"},
 	{Slug: "shadcn-ui", Name: "ShaCN UI", Repo: "https://github.com/shadcn-ui/ui", Ref: "30a58d4498f270af1c1e981a7d78a15cf5740841", Arg: "shadcn"},
 	{Slug: "frontend-design", Name: "Frontend Design", Repo: "https://github.com/anthropics/skills", Ref: "dbd4588f9e1033efb41dad4bef2f7947c8993d44", Arg: "frontend-design"},
-	{Slug: "svelte-code-writer", Name: "Svelte: Code Writer (oficial)", Repo: "https://github.com/sveltejs/ai-tools", Ref: "6b5d0dab3c9c083387247ab20dc684573481076b", Arg: "svelte-code-writer"},
-	{Slug: "svelte-best-practices", Name: "Svelte: Best Practices (oficial)", Repo: "https://github.com/sveltejs/ai-tools", Ref: "6b5d0dab3c9c083387247ab20dc684573481076b", Arg: "svelte-core-bestpractices"},
+	{Slug: "svelte-code-writer", NameKey: "skill.name.svelteCodeWriter", Repo: "https://github.com/sveltejs/ai-tools", Ref: "6b5d0dab3c9c083387247ab20dc684573481076b", Arg: "svelte-code-writer"},
+	{Slug: "svelte-best-practices", NameKey: "skill.name.svelteBestPractices", Repo: "https://github.com/sveltejs/ai-tools", Ref: "6b5d0dab3c9c083387247ab20dc684573481076b", Arg: "svelte-core-bestpractices"},
 	{Slug: "react-best-practices", Name: "React: Best Practices (Vercel)", Repo: "https://github.com/vercel-labs/agent-skills", Ref: "063bee94c3f4df8453406c830b0a7df0f2860278", Arg: "vercel-react-best-practices"},
 	{Slug: "vite", Name: "Vite", Repo: "https://github.com/antfu/skills", Ref: "feb0f3aba6566426f12230e7fc7a10d97c1293bb", Arg: "vite"},
 	{Slug: "vitest", Name: "Vitest", Repo: "https://github.com/antfu/skills", Ref: "feb0f3aba6566426f12230e7fc7a10d97c1293bb", Arg: "vitest"},
-	{Slug: "web-quality", Name: "Web: Acessibilidade, SEO e Performance", Repo: "https://github.com/addyosmani/web-quality-skills", Ref: "afa8da942115f2961fdbfa80807ea0b232ff6c00", Arg: "*"},
-	{Slug: "webapp-testing", Name: "Web: Testes com Playwright", Repo: "https://github.com/anthropics/skills", Ref: "dbd4588f9e1033efb41dad4bef2f7947c8993d44", Arg: "webapp-testing"},
+	{Slug: "web-quality", NameKey: "skill.name.webQuality", Repo: "https://github.com/addyosmani/web-quality-skills", Ref: "afa8da942115f2961fdbfa80807ea0b232ff6c00", Arg: "*"},
+	{Slug: "webapp-testing", NameKey: "skill.name.webappTesting", Repo: "https://github.com/anthropics/skills", Ref: "dbd4588f9e1033efb41dad4bef2f7947c8993d44", Arg: "webapp-testing"},
 	{Slug: "superpowers", Name: "SuperPowers", Repo: "https://github.com/obra/superpowers", Ref: "bb92a77741419a4ab5f06e711a283343f1ada0c3", Arg: "using-superpowers"},
 	{Slug: "code-review", Name: "Code Review", Repo: "https://github.com/mattpocock/skills", Ref: "49dd158d1076134a641b33efb035946536778336", Arg: "code-review"},
 	{Slug: "security-review", Name: "Security Review (Sentry)", Repo: "https://github.com/getsentry/skills", Ref: "d18b7aa8ba878354e5c348310230e652f7690f9c", Arg: "security-review"},
@@ -81,20 +86,28 @@ var Catalogue = []Skill{
 	{Slug: "go-wails", Name: "Go: Wails", Repo: "https://github.com/spf13/go-skills", Ref: "9ac6eca43161163bb21621a520a57df50d5ad464", Arg: "wails"},
 	{Slug: "rust-best-practices", Name: "Rust: Best Practices", Repo: "https://github.com/apollographql/skills", Ref: "aafc8944365a766d48cc519ce8b8575f93f953a4", Arg: "rust-best-practices"},
 	{Slug: "php-pro", Name: "PHP: Pro 8.3+", Repo: "https://github.com/jeffallan/claude-skills", Ref: "1be15d8064f88fc25216442406d40add8fd23b53", Arg: "php-pro"},
-	{Slug: "mariadb-query-optimization", Name: "MariaDB: Query Optimization (oficial)", Repo: "https://github.com/MariaDB/skills", Ref: "7b01484d7a7475824bea86f3e628e29273d1817b", Arg: "mariadb-query-optimization"},
-	{Slug: "mariadb-features", Name: "MariaDB: Features (oficial)", Repo: "https://github.com/MariaDB/skills", Ref: "7b01484d7a7475824bea86f3e628e29273d1817b", Arg: "mariadb-features"},
+	{Slug: "mariadb-query-optimization", NameKey: "skill.name.mariadbQuery", Repo: "https://github.com/MariaDB/skills", Ref: "7b01484d7a7475824bea86f3e628e29273d1817b", Arg: "mariadb-query-optimization"},
+	{Slug: "mariadb-features", NameKey: "skill.name.mariadbFeatures", Repo: "https://github.com/MariaDB/skills", Ref: "7b01484d7a7475824bea86f3e628e29273d1817b", Arg: "mariadb-features"},
 	{Slug: "sql-code-review", Name: "SQL: Code Review", Repo: "https://github.com/github/awesome-copilot", Ref: "156736fb63e965b2f547a1460f3b5972c46e6b24", Arg: "sql-code-review"},
 	{Slug: "mcp-server-dev", Name: "MCP Server Dev", Repo: "https://github.com/anthropics/skills", Ref: "dbd4588f9e1033efb41dad4bef2f7947c8993d44", Arg: "mcp-builder"},
 	{Slug: "mcp-server-dev-go", Name: "MCP Server Dev in Go", Repo: "https://github.com/github/awesome-copilot", Ref: "156736fb63e965b2f547a1460f3b5972c46e6b24", Arg: "go-mcp-server-generator"},
 	{Slug: "mcp-security-audit", Name: "MCP: Security Audit", Repo: "https://github.com/github/awesome-copilot", Ref: "156736fb63e965b2f547a1460f3b5972c46e6b24", Arg: "mcp-security-audit"},
-	{Slug: "dart-official", Name: "Dart: Oficial", Repo: "https://github.com/dart-lang/skills", Ref: "0b8dc544de71e5412c7f407b34767e081c32ddfa", Arg: "*"},
-	{Slug: "flutter-official", Name: "Flutter: Oficial", Repo: "https://github.com/flutter/agent-plugins", Ref: "0ef3972f93e2baa4156ba1cbb1e515cd53079c68", Arg: "*"},
+	{Slug: "dart-official", NameKey: "skill.name.dart", Repo: "https://github.com/dart-lang/skills", Ref: "0b8dc544de71e5412c7f407b34767e081c32ddfa", Arg: "*"},
+	{Slug: "flutter-official", NameKey: "skill.name.flutter", Repo: "https://github.com/flutter/agent-plugins", Ref: "0ef3972f93e2baa4156ba1cbb1e515cd53079c68", Arg: "*"},
 	// Retired entries: listed only where still installed, to be removed.
 	{Slug: "godot-core-ui", Name: "Godot: Core UI Knowledge", Repo: "https://github.com/zate/cc-godot", Ref: "d9796f75c3f5626d8b66dc31a9095f9d735c2327", Arg: "godot-ui", Retired: true},
 	{Slug: "moodle-plugin", Name: "Moodle: Plugin Development", Repo: "https://github.com/af1ah/moodle-plugin-skills", Ref: "b0b758c45b73a49f664b5f8658afc5d18d781c73", Arg: "moodle-plugin", Retired: true},
 	{Slug: "moodle-education-expert", Name: "Moodle: Education Expert", Repo: "https://github.com/personamanagmentlayer/pcl", Ref: "79ccaa9820486121fa33aaa696ec16fa1607bf02", Arg: "education-expert", Retired: true},
 	{Slug: "svg-logo-designer", Name: "SVG Logo Designer", Repo: "https://github.com/rknall/claude-skills", Ref: "ca7fbd0e07f824b119030f323da3409bc779f9bc", Arg: "SVG Logo Designer", Retired: true},
 	{Slug: "php-specialist", Name: "PHP: Specialist", Repo: "https://github.com/pixel-process-ug/superkit-agents", Ref: "cc7fcb7e47bc4c50020abdf352fa5d8914d0a7c2", Arg: "php-specialist", Retired: true},
+}
+
+// Label returns the skill's display name in the current language.
+func (sk Skill) Label() string {
+	if sk.NameKey != "" {
+		return i18n.Tr(sk.NameKey, nil)
+	}
+	return sk.Name
 }
 
 // BySlug resolves a catalog entry by its internal Slug.
@@ -170,7 +183,7 @@ func addArgs(sk Skill, global bool, agents []string) []string {
 // It fails when no agent took it, and for an entry that left the catalog.
 func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer, sk Skill, global bool, folder string) ([]string, error) {
 	if sk.Retired {
-		return nil, fmt.Errorf("%s saiu do catálogo do Perci — só pode ser removida", sk.Name)
+		return nil, errors.New(i18n.Tr("skill.retired", i18n.Args{"name": sk.Label()}))
 	}
 	ctx, cancel := nettimeout.Context(ctx)
 	defer cancel()
@@ -179,18 +192,18 @@ func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer, sk S
 	if firstErr == nil {
 		return TargetAgents(), nil
 	}
-	ui.Warning(stdout, "A instalação para todos os agentes falhou ("+firstErr.Error()+") — tentando um agente por vez...")
+	ui.Warning(stdout, i18n.Tr("skill.retryPerAgent", i18n.Args{"error": firstErr.Error()}))
 	var accepted []string
 	for _, a := range targetAgents {
 		if err := exe.Run(ctx, opts, "npx", addArgs(sk, global, []string{a})...); err != nil {
 			ui.Warning(stdout, AgentLabel(a)+": "+err.Error())
 			continue
 		}
-		ui.Success(stdout, AgentLabel(a)+": skill instalada.")
+		ui.Success(stdout, AgentLabel(a)+": "+i18n.Tr("skill.installed", nil))
 		accepted = append(accepted, a)
 	}
 	if len(accepted) == 0 {
-		return nil, fmt.Errorf("nenhum agente aceitou a skill: %w", firstErr)
+		return nil, fmt.Errorf("%s: %w", i18n.Tr("skill.noAgentAccepted", nil), firstErr)
 	}
 	return accepted, nil
 }
@@ -209,10 +222,10 @@ func Remove(ctx context.Context, exe *executor.Executor, stdout io.Writer, sk Sk
 		var err error
 		names, err = installedFromRepo(ctx, exe, sk.Repo, global, folder)
 		if err != nil {
-			return fmt.Errorf("listar as skills instaladas de %s: %w", sk.Repo, err)
+			return fmt.Errorf("list the skills installed from %s: %w", sk.Repo, err)
 		}
 		if len(names) == 0 {
-			ui.Warning(stdout, "Nenhuma skill de "+sk.Repo+" está instalada neste escopo — nada a remover.")
+			ui.Warning(stdout, i18n.Tr("skill.noneFromRepo", i18n.Args{"repo": sk.Repo}))
 			return nil
 		}
 	}
@@ -255,7 +268,7 @@ func installedFromRepo(ctx context.Context, exe *executor.Executor, repo string,
 	}
 	var skills []installedSkill
 	if err := json.Unmarshal([]byte(out), &skills); err != nil {
-		return nil, fmt.Errorf("saída inesperada de skills list: %w", err)
+		return nil, fmt.Errorf("unexpected output of skills list: %w", err)
 	}
 	want := repoKey(repo)
 	var names []string

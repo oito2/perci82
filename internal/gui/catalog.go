@@ -347,7 +347,7 @@ var devCatalog = []sectionDef{
 			// "IA: SKILLs" mode (#agentskills-container): skills.sh skills
 			// (internal/dev/agentskills).
 			Title:    "nav.skills",
-			Desc:     "Atalhos para instalar skills de agente de IA disponibilizadas pelo skills.sh",
+			Desc:     "nav.skills.desc",
 			ActionID: "agentskills",
 			Tab:      "nav.skills",
 		},
@@ -355,7 +355,7 @@ var devCatalog = []sectionDef{
 			// "IA: MCPs" mode (#mcpservers-container): MCP servers
 			// registered with Claude Code/Codex/Antigravity.
 			Title:    "nav.mcps",
-			Desc:     "Registre servidores MCP para Claude Code, Codex e Antigravity.",
+			Desc:     "nav.mcps.desc",
 			ActionID: "mcpservers",
 			Tab:      "nav.mcps",
 		},

@@ -82,6 +82,11 @@ type Config struct {
 	// config.yaml is the source of truth for what is registered.
 	MCPServers []MCPServerInstall `yaml:"mcp_servers,omitempty"`
 
+	// MCPBinaries records the MCP server binaries Perci installed into
+	// ~/.local/bin, one per server, shared by every scope it is registered
+	// in.
+	MCPBinaries []MCPBinary `yaml:"mcp_binaries,omitempty"`
+
 	// MoodlePlugins tracks the plugin development folders mounted into
 	// Moodle containers through the GUI.
 	MoodlePlugins []MoodlePluginMount `yaml:"moodle_plugins,omitempty"`
@@ -202,6 +207,15 @@ type MCPServerInstall struct {
 	// Agents lists the agents that accepted the registration; empty in
 	// records written before it existed.
 	Agents []string `yaml:"agents,omitempty"`
+}
+
+// MCPBinary records one MCP server binary Perci installed: the catalog
+// slug, the release tag and the SHA-256 of the installed file. A file at
+// the binary's path counts as Perci's only while its SHA-256 matches.
+type MCPBinary struct {
+	Slug    string `yaml:"slug"`
+	Version string `yaml:"version"`
+	SHA256  string `yaml:"sha256"`
 }
 
 // firstMatchOrDefault returns value when it is one of allowed, def

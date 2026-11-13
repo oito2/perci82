@@ -14,7 +14,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Package mcpservers registers MCP servers with three AI CLIs: Claude
-// Code, Codex and Antigravity.
+// Code, Codex and Antigravity, and installs the servers shipped as release
+// binaries (Build82, Sync82) into ~/.local/bin.
 //
 // Each agent has its own mechanism:
 //   - Claude Code: `claude mcp add/remove` (generic servers) and
@@ -46,6 +47,7 @@ import (
 	"github.com/oito2/perci82/internal/dev/nettimeout"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
+	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
 
@@ -63,11 +65,14 @@ type Server struct {
 	Slug string
 	Name string
 
-	// Note is a short description shown under the name.
+	// Note is the message key of a short description shown under the
+	// name; NoteText returns it in the current language.
 	Note string
 
 	// Param/ParamLabel: some servers need an extra value before Install
 	// can run (Filesystem: an allowed directory; DBHub: its dbhub.toml).
+	// ParamLabel is a message key; ParamLabelText returns it in the
+	// current language.
 	Param      ParamKind
 	ParamLabel string
 
@@ -77,7 +82,8 @@ type Server struct {
 
 	// Manual: true means there is no command to automate, so
 	// Install/Remove/Update don't apply. ManualURL/ManualNote are shown
-	// instead of the usual buttons.
+	// instead of the usual buttons; ManualNote is a message key, returned in
+	// the current language by ManualNoteText.
 	Manual     bool
 	ManualURL  string
 	ManualNote string
@@ -88,47 +94,49 @@ var Catalogue = []Server{
 	{Slug: "dart-flutter", Name: "Dart + Flutter"},
 	{
 		Slug: "filesystem", Name: "Filesystem MCP (@modelcontextprotocol/server-filesystem)",
-		Param: ParamDirectory, ParamLabel: "Pasta permitida",
+		Param: ParamDirectory, ParamLabel: "mcp.param.folder",
 	},
+	{Slug: "context7", Name: "Context7", Note: "mcp.note.context7"},
+	{Slug: "gopls", Name: "Go: gopls MCP", Note: "mcp.note.gopls"},
+	{Slug: "chrome-devtools", Name: "Chrome DevTools MCP", Note: "mcp.note.chromeDevtools"},
+	{Slug: "svelte", Name: "Svelte MCP", Note: "mcp.note.svelte"},
 	{
-		Slug: "context7", Name: "Context7",
-		Note: "Documentação atualizada de bibliotecas e frameworks. As consultas são enviadas para context7.com.",
+		Slug: "dbhub", Name: "DBHub (MySQL, MariaDB, SQLite...)", Note: "mcp.note.dbhub",
+		Param: ParamFile, ParamLabel: "mcp.param.dbhubFile",
 	},
+	{Slug: "build82", Name: "Build82", Note: "mcp.note.build82"},
+	{Slug: "sync82", Name: "Sync82", Note: "mcp.note.sync82"},
 	{
-		Slug: "gopls", Name: "Go: gopls MCP",
-		Note: "Diagnósticos, referências e vulncheck do servidor de linguagem oficial do Go. Requer o gopls no PATH " +
-			"(go install golang.org/x/tools/gopls@v0.23.0); usa a pasta em que o agente é aberto como workspace.",
-	},
-	{
-		Slug: "chrome-devtools", Name: "Chrome DevTools MCP",
-		Note: "Navegação, console, rede e performance no navegador. Requer o Google Chrome; abre um perfil " +
-			"temporário isolado e a telemetria de uso fica desligada.",
-	},
-	{
-		Slug: "svelte", Name: "Svelte MCP (oficial)",
-		Note: "Documentação do Svelte/SvelteKit e verificação de componentes.",
-	},
-	{
-		Slug: "dbhub", Name: "DBHub (MySQL, MariaDB, SQLite...)",
-		Note: "Bancos configurados num dbhub.toml ([[sources]] com o dsn). Para somente leitura, adicione " +
-			"[[tools]] com name = \"execute_sql\" e readonly = true. A senha fica no arquivo — mantenha-o fora do git.",
-		Param: ParamFile, ParamLabel: "Arquivo dbhub.toml",
-	},
-	{
-		Slug: "sqlite", Name: "SQLite",
-		Note:  "Fora do catálogo: o servidor foi arquivado e permite escrita. Use o DBHub.",
-		Param: ParamFile, ParamLabel: "Caminho do arquivo .sqlite",
+		Slug: "sqlite", Name: "SQLite", Note: "mcp.note.sqlite",
+		Param: ParamFile, ParamLabel: "mcp.param.sqliteFile",
 		Retired: true,
 	},
 	{
 		Slug: "godot-studio", Name: "Godot Studio",
-		Manual:    true,
-		ManualURL: "https://github.com/hi-godot/godot-ai",
-		ManualNote: "Baixe uma versão publicada em GitHub Releases e extraia em <projeto>/addons/godot_ai/ " +
-			"(não sobrescreva uma árvore antiga). Abra o Godot a partir da pasta do projeto e, no dock do " +
-			"Godot AI, clique em \"Configure\" — o comando de conexão real (porta, versão, etc.) só existe " +
-			"com o editor rodando, então o Perci não consegue automatizar esta instalação.",
+		Manual:     true,
+		ManualURL:  "https://github.com/hi-godot/godot-ai",
+		ManualNote: "mcp.manual.godot",
 	},
+}
+
+// NoteText returns the server's description in the current language, or
+// "" when it has none.
+func (s Server) NoteText() string { return trOrEmpty(s.Note) }
+
+// ParamLabelText returns the label of the server's extra parameter in the
+// current language, or "" when it takes none.
+func (s Server) ParamLabelText() string { return trOrEmpty(s.ParamLabel) }
+
+// ManualNoteText returns the manual installation instructions in the
+// current language, or "" for an automated server.
+func (s Server) ManualNoteText() string { return trOrEmpty(s.ManualNote) }
+
+// trOrEmpty translates key, keeping "" as "".
+func trOrEmpty(key string) string {
+	if key == "" {
+		return ""
+	}
+	return i18n.Tr(key, nil)
 }
 
 // The *ServerPkg constants pin the exact package versions the agents
@@ -190,7 +198,7 @@ func ExpectedAgents(slug string, global bool) []string {
 // command + arguments form: the launcher command, the marker found among
 // the arguments of an entry Perci registered (the package name without its
 // version, or the subcommand), the arguments for a given parameter, and the
-// error shown when the launcher is not installed.
+// message key of the error shown when the launcher is not installed.
 type genericServer struct {
 	command string
 	marker  string
@@ -198,7 +206,7 @@ type genericServer struct {
 	missing string
 }
 
-const npxMissing = "npx não encontrado — instale o Node.js em Pré-requisitos antes de registrar este MCP"
+const npxMissing = "mcp.missing.npx"
 
 // npxServer is a server launched as `npx -y <pkg> <extra...>`.
 func npxServer(pkg string, extra ...string) genericServer {
@@ -221,7 +229,7 @@ var genericServers = map[string]genericServer{
 	"sqlite": {
 		command: "uvx", marker: pkgBase(sqliteServerPkg),
 		args:    func(db string) []string { return []string{sqliteServerPkg, "--db-path", db} },
-		missing: "uvx não encontrado — instale o uv (https://docs.astral.sh/uv/) antes de registrar o MCP SQLite",
+		missing: "mcp.missing.uvx",
 	},
 	"context7":        npxServer(context7ServerPkg),
 	"chrome-devtools": npxServer(chromeDevToolsServerPkg, "--isolated", "--no-usage-statistics"),
@@ -234,7 +242,7 @@ var genericServers = map[string]genericServer{
 	"gopls": {
 		command: "gopls", marker: "mcp",
 		args:    func(string) []string { return []string{"mcp"} },
-		missing: "gopls não encontrado no PATH — instale com `go install golang.org/x/tools/gopls@v0.23.0` e adicione o diretório de binários do Go (`go env GOPATH`/bin) ao PATH",
+		missing: "mcp.missing.gopls",
 	},
 }
 
@@ -246,10 +254,30 @@ func pkgBase(ref string) string {
 	return ref
 }
 
+// launchOf returns the command and arguments the agents run for slug with
+// param: a release binary is launched by its path with no arguments.
+func launchOf(slug, param string) (command string, args []string, err error) {
+	if IsBinary(slug) {
+		path, err := BinaryPath(slug)
+		return path, []string{}, err
+	}
+	g, ok := genericServers[slug]
+	if !ok {
+		return "", nil, fmt.Errorf("unsupported MCP server: %s", slug)
+	}
+	return g.command, g.args(param), nil
+}
+
 // createdByPerci reports whether a server entry with this command and
 // arguments is the one Perci registers for slug, whatever the package
-// version or the parameter: the entry's command and marker match.
+// version or the parameter: the entry's command and marker match. For a
+// release binary, the command is the binary's path and there are no
+// arguments.
 func createdByPerci(slug, command string, args []string) bool {
+	if IsBinary(slug) {
+		path, err := BinaryPath(slug)
+		return err == nil && command == path && len(args) == 0
+	}
 	g, ok := genericServers[slug]
 	if !ok || command != g.command {
 		return false
@@ -259,7 +287,7 @@ func createdByPerci(slug, command string, args []string) bool {
 
 // errNotCreatedByPerci means a server of that name exists but was not
 // registered by Perci, so it is left alone.
-var errNotCreatedByPerci = errors.New("já existe um servidor com esse nome que não foi registrado pelo Perci — foi mantido")
+var errNotCreatedByPerci = i18n.NewError("mcp.notCreatedByPerci")
 
 // requireTool fails when the launcher a generic server needs is not
 // installed.
@@ -268,7 +296,7 @@ func requireTool(ctx context.Context, exe *executor.Executor, slug string) error
 	if !ok || localbin.Which(ctx, exe, g.command) {
 		return nil
 	}
-	return errors.New(g.missing)
+	return i18n.NewError(g.missing)
 }
 
 // warnMissingChrome tells the user, without failing, when no Google Chrome
@@ -280,7 +308,7 @@ func warnMissingChrome(ctx context.Context, exe *executor.Executor, stdout io.Wr
 			return
 		}
 	}
-	ui.Warning(stdout, "Google Chrome não encontrado — o Chrome DevTools MCP só funciona com o Chrome instalado.")
+	ui.Warning(stdout, i18n.Tr("mcp.chromeMissing", nil))
 }
 
 // ── shared scope handling (Claude Code + cwd-based execution) ───────────
@@ -308,7 +336,7 @@ func antigravityConfigPath(global bool, folder string) (string, error) {
 	if global {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", fmt.Errorf("obter diretório home: %w", err)
+			return "", fmt.Errorf("resolve home directory: %w", err)
 		}
 		return filepath.Join(home, ".gemini", "config", "mcp_config.json"), nil
 	}
@@ -321,7 +349,7 @@ func readJSONObject(path string) (map[string]any, error) {
 		if os.IsNotExist(err) {
 			return map[string]any{}, nil
 		}
-		return nil, fmt.Errorf("ler %s: %w", path, err)
+		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
 	if len(bytes.TrimSpace(data)) == 0 {
 		return map[string]any{}, nil
@@ -332,10 +360,10 @@ func readJSONObject(path string) (map[string]any, error) {
 	dec.UseNumber()
 	var doc map[string]any
 	if err := dec.Decode(&doc); err != nil {
-		return nil, fmt.Errorf("parsear %s: %w", path, err)
+		return nil, fmt.Errorf("parse %s: %w", path, err)
 	}
 	if doc == nil {
-		return nil, fmt.Errorf("%s não contém um objeto JSON — corrija o arquivo manualmente", path)
+		return nil, errors.New(i18n.Tr("mcp.notJSONObject", i18n.Args{"path": path}))
 	}
 	return doc, nil
 }
@@ -347,7 +375,7 @@ func readJSONObject(path string) (map[string]any, error) {
 // default.
 func writeJSONObject(path string, doc map[string]any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("criar %s: %w", filepath.Dir(path), err)
+		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -361,7 +389,7 @@ func writeJSONObject(path string, doc map[string]any) error {
 		mode = info.Mode().Perm()
 	}
 	if err := fsutil.WriteThroughLink(path, buf.Bytes(), mode); err != nil {
-		return fmt.Errorf("escrever %s: %w", path, err)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
 }
@@ -377,7 +405,7 @@ func mcpServersOf(doc map[string]any, path string) (map[string]any, error) {
 	}
 	servers, ok := raw.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("%s: \"mcpServers\" não é um objeto — corrija o arquivo manualmente", path)
+		return nil, errors.New(i18n.Tr("mcp.serversNotObject", i18n.Args{"path": path}))
 	}
 	return servers, nil
 }
@@ -457,7 +485,7 @@ func claudeConfigPath() (string, error) {
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("obter diretório home: %w", err)
+		return "", fmt.Errorf("resolve home directory: %w", err)
 	}
 	return filepath.Join(home, ".claude.json"), nil
 }
@@ -536,11 +564,12 @@ func (r *agentResults) done(id, label, successMsg string, err error) {
 	ui.Success(r.stdout, label+": "+successMsg)
 }
 
-func (r *agentResults) err(what string) error {
+// err fails when no agent accepted the registration of name.
+func (r *agentResults) err(name string) error {
 	if r.ok > 0 || len(r.errs) == 0 {
 		return nil
 	}
-	return fmt.Errorf("nenhum agente aceitou %s: %w", what, errors.Join(r.errs...))
+	return fmt.Errorf("%s: %w", i18n.Tr("mcp.noAgentAccepted", i18n.Args{"name": name}), errors.Join(r.errs...))
 }
 
 // ── generic registration ─────────────────────────────────────────────────
@@ -553,16 +582,26 @@ func installGeneric(ctx context.Context, exe *executor.Executor, stdout io.Write
 	res := &agentResults{stdout: stdout}
 
 	claudeArgs := append([]string{"mcp", "add", "--scope", claudeScope(global), name, "--", command}, cmdArgs...)
-	res.done(AgentClaude, "Claude Code", name+" registrado.", exe.Run(ctx, opts, "claude", claudeArgs...))
+	registered := i18n.Tr("mcp.registered", i18n.Args{"name": name})
+	res.done(AgentClaude, "Claude Code", registered, claudeAdd(ctx, exe, opts, slug, name, global, folder, claudeArgs))
 
 	if global {
-		res.done(AgentCodex, "Codex", name+" registrado.", codexAdd(ctx, exe, stdout, slug, name, command, cmdArgs))
+		res.done(AgentCodex, "Codex", registered, codexAdd(ctx, exe, stdout, slug, name, command, cmdArgs))
 	} else {
-		ui.Warning(stdout, "Codex: escopo Local não é suportado de forma confirmada nesta versão — pulado (registre em Global se precisar do Codex).")
+		ui.Warning(stdout, "Codex: "+i18n.Tr("mcp.codexLocalSkipped", nil))
 	}
 
-	res.done(AgentAntigravity, "Antigravity", name+" registrado em mcp_config.json.", antigravitySetServer(slug, global, folder, name, command, cmdArgs))
-	return res.accepted, res.err("o registro de " + name)
+	res.done(AgentAntigravity, "Antigravity", i18n.Tr("mcp.registeredAntigravity", i18n.Args{"name": name}), antigravitySetServer(slug, global, folder, name, command, cmdArgs))
+	return res.accepted, res.err(name)
+}
+
+// claudeAdd registers the server with Claude Code. An entry of the same
+// name Perci did not create is refused, so it is never replaced.
+func claudeAdd(ctx context.Context, exe *executor.Executor, opts executor.Options, slug, name string, global bool, folder string, args []string) error {
+	if c, a, found, err := claudeEntry(name, global, folder); err == nil && found && !createdByPerci(slug, c, a) {
+		return errNotCreatedByPerci
+	}
+	return exe.Run(ctx, opts, "claude", args...)
 }
 
 // codexAdd registers the server with Codex, whose `mcp add` silently
@@ -582,30 +621,30 @@ func removeGeneric(ctx context.Context, exe *executor.Executor, stdout io.Writer
 
 	switch command, args, found, err := claudeEntry(name, global, folder); {
 	case err != nil:
-		ui.Warning(stdout, "Claude Code: não foi possível conferir o registro: "+err.Error())
+		ui.Warning(stdout, "Claude Code: "+i18n.Tr("mcp.checkFailed", i18n.Args{"error": err.Error()}))
 	case !found:
-		ui.Info(stdout, "Claude Code: "+name+" não estava registrado.")
+		ui.Info(stdout, "Claude Code: "+i18n.Tr("mcp.notRegistered", i18n.Args{"name": name}))
 	case !createdByPerci(slug, command, args):
-		ui.Warning(stdout, "Claude Code: "+errNotCreatedByPerci.Error()+".")
+		ui.Warning(stdout, "Claude Code: "+errNotCreatedByPerci.Error())
 	default:
 		if err := exe.Run(ctx, opts, "claude", "mcp", "remove", name, "--scope", claudeScope(global)); err != nil {
 			ui.Warning(stdout, "Claude Code: "+err.Error())
 		} else {
-			ui.Success(stdout, "Claude Code: "+name+" removido.")
+			ui.Success(stdout, "Claude Code: "+i18n.Tr("mcp.removed", i18n.Args{"name": name}))
 		}
 	}
 
 	if global {
 		switch command, args, found := codexEntry(ctx, exe, name); {
 		case !found:
-			ui.Info(stdout, "Codex: "+name+" não estava registrado.")
+			ui.Info(stdout, "Codex: "+i18n.Tr("mcp.notRegistered", i18n.Args{"name": name}))
 		case !createdByPerci(slug, command, args):
-			ui.Warning(stdout, "Codex: "+errNotCreatedByPerci.Error()+".")
+			ui.Warning(stdout, "Codex: "+errNotCreatedByPerci.Error())
 		default:
 			if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "codex", "mcp", "remove", name); err != nil {
 				ui.Warning(stdout, "Codex: "+err.Error())
 			} else {
-				ui.Success(stdout, "Codex: "+name+" removido.")
+				ui.Success(stdout, "Codex: "+i18n.Tr("mcp.removed", i18n.Args{"name": name}))
 			}
 		}
 	}
@@ -613,7 +652,7 @@ func removeGeneric(ctx context.Context, exe *executor.Executor, stdout io.Writer
 	if err := antigravityRemoveServer(slug, global, folder, name); err != nil {
 		ui.Warning(stdout, "Antigravity: "+err.Error())
 	} else {
-		ui.Success(stdout, "Antigravity: "+name+" removido de mcp_config.json.")
+		ui.Success(stdout, "Antigravity: "+i18n.Tr("mcp.removedAntigravity", i18n.Args{"name": name}))
 	}
 }
 
@@ -626,34 +665,33 @@ const (
 	// dartFlutterCodexMarket is the marketplace repository at a fixed
 	// commit, in the owner/repo@ref form `codex plugin marketplace add`
 	// takes.
-	dartFlutterCodexMarket  = "flutter/agent-plugins@0ef3972f93e2baa4156ba1cbb1e515cd53079c68"
-	antigravityNativeNotice = "Antigravity: nativo — nenhuma instalação necessária."
+	dartFlutterCodexMarket = "flutter/agent-plugins@0ef3972f93e2baa4156ba1cbb1e515cd53079c68"
 )
 
 // installDartFlutter fails only when neither Claude Code nor Codex took
 // the plugin (Antigravity needs nothing, it is native).
 func installDartFlutter(ctx context.Context, exe *executor.Executor, stdout io.Writer, global bool, folder string) ([]string, error) {
-	ui.Info(stdout, antigravityNativeNotice)
+	ui.Info(stdout, "Antigravity: "+i18n.Tr("mcp.antigravityNative", nil))
 	res := &agentResults{stdout: stdout}
 
 	ctx, cancel := nettimeout.Context(ctx)
 	defer cancel()
 	opts := scopedOptions(stdout, global, folder)
 	if err := exe.Run(ctx, opts, "claude", "plugin", "marketplace", "add", dartFlutterMarketplace); err != nil {
-		ui.Warning(stdout, "Claude Code: adicionar marketplace: "+err.Error())
+		ui.Warning(stdout, "Claude Code: "+i18n.Tr("mcp.marketplaceFailed", i18n.Args{"error": err.Error()}))
 	}
-	res.done(AgentClaude, "Claude Code", "plugin instalado.", exe.Run(ctx, opts, "claude", "plugin", "install", dartFlutterPluginRef, "--scope", claudeScope(global), "-y"))
+	res.done(AgentClaude, "Claude Code", i18n.Tr("mcp.pluginInstalled", nil), exe.Run(ctx, opts, "claude", "plugin", "install", dartFlutterPluginRef, "--scope", claudeScope(global), "-y"))
 
 	if global {
 		codexOpts := executor.Options{Stdout: stdout, Stderr: stdout}
 		if err := exe.Run(ctx, codexOpts, "codex", "plugin", "marketplace", "add", dartFlutterCodexMarket); err != nil {
-			ui.Warning(stdout, "Codex: adicionar marketplace: "+err.Error())
+			ui.Warning(stdout, "Codex: "+i18n.Tr("mcp.marketplaceFailed", i18n.Args{"error": err.Error()}))
 		}
-		res.done(AgentCodex, "Codex", "plugin instalado.", exe.Run(ctx, codexOpts, "codex", "plugin", "add", dartFlutterPluginRef))
+		res.done(AgentCodex, "Codex", i18n.Tr("mcp.pluginInstalled", nil), exe.Run(ctx, codexOpts, "codex", "plugin", "add", dartFlutterPluginRef))
 	} else {
-		ui.Warning(stdout, "Codex: escopo Local não é suportado de forma confirmada nesta versão — pulado.")
+		ui.Warning(stdout, "Codex: "+i18n.Tr("mcp.codexLocalSkipped", nil))
 	}
-	return res.accepted, res.err("o plugin dart-flutter")
+	return res.accepted, res.err("dart-flutter")
 }
 
 func removeDartFlutter(ctx context.Context, exe *executor.Executor, stdout io.Writer, global bool, folder string) {
@@ -661,13 +699,13 @@ func removeDartFlutter(ctx context.Context, exe *executor.Executor, stdout io.Wr
 	if err := exe.Run(ctx, opts, "claude", "plugin", "uninstall", dartFlutterPluginRef, "--scope", claudeScope(global), "-y"); err != nil {
 		ui.Warning(stdout, "Claude Code: "+err.Error())
 	} else {
-		ui.Success(stdout, "Claude Code: plugin removido.")
+		ui.Success(stdout, "Claude Code: "+i18n.Tr("mcp.pluginRemoved", nil))
 	}
 	if global {
 		if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "codex", "plugin", "remove", dartFlutterPluginRef); err != nil {
 			ui.Warning(stdout, "Codex: "+err.Error())
 		} else {
-			ui.Success(stdout, "Codex: plugin removido.")
+			ui.Success(stdout, "Codex: "+i18n.Tr("mcp.pluginRemoved", nil))
 		}
 	}
 }
@@ -677,14 +715,14 @@ func updateDartFlutter(ctx context.Context, exe *executor.Executor, stdout io.Wr
 	ctx, cancel := nettimeout.Context(ctx)
 	defer cancel()
 	opts := scopedOptions(stdout, global, folder)
-	res.done(AgentClaude, "Claude Code", "plugin atualizado.", exe.Run(ctx, opts, "claude", "plugin", "update", dartFlutterPluginRef, "--scope", claudeScope(global)))
+	res.done(AgentClaude, "Claude Code", i18n.Tr("mcp.pluginUpdated", nil), exe.Run(ctx, opts, "claude", "plugin", "update", dartFlutterPluginRef, "--scope", claudeScope(global)))
 	if global {
 		// Codex has no plugin update, so this removes and reinstalls.
 		codexOpts := executor.Options{Stdout: stdout, Stderr: stdout}
 		_ = exe.Run(ctx, codexOpts, "codex", "plugin", "remove", dartFlutterPluginRef)
-		res.done(AgentCodex, "Codex", "plugin reinstalado (sem update nativo confirmado).", exe.Run(ctx, codexOpts, "codex", "plugin", "add", dartFlutterPluginRef))
+		res.done(AgentCodex, "Codex", i18n.Tr("mcp.pluginReinstalled", nil), exe.Run(ctx, codexOpts, "codex", "plugin", "add", dartFlutterPluginRef))
 	}
-	return res.accepted, res.err("a atualização do plugin dart-flutter")
+	return res.accepted, res.err("dart-flutter")
 }
 
 // ── catalog dispatch ──────────────────────────────────────────────────────
@@ -698,10 +736,10 @@ func validateParam(slug, param string) error {
 		return nil
 	}
 	if param == "" {
-		return fmt.Errorf("selecione o parâmetro (%s) antes de instalar", strings.ToLower(sv.ParamLabel))
+		return errors.New(i18n.Tr("mcp.paramRequired", i18n.Args{"label": sv.ParamLabelText()}))
 	}
 	if !filepath.IsAbs(param) {
-		return fmt.Errorf("o parâmetro de %s deve ser um caminho absoluto (recebido: %q)", slug, param)
+		return fmt.Errorf("the parameter of %s must be an absolute path (got %q)", slug, param)
 	}
 	return nil
 }
@@ -710,7 +748,7 @@ func validateParam(slug, param string) error {
 // removed, but not installed or updated.
 func refuseRetired(slug string) error {
 	if sv, ok := BySlug(slug); ok && sv.Retired {
-		return fmt.Errorf("%s saiu do catálogo do Perci — só pode ser removido", sv.Name)
+		return errors.New(i18n.Tr("mcp.retired", i18n.Args{"name": sv.Name}))
 	}
 	return nil
 }
@@ -719,7 +757,8 @@ func refuseRetired(slug string) error {
 // the agents that accepted it. param is required for the servers that take
 // one (Server.Param) and ignored otherwise. Fails when no agent accepted the
 // registration, when the server's launcher is not installed, and for an
-// entry that left the catalog.
+// entry that left the catalog. A release binary (IsBinary) is registered by
+// its BinaryPath; EnsureBinary puts it there first.
 func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer, slug string, global bool, folder, param string) ([]string, error) {
 	if err := refuseRetired(slug); err != nil {
 		return nil, err
@@ -733,14 +772,14 @@ func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer, slug
 	if slug == "dart-flutter" {
 		return installDartFlutter(ctx, exe, stdout, global, folder)
 	}
-	g, ok := genericServers[slug]
-	if !ok {
-		return nil, fmt.Errorf("instalação não suportada para %s", slug)
+	command, args, err := launchOf(slug, param)
+	if err != nil {
+		return nil, err
 	}
 	if slug == "chrome-devtools" {
 		warnMissingChrome(ctx, exe, stdout)
 	}
-	return installGeneric(ctx, exe, stdout, slug, global, folder, g.command, g.args(param))
+	return installGeneric(ctx, exe, stdout, slug, global, folder, command, args)
 }
 
 // Remove unregisters slug from every supported agent. Failures stay
@@ -752,8 +791,8 @@ func Remove(ctx context.Context, exe *executor.Executor, stdout io.Writer, slug 
 		removeDartFlutter(ctx, exe, stdout, global, folder)
 		return nil
 	}
-	if _, ok := genericServers[slug]; !ok {
-		return fmt.Errorf("remoção não suportada para %s", slug)
+	if _, _, err := launchOf(slug, ""); err != nil {
+		return err
 	}
 	removeGeneric(ctx, exe, stdout, slug, global, folder)
 	return nil
@@ -771,8 +810,8 @@ func Update(ctx context.Context, exe *executor.Executor, stdout io.Writer, slug 
 	if slug == "dart-flutter" {
 		return updateDartFlutter(ctx, exe, stdout, global, folder)
 	}
-	if _, ok := genericServers[slug]; !ok {
-		return nil, fmt.Errorf("atualização não suportada para %s", slug)
+	if _, _, err := launchOf(slug, ""); err != nil {
+		return nil, err
 	}
 	if err := validateParam(slug, param); err != nil {
 		return nil, err
@@ -790,4 +829,4 @@ func Update(ctx context.Context, exe *executor.Executor, stdout io.Writer, slug 
 
 // ErrNotReinstalled means Update removed the server but no agent accepted
 // the new registration — it's no longer registered anywhere.
-var ErrNotReinstalled = errors.New("o MCP foi removido, mas não pôde ser registrado de novo")
+var ErrNotReinstalled = i18n.NewError("mcp.notReinstalled")

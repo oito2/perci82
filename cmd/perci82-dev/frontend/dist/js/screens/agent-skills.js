@@ -13,14 +13,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Dev Tools :: IA: SKILLs.
+// Skills & MCPs :: SKILLs.
 //
 // Classic script (not a module): shares one global scope with the other
 // scripts under js/.
 "use strict";
 
 // ===========================================================================
-// "Dev Tools :: IA: SKILLs" (npx skills).
+// "Skills & MCPs :: SKILLs" (npx skills).
 // ===========================================================================
 
 asSkillsShLink.addEventListener("click", function (ev) {
@@ -35,7 +35,8 @@ asSkillsShLink.addEventListener("click", function (ev) {
   if (!intro || !intro.parentNode) return;
   const note = document.createElement("p");
   note.className = "text-sm opacity-80 mb-4";
-  note.textContent = "As SKILLs são conteúdo de terceiros: cada uma é instalada na versão (commit) fixada pelo Perci, mas o conteúdo não é revisado por ele e a SKILL executa com as permissões do agente. Leia o código antes de usar.";
+  note.setAttribute("data-i18n", "skills.thirdParty");
+  note.textContent = t("skills.thirdParty");
   intro.parentNode.insertBefore(note, intro.nextSibling);
 })();
 
@@ -46,7 +47,7 @@ function partialBadge(row) {
   if (!row.partial) return null;
   const badge = document.createElement("span");
   badge.className = "badge badge-warning badge-sm ml-2";
-  badge.textContent = "parcial: " + (row.agents || []).join(", ");
+  badge.textContent = t("badge.partial", { agents: (row.agents || []).join(", ") });
   return badge;
 }
 
@@ -56,13 +57,14 @@ function retiredBadge(row) {
   if (!row.retired) return null;
   const badge = document.createElement("span");
   badge.className = "badge badge-ghost badge-sm ml-2";
-  badge.textContent = "fora do catálogo";
+  badge.textContent = t("badge.retired");
   return badge;
 }
 
 const asTable = createScopedTable({
   els: { select: asScopeSelect, alertTitle: asScopeAlertTitle, alertDesc: asScopeAlertDesc, pickButton: btnAsPickFolder, rows: asRows },
-  noun: "das SKILLs",
+  globalDesc: "skills.globalDesc",
+  localDesc: "skills.localDesc",
   latestKey: "agentskills",
   pickFolder: function () { return App.PickAgentSkillsFolder(); },
   fetchRows: function (global, folder) { return App.GetAgentSkillsRows(global, folder); },
@@ -91,28 +93,28 @@ function buildAgentSkillRow(row) {
   const btnToggle = document.createElement("button");
   btnToggle.type = "button";
   btnToggle.className = "btn btn-sm " + (row.installed ? "btn-outline btn-error" : "btn-primary");
-  btnToggle.textContent = row.installed ? "Remover" : "Instalar";
+  btnToggle.textContent = t(row.installed ? "action.remove" : "action.install");
 
   const btnUpdate = document.createElement("button");
   btnUpdate.type = "button";
   btnUpdate.className = "btn btn-sm btn-outline";
-  btnUpdate.textContent = "Atualizar";
+  btnUpdate.textContent = t("action.update");
   btnUpdate.disabled = !row.installed;
 
   btnToggle.addEventListener("click", function () {
     if (running) return;
     const global = asTable.isGlobal();
     if (row.installed) {
-      startExecution("Remover skill: " + row.name);
+      startExecution(t("skills.run.remove", { name: row.name }));
       App.RemoveAgentSkill(row.slug, global, asTable.folder).catch(failRun);
     } else {
-      startExecution("Instalar skill: " + row.name);
+      startExecution(t("skills.run.install", { name: row.name }));
       App.InstallAgentSkill(row.slug, global, asTable.folder).catch(failRun);
     }
   });
   btnUpdate.addEventListener("click", function () {
     if (running || btnUpdate.disabled) return;
-    startExecution("Atualizar skill: " + row.name);
+    startExecution(t("skills.run.update", { name: row.name }));
     App.UpdateAgentSkill(row.slug, asTable.isGlobal(), asTable.folder).catch(failRun);
   });
 

@@ -13,20 +13,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Dev Tools :: IA: MCPs.
+// Skills & MCPs :: MCPs.
 //
 // Classic script (not a module): shares one global scope with the other
 // scripts under js/.
 "use strict";
 
 // ===========================================================================
-// "Dev Tools :: IA: MCPs" — a different mechanism per agent (Claude Code/
+// "Skills & MCPs :: MCPs" — a different mechanism per agent (Claude Code/
 // Codex via CLI, Antigravity by editing mcp_config.json).
 // ===========================================================================
 
 const mcpTable = createScopedTable({
   els: { select: mcpScopeSelect, alertTitle: mcpScopeAlertTitle, alertDesc: mcpScopeAlertDesc, pickButton: btnMcpPickFolder, rows: mcpRows },
-  noun: "dos MCPs",
+  globalDesc: "mcps.globalDesc",
+  localDesc: "mcps.localDesc",
   latestKey: "mcpservers",
   pickFolder: function () { return App.PickMCPFolder(); },
   fetchRows: function (global, folder) { return App.GetMCPServerRows(global, folder); },
@@ -35,7 +36,7 @@ const mcpTable = createScopedTable({
   // picked in it (currentParam) in its closure, which must not carry over
   // to another scope or project folder.
   sigOf: function (row, st) {
-    return [st.scope, st.folder, row.slug, row.name, row.note, row.retired, row.installed, row.partial, (row.agents || []).join(","), row.param, row.paramKind, row.paramLabel, row.manual, row.manualUrl, row.manualNote].join("|");
+    return [st.scope, st.folder, row.slug, row.name, row.note, row.retired, row.installed, row.partial, (row.agents || []).join(","), row.param, row.paramKind, row.paramLabel, row.manual, row.manualUrl, row.manualNote, row.version].join("|");
   },
   buildRow: function (row) { return buildMCPServerRow(row); },
   onScope: function (st) { mcpCodexNote.classList.toggle("hidden", st.isGlobal()); },
@@ -56,6 +57,13 @@ function buildMCPServerRow(row) {
     note.textContent = row.note;
     tdName.appendChild(note);
   }
+  // A server shipped as a release binary shows the installed release.
+  if (row.installed && row.version) {
+    const ver = document.createElement("p");
+    ver.className = "text-xs opacity-70 mt-1";
+    ver.textContent = t("mcps.version", { version: row.version });
+    tdName.appendChild(ver);
+  }
   tr.appendChild(tdName);
 
   const tdActions = document.createElement("td");
@@ -66,7 +74,7 @@ function buildMCPServerRow(row) {
     const a = document.createElement("a");
     a.href = "#";
     a.className = "link link-primary text-sm";
-    a.textContent = "Ver instruções";
+    a.textContent = t("mcps.instructions");
     a.addEventListener("click", function (ev) {
       ev.preventDefault();
       Browser.OpenURL(row.manualUrl);
@@ -90,7 +98,7 @@ function buildMCPServerRow(row) {
   const btnUpdate = document.createElement("button");
   btnUpdate.type = "button";
   btnUpdate.className = "btn btn-sm btn-outline";
-  btnUpdate.textContent = "Atualizar";
+  btnUpdate.textContent = t("action.update");
 
   function updateButtonsState() {
     const needsParam = !!row.paramKind && !currentParam && !row.retired;
@@ -106,11 +114,11 @@ function buildMCPServerRow(row) {
     paramRow.className = "flex items-center gap-2 text-xs";
     const paramText = document.createElement("span");
     paramText.className = "opacity-70";
-    paramText.textContent = row.paramLabel + ": " + (currentParam || "não definido");
+    paramText.textContent = row.paramLabel + ": " + (currentParam || t("mcps.paramUnset"));
     const btnPick = document.createElement("button");
     btnPick.type = "button";
     btnPick.className = "btn btn-xs btn-outline";
-    btnPick.textContent = "Selecionar";
+    btnPick.textContent = t("mcps.pickParam");
     btnPick.addEventListener("click", function () {
       App.PickMCPServerParam(row.slug).then(function (path) {
         if (!path) return;
@@ -125,21 +133,21 @@ function buildMCPServerRow(row) {
   }
 
   btnToggle.className = "btn btn-sm " + (row.installed ? "btn-outline btn-error" : "btn-primary");
-  btnToggle.textContent = row.installed ? "Remover" : "Instalar";
+  btnToggle.textContent = t(row.installed ? "action.remove" : "action.install");
   btnToggle.addEventListener("click", function () {
     if (running || btnToggle.disabled) return;
     const global = mcpTable.isGlobal();
     if (row.installed) {
-      startExecution("Remover MCP: " + row.name);
+      startExecution(t("mcps.run.remove", { name: row.name }));
       App.RemoveMCPServer(row.slug, global, mcpTable.folder).catch(failRun);
     } else {
-      startExecution("Instalar MCP: " + row.name);
+      startExecution(t("mcps.run.install", { name: row.name }));
       App.InstallMCPServer(row.slug, global, mcpTable.folder, currentParam).catch(failRun);
     }
   });
   btnUpdate.addEventListener("click", function () {
     if (running || btnUpdate.disabled) return;
-    startExecution("Atualizar MCP: " + row.name);
+    startExecution(t("mcps.run.update", { name: row.name }));
     App.UpdateMCPServer(row.slug, mcpTable.isGlobal(), mcpTable.folder, currentParam).catch(failRun);
   });
 

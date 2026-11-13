@@ -60,6 +60,7 @@ var ownedKeys = map[App][]string{
 		"git_accounts",
 		"agent_skills",
 		"mcp_servers",
+		"mcp_binaries",
 		"moodle_plugins",
 		"ai_contexts",
 		"tray_enabled",

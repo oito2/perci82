@@ -15,9 +15,10 @@
 
 package gui
 
-// Bound methods for "Dev Tools :: IA: MCPs" — a thin layer over
+// Bound methods for "Skills & MCPs :: MCPs" — a thin layer over
 // internal/dev/mcpservers. config.yaml's MCPServers field records which
-// servers are registered, per scope.
+// servers are registered, per scope, and MCPBinaries the server binaries
+// Perci installed.
 
 import (
 	"context"
@@ -27,12 +28,13 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/dev/mcpservers"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // PickMCPFolder opens the native folder picker for a "Local" install
 // target.
 func (t *DevToolsService) PickMCPFolder() (string, error) {
-	return t.pickFolder("Selecionar pasta do projeto")
+	return t.pickFolder(i18n.Tr("scope.pickProject", nil))
 }
 
 // PickMCPServerParam opens the right native dialog for slug's extra
@@ -42,25 +44,26 @@ func (t *DevToolsService) PickMCPFolder() (string, error) {
 func (t *DevToolsService) PickMCPServerParam(slug string) (string, error) {
 	sv, ok := mcpservers.BySlug(slug)
 	if !ok || sv.Retired {
-		return "", fmt.Errorf("MCP desconhecido: %s", slug)
+		return "", fmt.Errorf("unknown MCP server: %s", slug)
 	}
 	switch sv.Param {
 	case mcpservers.ParamDirectory:
-		return t.pickFolder("Selecionar pasta permitida")
+		return t.pickFolder(sv.ParamLabelText())
 	case mcpservers.ParamFile:
 		return approvePath(t.wailsApp.Dialog.OpenFile().
-			SetTitle("Selecionar "+sv.ParamLabel).
+			SetTitle(sv.ParamLabelText()).
 			AddFilter("TOML (*.toml)", "*.toml").
 			PromptForSingleSelection())
 	}
-	return "", fmt.Errorf("%s não precisa de um parâmetro extra", slug)
+	return "", fmt.Errorf("%s takes no extra parameter", slug)
 }
 
-// MCPServerRow is one row of "Dev Tools :: IA: MCPs". Agents lists, by
+// MCPServerRow is one row of "Skills & MCPs :: MCPs". Agents lists, by
 // name, the agents that accepted the registration (empty for a record
 // written before they were recorded); Partial is set when some agent that
 // applies to the scope is missing. Retired marks an entry that left the
-// catalog, listed only while registered so it can be removed.
+// catalog, listed only while registered so it can be removed. Version is
+// the release of the binary Perci installed, for a server shipped as one.
 type MCPServerRow struct {
 	Slug       string   `json:"slug"`
 	Name       string   `json:"name"`
@@ -75,12 +78,24 @@ type MCPServerRow struct {
 	Manual     bool     `json:"manual"` // true = Godot Studio: no Install/Update/Remove, just a link/instructions
 	ManualURL  string   `json:"manualUrl"`
 	ManualNote string   `json:"manualNote"`
+	Version    string   `json:"version"`
 }
 
 // findMCPServerInstall is findAgentSkillInstall's counterpart for MCP
 // server records.
 func findMCPServerInstall(installs []config.MCPServerInstall, slug string, global bool, folder string) int {
 	return indexOfScoped(installs, mcpServerKey, slug, global, folder)
+}
+
+// mcpBinaryOf returns the binary Perci installed for slug, or a zero
+// BinaryInfo when there is no record.
+func mcpBinaryOf(cfg *config.Config, slug string) mcpservers.BinaryInfo {
+	for _, b := range cfg.MCPBinaries {
+		if b.Slug == slug {
+			return mcpservers.BinaryInfo{Version: b.Version, SHA256: b.SHA256}
+		}
+	}
+	return mcpservers.BinaryInfo{}
 }
 
 // GetMCPServerRows lists the whole catalog with its registered state for
@@ -96,9 +111,9 @@ func (t *DevToolsService) GetMCPServerRows(global bool, folder string) ([]MCPSer
 	rows := make([]MCPServerRow, 0, len(mcpservers.Catalogue))
 	for _, sv := range mcpservers.Catalogue {
 		row := MCPServerRow{
-			Slug: sv.Slug, Name: sv.Name, Note: sv.Note, Retired: sv.Retired, Agents: []string{},
-			ParamKind: string(sv.Param), ParamLabel: sv.ParamLabel,
-			Manual: sv.Manual, ManualURL: sv.ManualURL, ManualNote: sv.ManualNote,
+			Slug: sv.Slug, Name: sv.Name, Note: sv.NoteText(), Retired: sv.Retired, Agents: []string{},
+			ParamKind: string(sv.Param), ParamLabel: sv.ParamLabelText(),
+			Manual: sv.Manual, ManualURL: sv.ManualURL, ManualNote: sv.ManualNoteText(),
 		}
 		if idx := findMCPServerInstall(cfg.MCPServers, sv.Slug, global, folder); idx >= 0 {
 			rec := cfg.MCPServers[idx]
@@ -106,6 +121,7 @@ func (t *DevToolsService) GetMCPServerRows(global bool, folder string) ([]MCPSer
 			row.Param = rec.Param
 			row.Partial = isPartial(rec.Agents, mcpservers.ExpectedAgents(sv.Slug, global))
 			row.Agents = agentLabels(rec.Agents, mcpservers.AgentLabel)
+			row.Version = mcpBinaryOf(cfg, sv.Slug).Version
 		} else if sv.Retired {
 			continue
 		}
@@ -128,8 +144,55 @@ func recordMCPServerInstall(slug string, global bool, folder, param string, agen
 	})
 }
 
+// recordMCPBinary replaces config.yaml's record of slug's binary with info,
+// or drops it when info is zero.
+func recordMCPBinary(slug string, info mcpservers.BinaryInfo) error {
+	return config.Update(func(cfg *config.Config) error {
+		kept := make([]config.MCPBinary, 0, len(cfg.MCPBinaries))
+		for _, b := range cfg.MCPBinaries {
+			if b.Slug != slug {
+				kept = append(kept, b)
+			}
+		}
+		if info != (mcpservers.BinaryInfo{}) {
+			kept = append(kept, config.MCPBinary{Slug: slug, Version: info.Version, SHA256: info.SHA256})
+		}
+		cfg.MCPBinaries = kept
+		return nil
+	})
+}
+
+// mcpRegisteredElsewhere reports whether slug is still registered in a
+// scope other than (global, folder).
+func mcpRegisteredElsewhere(cfg *config.Config, slug string, global bool, folder string) bool {
+	for i, r := range cfg.MCPServers {
+		if r.Slug == slug && i != findMCPServerInstall(cfg.MCPServers, slug, global, folder) {
+			return true
+		}
+	}
+	return false
+}
+
+// removeUnusedMCPBinary deletes slug's binary and its record when no scope
+// other than (global, folder) still registers slug.
+func (t *DevToolsService) removeUnusedMCPBinary(stdout io.Writer, slug string, global bool, folder string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if mcpRegisteredElsewhere(cfg, slug, global, folder) {
+		return nil
+	}
+	if err := mcpservers.RemoveBinary(stdout, t.exe, slug, mcpBinaryOf(cfg, slug)); err != nil {
+		return err
+	}
+	return recordMCPBinary(slug, mcpservers.BinaryInfo{})
+}
+
 // InstallMCPServer registers slug with every supported agent and records
-// it, with the agents that accepted it, in config.yaml on success.
+// it, with the agents that accepted it, in config.yaml on success. A server
+// shipped as a release binary is installed into ~/.local/bin first; when no
+// agent accepts it and no other scope uses it, the binary is removed again.
 func (t *DevToolsService) InstallMCPServer(slug string, global bool, folder, param string) error {
 	if err := requireKnownFolderUnlessGlobal(global, folder); err != nil {
 		return err
@@ -138,8 +201,31 @@ func (t *DevToolsService) InstallMCPServer(slug string, global bool, folder, par
 		return err
 	}
 	return t.runAction(func(stdout io.Writer) error {
-		agents, err := mcpservers.Install(context.Background(), t.exe, stdout, slug, global, folder, param)
+		ctx := context.Background()
+		fresh := false
+		if mcpservers.IsBinary(slug) {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+			info, installed, err := mcpservers.EnsureBinary(ctx, t.exe, stdout, slug, mcpBinaryOf(cfg, slug))
+			if err != nil {
+				return err
+			}
+			if installed {
+				fresh = true
+				if err := recordMCPBinary(slug, info); err != nil {
+					return err
+				}
+			}
+		}
+		agents, err := mcpservers.Install(ctx, t.exe, stdout, slug, global, folder, param)
 		if err != nil {
+			if fresh {
+				if cleanErr := t.removeUnusedMCPBinary(stdout, slug, global, folder); cleanErr != nil {
+					return errors.Join(err, cleanErr)
+				}
+			}
 			return err
 		}
 		return recordMCPServerInstall(slug, global, folder, param, agents, true)
@@ -147,7 +233,8 @@ func (t *DevToolsService) InstallMCPServer(slug string, global bool, folder, par
 }
 
 // RemoveMCPServer unregisters slug from every supported agent and clears
-// its config.yaml record on success.
+// its config.yaml record on success. The binary of a server shipped as one
+// is deleted when no other scope registers it.
 func (t *DevToolsService) RemoveMCPServer(slug string, global bool, folder string) error {
 	if err := requireKnownFolderUnlessGlobal(global, folder); err != nil {
 		return err
@@ -156,13 +243,19 @@ func (t *DevToolsService) RemoveMCPServer(slug string, global bool, folder strin
 		if err := mcpservers.Remove(context.Background(), t.exe, stdout, slug, global, folder); err != nil {
 			return err
 		}
+		if mcpservers.IsBinary(slug) {
+			if err := t.removeUnusedMCPBinary(stdout, slug, global, folder); err != nil {
+				return err
+			}
+		}
 		return recordMCPServerInstall(slug, global, folder, "", nil, false)
 	})
 }
 
 // UpdateMCPServer refreshes slug's registration and keeps config.yaml's
 // stored Param and agents in sync (in case the user changed the parameter
-// before updating).
+// before updating). A server shipped as a release binary first gets the
+// latest release when it is newer than the installed one.
 func (t *DevToolsService) UpdateMCPServer(slug string, global bool, folder, param string) error {
 	if err := requireKnownFolderUnlessGlobal(global, folder); err != nil {
 		return err
@@ -171,7 +264,24 @@ func (t *DevToolsService) UpdateMCPServer(slug string, global bool, folder, para
 		return err
 	}
 	return t.runAction(func(stdout io.Writer) error {
-		agents, err := mcpservers.Update(context.Background(), t.exe, stdout, slug, global, folder, param)
+		ctx := context.Background()
+		if mcpservers.IsBinary(slug) {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+			owned := mcpBinaryOf(cfg, slug)
+			info, err := mcpservers.UpdateBinary(ctx, t.exe, stdout, slug, owned)
+			if err != nil {
+				return err
+			}
+			if info != owned {
+				if err := recordMCPBinary(slug, info); err != nil {
+					return err
+				}
+			}
+		}
+		agents, err := mcpservers.Update(ctx, t.exe, stdout, slug, global, folder, param)
 		if err != nil {
 			if errors.Is(err, mcpservers.ErrNotReinstalled) {
 				// Removed everywhere, re-registered nowhere: the list must

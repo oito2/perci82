@@ -15,7 +15,7 @@
 
 package gui
 
-// Bound methods for "Dev Tools :: IA: SKILLs" — a thin layer over
+// Bound methods for "Skills & MCPs :: SKILLs" — a thin layer over
 // internal/dev/agentskills (`npx skills add/remove`). config.yaml's
 // AgentSkills field records which skills are installed, per scope.
 
@@ -27,15 +27,16 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/dev/agentskills"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // PickAgentSkillsFolder opens the native folder picker for a "Local"
 // install target, with CanCreateDirectories enabled.
 func (t *DevToolsService) PickAgentSkillsFolder() (string, error) {
-	return t.pickFolder("Selecionar pasta do projeto")
+	return t.pickFolder(i18n.Tr("scope.pickProject", nil))
 }
 
-// AgentSkillRow is one row of "Dev Tools :: IA: SKILLs". Agents lists, by
+// AgentSkillRow is one row of "Skills & MCPs :: SKILLs". Agents lists, by
 // name, the agents that accepted the skill (empty for a record written
 // before they were recorded); Partial is set when some agent is missing;
 // Retired marks an entry that left the catalog, listed only while
@@ -92,7 +93,7 @@ func (t *DevToolsService) GetAgentSkillsRows(global bool, folder string) ([]Agen
 	}
 	rows := make([]AgentSkillRow, 0, len(agentskills.Catalogue))
 	for _, sk := range agentskills.Catalogue {
-		row := AgentSkillRow{Slug: sk.Slug, Name: sk.Name, Agents: []string{}, Retired: sk.Retired}
+		row := AgentSkillRow{Slug: sk.Slug, Name: sk.Label(), Agents: []string{}, Retired: sk.Retired}
 		if idx := findAgentSkillInstall(cfg.AgentSkills, sk.Slug, global, folder); idx >= 0 {
 			rec := cfg.AgentSkills[idx]
 			row.Installed = true
@@ -129,7 +130,7 @@ func (t *DevToolsService) InstallAgentSkill(slug string, global bool, folder str
 	return t.runAction(func(stdout io.Writer) error {
 		sk, ok := agentskills.BySlug(slug)
 		if !ok {
-			return fmt.Errorf("skill desconhecida: %s", slug)
+			return fmt.Errorf("unknown skill: %s", slug)
 		}
 		agents, err := agentskills.Install(context.Background(), t.exe, stdout, sk, global, folder)
 		if err != nil {
@@ -148,7 +149,7 @@ func (t *DevToolsService) RemoveAgentSkill(slug string, global bool, folder stri
 	return t.runAction(func(stdout io.Writer) error {
 		sk, ok := agentskills.BySlug(slug)
 		if !ok {
-			return fmt.Errorf("skill desconhecida: %s", slug)
+			return fmt.Errorf("unknown skill: %s", slug)
 		}
 		if err := agentskills.Remove(context.Background(), t.exe, stdout, sk, global, folder); err != nil {
 			return err
@@ -166,7 +167,7 @@ func (t *DevToolsService) UpdateAgentSkill(slug string, global bool, folder stri
 	return t.runAction(func(stdout io.Writer) error {
 		sk, ok := agentskills.BySlug(slug)
 		if !ok {
-			return fmt.Errorf("skill desconhecida: %s", slug)
+			return fmt.Errorf("unknown skill: %s", slug)
 		}
 		agents, err := agentskills.Update(context.Background(), t.exe, stdout, sk, global, folder)
 		if err != nil {

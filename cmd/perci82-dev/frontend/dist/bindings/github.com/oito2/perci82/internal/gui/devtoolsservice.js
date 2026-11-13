@@ -236,7 +236,9 @@ export function InstallAgentSkill(slug, global, folder) {
 
 /**
  * InstallMCPServer registers slug with every supported agent and records
- * it, with the agents that accepted it, in config.yaml on success.
+ * it, with the agents that accepted it, in config.yaml on success. A server
+ * shipped as a release binary is installed into ~/.local/bin first; when no
+ * agent accepts it and no other scope uses it, the binary is removed again.
  * @param {string} slug
  * @param {boolean} global
  * @param {string} folder
@@ -431,7 +433,8 @@ export function RemoveDevFolder(folder, relPath) {
 
 /**
  * RemoveMCPServer unregisters slug from every supported agent and clears
- * its config.yaml record on success.
+ * its config.yaml record on success. The binary of a server shipped as one
+ * is deleted when no other scope registers it.
  * @param {string} slug
  * @param {boolean} global
  * @param {string} folder
@@ -469,7 +472,8 @@ export function UpdateAgentSkill(slug, global, folder) {
 /**
  * UpdateMCPServer refreshes slug's registration and keeps config.yaml's
  * stored Param and agents in sync (in case the user changed the parameter
- * before updating).
+ * before updating). A server shipped as a release binary first gets the
+ * latest release when it is newer than the installed one.
  * @param {string} slug
  * @param {boolean} global
  * @param {string} folder

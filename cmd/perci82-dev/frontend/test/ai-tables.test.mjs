@@ -124,3 +124,17 @@ test("MCPs: the note is shown, and a retired entry has no picker and only Remove
   assert.deepEqual(tags(trs[1].children[0]), ["Bancos num dbhub.toml"]);
   assert.deepEqual(buttonTexts(trs[1].children[1]), ["Selecionar", "Instalar", "Atualizar"]);
 });
+
+test("MCPs: a server installed from a release binary shows its version", async () => {
+  const rows = [
+    { slug: "build82", name: "Build82", note: "Contexto do Moodle", installed: true, partial: false, agents: [], version: "v1.3.0" },
+    { slug: "sync82", name: "Sync82", note: "Memória", installed: false, partial: false, agents: [], version: "" },
+  ];
+  const { ctx, element } = loadScripts(scriptOrder(), { fixtures: { GetMCPServerRows: rows } });
+  ctx.renderMCPServersScreen();
+  await tick();
+  const trs = element("mcp-rows").children;
+  assert.deepEqual(tags(trs[0].children[0]), ["Contexto do Moodle", "Versão instalada: v1.3.0"]);
+  assert.deepEqual(tags(trs[1].children[0]), ["Memória"]);
+  assert.deepEqual(buttonTexts(trs[0].children[1]), ["Remover", "Atualizar"]);
+});

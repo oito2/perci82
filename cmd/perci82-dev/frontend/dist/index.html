@@ -695,20 +695,20 @@
             <p class="text-xs opacity-60 mt-2" data-i18n="devfolders.createHint">Criar e remover pedem a senha de administrador. Num Moodle, depois de aplicar, abra Administração do site → Notificações para instalar ou atualizar o plugin.</p>
           </div>
 
-          <!-- "Dev Tools :: IA: SKILLs": Global/Local select (Local requires a
+          <!-- "Skills & MCPs :: SKILLs": Global/Local select (Local requires a
                folder, same pattern as Repositórios) + a table with
                Instalar/Atualizar/Remover per skill (npx skills). -->
           <div id="agentskills-container" class="hidden">
             <p class="opacity-80 mb-4">
-              O Perci82 Dev oferece atalhos para a instalação de SKILLs disponibilizadas pelo
+              <span data-i18n="skills.intro">O Perci82 Dev oferece atalhos para a instalação de SKILLs disponibilizadas pelo</span>
               <a href="#" id="as-skills-sh-link" class="link link-primary">skills.sh</a>.
             </p>
 
             <label class="form-control max-w-xs mb-8">
-              <div class="label"><span class="label-text">Tipo de Instalação </span></div>
+              <div class="label"><span class="label-text" data-i18n="scope.type">Tipo de Instalação</span></div>
               <select id="as-scope" class="select select-bordered">
-                <option value="global">Global</option>
-                <option value="local">Local</option>
+                <option value="global" data-i18n="scope.global">Global</option>
+                <option value="local" data-i18n="scope.local">Local</option>
               </select>
             </label>
 
@@ -717,7 +717,7 @@
                 <h3 id="as-scope-alert-title" class="font-bold"></h3>
                 <div id="as-scope-alert-desc" class="text-sm opacity-80"></div>
               </div>
-              <button id="btn-as-pick-folder" class="btn btn-sm ml-auto hidden">Selecionar Pasta</button>
+              <button id="btn-as-pick-folder" class="btn btn-sm ml-auto hidden" data-i18n="scope.pickFolder">Selecionar Pasta</button>
             </div>
 
             <div class="overflow-x-auto">
@@ -725,7 +725,7 @@
                 <thead>
                   <tr>
                     <th>SKILL</th>
-                    <th>Ações</th>
+                    <th data-i18n="itemTable.actions">Ações</th>
                   </tr>
                 </thead>
                 <tbody id="as-rows"></tbody>
@@ -829,15 +829,15 @@
             <button id="btn-aic-import" class="btn btn-primary" disabled data-i18n="transfer.importTab">Importar</button>
           </div>
 
-          <!-- "Dev Tools :: IA: MCPs": same Global/Local structure as IA:
-               SKILLs, but each row has its own per-agent registration mechanism
-               (not a single tool). -->
+          <!-- "Skills & MCPs :: MCPs": same Global/Local structure as
+               SKILLs, but each row has its own per-agent registration
+               mechanism (not a single tool). -->
           <div id="mcpservers-container" class="hidden">
             <label class="form-control max-w-xs mb-8">
-              <div class="label"><span class="label-text">Tipo de Instalação </span></div>
+              <div class="label"><span class="label-text" data-i18n="scope.type">Tipo de Instalação</span></div>
               <select id="mcp-scope" class="select select-bordered">
-                <option value="global">Global</option>
-                <option value="local">Local</option>
+                <option value="global" data-i18n="scope.global">Global</option>
+                <option value="local" data-i18n="scope.local">Local</option>
               </select>
             </label>
 
@@ -846,16 +846,16 @@
                 <h3 id="mcp-scope-alert-title" class="font-bold"></h3>
                 <div id="mcp-scope-alert-desc" class="text-sm opacity-80"></div>
               </div>
-              <button id="btn-mcp-pick-folder" class="btn btn-sm ml-auto hidden">Selecionar Pasta</button>
+              <button id="btn-mcp-pick-folder" class="btn btn-sm ml-auto hidden" data-i18n="scope.pickFolder">Selecionar Pasta</button>
             </div>
-            <p id="mcp-codex-note" class="text-xs opacity-60 mb-4 hidden">Nota: o Codex só é registrado quando o Tipo de Instalação é Global (o escopo por projeto do Codex não está confirmado como já lançado).</p>
+            <p id="mcp-codex-note" class="text-xs opacity-60 mb-4 hidden" data-i18n="mcps.codexNote">Nota: o Codex só é registrado quando o Tipo de Instalação é Global (o escopo por projeto do Codex não está confirmado como já lançado).</p>
 
             <div class="overflow-x-auto">
               <table class="table">
                 <thead>
                   <tr>
                     <th>MCP</th>
-                    <th>Ações</th>
+                    <th data-i18n="itemTable.actions">Ações</th>
                   </tr>
                 </thead>
                 <tbody id="mcp-rows"></tbody>

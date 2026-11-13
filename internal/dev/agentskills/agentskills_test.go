@@ -97,7 +97,7 @@ var fullSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
 func TestCatalogue(t *testing.T) {
 	seen := map[string]bool{}
 	for _, sk := range Catalogue {
-		if sk.Slug == "" || sk.Name == "" || sk.Repo == "" || sk.Arg == "" {
+		if sk.Slug == "" || (sk.Name == "" && sk.NameKey == "") || sk.Repo == "" || sk.Arg == "" {
 			t.Errorf("incomplete entry: %+v", sk)
 		}
 		if !strings.HasPrefix(sk.Repo, "https://github.com/") || !fullSHA.MatchString(sk.Ref) {

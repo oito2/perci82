@@ -476,7 +476,7 @@ export class AIContextRow {
 }
 
 /**
- * AgentSkillRow is one row of "Dev Tools :: IA: SKILLs". Agents lists, by
+ * AgentSkillRow is one row of "Skills & MCPs :: SKILLs". Agents lists, by
  * name, the agents that accepted the skill (empty for a record written
  * before they were recorded); Partial is set when some agent is missing;
  * Retired marks an entry that left the catalog, listed only while
@@ -1507,11 +1507,12 @@ export class LanguageState {
 }
 
 /**
- * MCPServerRow is one row of "Dev Tools :: IA: MCPs". Agents lists, by
+ * MCPServerRow is one row of "Skills & MCPs :: MCPs". Agents lists, by
  * name, the agents that accepted the registration (empty for a record
  * written before they were recorded); Partial is set when some agent that
  * applies to the scope is missing. Retired marks an entry that left the
- * catalog, listed only while registered so it can be removed.
+ * catalog, listed only while registered so it can be removed. Version is
+ * the release of the binary Perci installed, for a server shipped as one.
  */
 export class MCPServerRow {
     /**
@@ -1612,6 +1613,13 @@ export class MCPServerRow {
              * @type {string}
              */
             this["manualNote"] = "";
+        }
+        if (!("version" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["version"] = "";
         }
 
         Object.assign(this, $$source);

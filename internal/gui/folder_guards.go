@@ -19,11 +19,12 @@ package gui
 // "Dev Tools" category from the frontend.
 
 import (
-	"fmt"
+	"errors"
 	"path/filepath"
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/dev/mcpservers"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // requireKnownFolder is requireFolder plus: the folder was picked in a
@@ -56,7 +57,7 @@ func requireKnownFolder(p string) error {
 			}
 		}
 	}
-	return fmt.Errorf("pasta não escolhida no seletor: %s", p)
+	return errors.New(i18n.Tr("path.notPicked", i18n.Args{"path": p}))
 }
 
 // requireKnownFolderUnlessGlobal is requireKnownFolder for actions with a
@@ -83,5 +84,5 @@ func requireMCPParam(slug string, global bool, folder, param string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("caminho não escolhido no seletor de arquivos: %s", param)
+	return errors.New(i18n.Tr("path.notPicked", i18n.Args{"path": param}))
 }

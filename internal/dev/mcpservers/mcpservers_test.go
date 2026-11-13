@@ -128,7 +128,7 @@ func TestAntigravityConfig_RejectsNonObjectServers(t *testing.T) {
 // package is pinned to an exact version.
 func TestCatalogue_GenericEntriesArePinned(t *testing.T) {
 	for _, sv := range Catalogue {
-		if sv.Manual || sv.Slug == "dart-flutter" {
+		if sv.Manual || sv.Slug == "dart-flutter" || IsBinary(sv.Slug) {
 			continue
 		}
 		g, ok := genericServers[sv.Slug]
