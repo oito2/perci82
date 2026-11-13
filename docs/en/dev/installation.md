@@ -10,7 +10,7 @@ Perci82 Dev is released for **Linux on amd64** only: it is built with Wails v3, 
 
 | OS | Status | Distributions | Runtime dependencies |
 |---|---|---|---|
-| Linux (amd64) | Supported | Distributions with `apt` (Debian, Ubuntu, Linux Mint, ZorinOS, Pop!_OS) or `dnf` (Fedora) | `apt`: `libgtk-4-1 libwebkitgtk-6.0-4` · `dnf`: `gtk4 webkitgtk6.0` |
+| Linux (amd64) | Supported | Distributions with `apt` (Debian 13+, Ubuntu 24.04+, Linux Mint 22+, LMDE 7+, ZorinOS 18+, Pop!_OS 24.04+) or `dnf` (Fedora) | `apt`: `libgtk-4-1 libwebkitgtk-6.0-4` · `dnf`: `gtk4 webkitgtk6.0` |
 | Windows | Not supported | — | — |
 | macOS | Not supported | — | — |
 

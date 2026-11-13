@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -256,6 +257,9 @@ func InstallOne(ctx context.Context, exe *executor.Executor, stdout io.Writer, p
 
 // installFor is InstallOne for an explicit distro family.
 func installFor(ctx context.Context, exe *executor.Executor, stdout io.Writer, p Prereq, family string) error {
+	if err := requireRelease(); err != nil {
+		return err
+	}
 	opts := executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}
 	switch p.ID {
 	case "wails3":
@@ -313,6 +317,9 @@ func UpdateOne(ctx context.Context, exe *executor.Executor, stdout io.Writer, p 
 
 // updateFor is UpdateOne for an explicit distro family.
 func updateFor(ctx context.Context, exe *executor.Executor, stdout io.Writer, p Prereq, family string) error {
+	if err := requireRelease(); err != nil {
+		return err
+	}
 	switch p.ID {
 	case "wails3":
 		return installWails3(ctx, exe, stdout)
@@ -437,14 +444,35 @@ func mkcertPkgs(family string) []string {
 	return []string{"mkcert", "libnss3-tools"}
 }
 
+// dockerPkgs returns the distribution's own Docker Engine, Compose v2 and
+// Buildx packages for family. Compose v2 is docker-compose-v2 on Ubuntu and
+// its derivatives and docker-compose on Debian, where docker-compose-v2
+// does not exist.
 func dockerPkgs(family string) []string {
 	switch family {
 	case distro.Fedora:
 		// Fedora's own packages, not Docker Inc.'s repository names.
 		return []string{"moby-engine", "docker-compose", "docker-buildx"}
 	default:
-		return []string{"docker.io", "docker-compose-v2", "docker-buildx"}
+		compose := "docker-compose"
+		if aptHasPackage("docker-compose-v2") {
+			compose = "docker-compose-v2"
+		}
+		return []string{"docker.io", compose, "docker-buildx"}
 	}
+}
+
+// requireRelease refuses installs and updates on a distribution release
+// older than the package names here exist on (a variable so tests choose
+// the answer).
+var requireRelease = distro.RequireSupportedRelease
+
+// aptHasPackage reports whether apt knows a package named name (a
+// variable so tests choose the answer).
+var aptHasPackage = func(name string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return exec.CommandContext(ctx, "apt-cache", "show", name).Run() == nil
 }
 
 // aptShell renders an unattended apt-get command line for a bash script.

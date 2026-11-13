@@ -121,3 +121,12 @@ test("Pastas de Desenvolvimento: a folder mounted outside Moodle is named by its
   assert.equal(row.children[0].textContent, "loja/modules/p");
   assert.equal(row.children[3].children[0].textContent, "Contêiner parado");
 });
+
+test("Plugins Moodle: mounts with old systemd units show a warning whose button updates them", async () => {
+  const { ctx, element, calls } = load({ ok: true });
+  ctx.showMpRows({ rows: [], outdatedUnits: 2 });
+  assert.match(element("mp-units-text").textContent, /^2 pasta\(s\) montada\(s\)/);
+  (element("btn-mp-units").listeners.click || []).forEach((fn) => fn({}));
+  await tick();
+  assert.ok(calls.some((c) => c.name === "UpdateDevFolderUnits"));
+});

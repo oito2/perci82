@@ -118,7 +118,7 @@ The installers need `curl`, `jq`, `sha256sum`, `tar` and `sudo`. They check the 
 ## Update & Maintenance
 
 - **Update:** Overview → **Check** looks for a newer release of the app; **Update** downloads it, checks its SHA-256 and replaces the binary. Running the installer again also installs the newest release. Builds from source report the version `dev` and don't update themselves.
-- **Uninstall:** Overview → **Uninstall** removes the app's binary, menu entry and icons. "Also remove the settings" removes only that app's settings (and, in Perci82 Dev, its Docker stack files and Git account files in `~/.perci`); `~/.perci` itself goes only when no other Perci82 app nor the old Perci is installed and nothing else is left in it. Perci82 Dev's uninstall window also offers backups of Docker, repositories and AI contexts, and removing the Docker containers. See [Uninstalling Perci82 System](docs/en/system/uninstallation.md) and [Uninstalling Perci82 Dev](docs/en/dev/uninstallation.md).
+- **Uninstall:** Overview → **Uninstall** removes the app's binary, menu entry and icons. "Also remove the settings" removes only that app's settings (and, in Perci82 Dev, its Git account files in `~/.perci` and, with the Docker containers, its Docker stack files, keeping the MariaDB backups); `~/.perci` itself goes only when no other Perci82 app nor the old Perci is installed and nothing else is left in it. Perci82 Dev's uninstall window also offers backups of Docker, repositories and AI contexts, and removing the Docker containers. See [Uninstalling Perci82 System](docs/en/system/uninstallation.md) and [Uninstalling Perci82 Dev](docs/en/dev/uninstallation.md).
 
 ## Documentation
 

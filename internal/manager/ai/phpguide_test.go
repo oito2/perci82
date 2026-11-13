@@ -170,3 +170,37 @@ func TestPHPGuide_NoAppNoGuide(t *testing.T) {
 		t.Errorf("a context whose guide has no app = %q, want applied", st.State)
 	}
 }
+
+// The PHP Perci82 rule of Claude Code never needs its Docker app to be
+// recognised as Perci's: previews (which run on a copy no app holds) and
+// updates or removal after the app is gone still work, and the rule goes.
+func TestPHPGuide_RuleRemovedWithoutTheApp(t *testing.T) {
+	project, _ := phpGuideSetup(t)
+	var out bytes.Buffer
+	if err := GenerateSharedFiles(project, ModelsNamed([]string{"Moodle", phpPerciName}), AgentIDs(), true, &out); err != nil {
+		t.Fatal(err)
+	}
+	rule := filepath.Join(project, ".claude", "rules", "perci", "PHP-PERCI82.md")
+	if _, err := os.Stat(rule); err != nil {
+		t.Fatalf("the Claude Code rule is missing: %v", err)
+	}
+	if _, err := PreviewRemove(project); err != nil {
+		t.Errorf("PreviewRemove: %v", err)
+	}
+	if _, err := Preview(project, ModelsNamed([]string{"Moodle"}), AgentIDs()); err != nil {
+		t.Errorf("Preview without the standard: %v", err)
+	}
+
+	if err := config.Update(func(c *config.Config) error { c.Docker.Apps = nil; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := GenerateSharedFiles(project, ModelsNamed([]string{"Moodle"}), AgentIDs(), true, &out); err != nil {
+		t.Fatalf("update after the app was removed: %v", err)
+	}
+	if _, err := os.Stat(rule); !os.IsNotExist(err) {
+		t.Error("the PHP Perci82 rule survived the update")
+	}
+	if err := RemoveContext(project, &out); err != nil {
+		t.Errorf("remove after the app was removed: %v", err)
+	}
+}

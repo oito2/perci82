@@ -140,7 +140,7 @@ The first argument picks the tool when it is one of the type's subcommands; anyt
 
 ## Development Folders
 
-Mounts a development folder inside an app's project: it shows as an ordinary folder in the editor and in the container. The folder is bind-mounted on the host by a systemd `.mount` unit in `/etc/systemd/system`, ordered before `docker.service`, so it is back after a reboot before the containers start.
+Mounts a development folder inside an app's project: it shows as an ordinary folder in the editor and in the container. The folder is bind-mounted on the host by a systemd `.mount` unit in `/etc/systemd/system`, ordered before `docker.service`, so it is back after a reboot before the containers start. The unit refuses to mount when a folder on the way to the development folder or to the destination has become a symbolic link, and a destination reached through a link is refused when the mount is created.
 
 | Field | Notes |
 |---|---|
@@ -153,7 +153,7 @@ The destination must be empty or not exist yet, and paths with spaces, backslash
 
 When a folder above the destination has a `.megaignore` (MEGA sync), a rule excluding the destination (`-dpG:<path>`) is added to it before mounting and removed with the mount; when it can't be written, the mount is refused.
 
-**Create** mounts the folder; it is applied on the container's next restart. The **Mounted folders** tab lists each mount with its status and the actions **Restart container** (restarts the app's container, and Nginx when it serves the app) and **Remove** (unmounts the folder, removes the unit and the destination folder when it is left empty, and restarts the containers). The development folder itself is never changed. Nginx serves the files of every type but Node, so it is restarted for those apps only; containers that aren't running aren't started.
+**Create** mounts the folder; it is applied on the container's next restart. The **Mounted folders** tab lists each mount with its status and the actions **Restart container** (restarts the app's container, and Nginx when it serves the app) and **Remove** (unmounts the folder, removes the unit and the destination folder when it is left empty, and restarts the containers). The development folder itself is never changed. Nginx serves the files of every type but Node, so it is restarted for those apps only; containers that aren't running aren't started. When mounts made by an earlier version use units without the check against links, the tab shows a warning with **Update units**, which rewrites them (one password prompt) without unmounting anything.
 
 | Status | Meaning |
 |---|---|

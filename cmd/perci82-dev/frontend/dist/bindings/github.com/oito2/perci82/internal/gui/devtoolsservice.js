@@ -470,6 +470,15 @@ export function UpdateAgentSkill(slug, global, folder) {
 }
 
 /**
+ * UpdateDevFolderUnits rewrites the systemd units of the mounts that
+ * predate the checks against links (one password prompt).
+ * @returns {$CancellablePromise<void>}
+ */
+export function UpdateDevFolderUnits() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.UpdateDevFolderUnits");
+}
+
+/**
  * UpdateMCPServer refreshes slug's registration and keeps config.yaml's
  * stored Param and agents in sync (in case the user changed the parameter
  * before updating). A server shipped as a release binary first gets the

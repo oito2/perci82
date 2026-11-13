@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -207,5 +208,33 @@ func TestEnsureImage_LabelsTheBuild(t *testing.T) {
 		args: []string{"PHP_VERSION=8.3", fmt.Sprintf("UID=%d", os.Getuid())}}.hash()
 	if !strings.Contains(out.String(), "--label perci.hash="+want) {
 		t.Errorf("build must carry the content hash %s:\n%s", want, out.String())
+	}
+}
+
+// TestPHPUnitSelect_RunsOnEverySupportedPHP runs phpunitSelect for each
+// supported PHP version and checks the chosen PHPUnit release supports it.
+func TestPHPUnitSelect_RunsOnEverySupportedPHP(t *testing.T) {
+	// minPHP is each PHPUnit release's minimum PHP (minor * 100 + patch).
+	minPHP := map[string]int{"9.6.39": 703, "10.5.55": 801, "11.5.39": 802, "12.5.30": 803}
+	for _, v := range SupportedPHPVersions {
+		full := v + ".12"
+		cmd := exec.CommandContext(t.Context(), "sh", "-c", phpunitSelect+` printf '%s %s' "$VER" "$HASH"`)
+		cmd.Env = append(os.Environ(), "PHP_VERSION="+full)
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("%s: %v", v, err)
+		}
+		ver, hash, _ := strings.Cut(string(out), " ")
+		want, ok := minPHP[ver]
+		if !ok || len(hash) != 64 {
+			t.Fatalf("PHP %s: got %q, want a known PHPUnit release with a SHA-256", v, out)
+		}
+		var major, minor int
+		if _, err := fmt.Sscanf(v, "%d.%d", &major, &minor); err != nil {
+			t.Fatal(err)
+		}
+		if major*100+minor < want {
+			t.Errorf("PHP %s gets PHPUnit %s, which needs PHP %d.%d", v, ver, want/100, want%100)
+		}
 	}
 }

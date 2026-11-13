@@ -160,8 +160,9 @@ let aicKeepFolder = false;
 function aicEdit(row) {
   aicFolder = row.path;
   aicKeepFolder = true;
-  renderAicDefineScreen();
-  selectMenuItem("aicontext-define|");
+  // Selecting the menu item renders the screen once; it is rendered
+  // directly only when the item is missing.
+  if (!selectMenuItem("aicontext-define|")) renderAicDefineScreen();
 }
 
 // aicRemove previews Remover on row's folder and, after the confirmation,

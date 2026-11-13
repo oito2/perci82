@@ -80,13 +80,27 @@ func syncClaudeRules(dir string, active []Model, rendered map[string]string, ove
 		if _, err := os.Lstat(path); err != nil {
 			continue
 		}
-		content, err := renderInstruction(dir, m)
+		data, err := os.ReadFile(path)
 		if err != nil {
-			return err
+			continue
 		}
-		generated := []string{claudeRule(m, content)}
-		if data, err := os.ReadFile(path); err == nil && earlierRule(m, data) {
-			generated = append(generated, string(data))
+		var generated []string
+		if m.Name == phpPerciName {
+			// The guide depends on a Docker app that may be gone (or, in a
+			// preview, never holds the copy): a rule whose guide still
+			// matches its signature is Perci's.
+			if body, ok := claudeRuleBody(data); ok && signedUnedited(string(body)) && claudeRule(m, string(body)) == string(data) {
+				generated = append(generated, string(data))
+			}
+		} else {
+			content, err := renderInstruction(dir, m)
+			if err != nil {
+				return err
+			}
+			generated = append(generated, claudeRule(m, content))
+			if earlierRule(m, data) {
+				generated = append(generated, string(data))
+			}
 		}
 		removeIfPristine(path, stdout, generated...)
 	}
@@ -99,16 +113,23 @@ func syncClaudeRules(dir string, active []Model, rendered map[string]string, ove
 // version wrote it: a paths frontmatter followed by a standard whose
 // SHA-256 is in templateHistory.
 func earlierRule(model Model, data []byte) bool {
-	rest, ok := bytes.CutPrefix(data, []byte("---\npaths:\n"))
-	if !ok {
-		return false
-	}
-	_, body, ok := bytes.Cut(rest, []byte("\n---\n\n"))
+	body, ok := claudeRuleBody(data)
 	if !ok {
 		return false
 	}
 	sum := sha256.Sum256(body)
 	return slices.Contains(templateHistory[filepath.Base(model.Instruction)], hex.EncodeToString(sum[:]))
+}
+
+// claudeRuleBody returns the content of a Claude Code rule written by
+// claudeRule, without its paths header.
+func claudeRuleBody(data []byte) ([]byte, bool) {
+	rest, ok := bytes.CutPrefix(data, []byte("---\npaths:\n"))
+	if !ok {
+		return nil, false
+	}
+	_, body, ok := bytes.Cut(rest, []byte("\n---\n\n"))
+	return body, ok
 }
 
 // removeIfPristine deletes the regular file at path when its content is

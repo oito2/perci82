@@ -16,8 +16,8 @@ A tela mostra os itens do perfil que corresponde à máquina (`/etc/os-release` 
 |---|---|
 | Ubuntu 24.04 / Ubuntu 26.04 | Ubuntu 24.04 ou 26.04 com qualquer ambiente gráfico, menos Budgie |
 | Ubuntu Budgie 24.04 / Ubuntu Budgie 26.04 | Ubuntu 24.04 ou 26.04 com Budgie |
-| Linux Mint Cinnamon / Linux Mint XFCE | Linux Mint com Cinnamon ou XFCE (qualquer versão) |
-| ZorinOS 18.1 / ZorinOS 18.1 Lite | Zorin OS com GNOME (Core) ou XFCE (Lite) (qualquer versão) |
+| Linux Mint Cinnamon / Linux Mint XFCE | Linux Mint 22 ou mais recente com Cinnamon ou XFCE |
+| ZorinOS 18.1 / ZorinOS 18.1 Lite | Zorin OS 18 ou mais recente com GNOME (Core) ou XFCE (Lite) |
 | Fedora 44 / Fedora 44 Budgie | Fedora com qualquer ambiente gráfico, ou com Budgie (qualquer versão) |
 | Pop!_OS 24.04 COSMIC | Pop!_OS 24.04 com COSMIC |
 

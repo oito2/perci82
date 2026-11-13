@@ -236,13 +236,22 @@ function buildMpRow(row) {
   return tr;
 }
 
-// showMpRows fills the table with the mounted folders of screen.
+// showMpRows fills the table with the mounted folders of screen, and
+// shows the update warning when some of their units predate the checks
+// against links.
 function showMpRows(screen) {
   mpRows.innerHTML = "";
   const rows = screen.rows || [];
   rows.forEach(function (row) { mpRows.appendChild(buildMpRow(row)); });
   mpEmpty.classList.toggle("hidden", rows.length > 0);
+  const outdated = screen.outdatedUnits || 0;
+  mpUnitsText.textContent = t("devfolders.unitsOutdated", { count: outdated });
+  mpUnitsAlert.classList.toggle("hidden", outdated === 0);
 }
+
+btnMpUnits.addEventListener("click", function () {
+  beginRun(t("devfolders.run.units"), function () { return App.UpdateDevFolderUnits(); });
+});
 
 // loadMpRows fills the table with every mounted folder and its status.
 function loadMpRows() {

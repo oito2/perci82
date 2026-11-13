@@ -140,7 +140,7 @@ O primeiro argumento escolhe a ferramenta quando é um dos subcomandos do tipo; 
 
 ## Pastas de Desenvolvimento
 
-Monta uma pasta de desenvolvimento dentro do projeto de um aplicativo: ela aparece como uma pasta comum no editor e no contêiner. A pasta é montada (bind mount) no host por uma unidade systemd `.mount` em `/etc/systemd/system`, ordenada antes do `docker.service`, então ela volta depois de um reinício antes de os contêineres subirem.
+Monta uma pasta de desenvolvimento dentro do projeto de um aplicativo: ela aparece como uma pasta comum no editor e no contêiner. A pasta é montada (bind mount) no host por uma unidade systemd `.mount` em `/etc/systemd/system`, ordenada antes do `docker.service`, então ela volta depois de um reinício antes de os contêineres subirem. A unidade se recusa a montar quando uma pasta no caminho até a pasta de desenvolvimento ou até o destino virou um link simbólico, e um destino alcançado por um link é recusado ao criar a montagem.
 
 | Campo | Observações |
 |---|---|
@@ -153,7 +153,7 @@ O destino precisa estar vazio ou não existir, e caminhos com espaço, barra inv
 
 Quando uma pasta acima do destino tem um `.megaignore` (sincronização do MEGA), uma regra que exclui o destino (`-dpG:<caminho>`) é adicionada a ele antes de montar e removida junto com a montagem; quando ela não pode ser gravada, a montagem é recusada.
 
-**Criar** monta a pasta; ela é aplicada no próximo reinício do contêiner. A aba **Pastas montadas** lista cada montagem com o status e as ações **Reiniciar contêiner** (reinicia o contêiner do aplicativo, e o Nginx quando ele serve o aplicativo) e **Remover** (desmonta a pasta, remove a unidade e a pasta de destino quando ela fica vazia, e reinicia os contêineres). A pasta de desenvolvimento em si nunca é alterada. O Nginx serve os arquivos de todos os tipos menos Node, então só é reiniciado para esses aplicativos; contêineres parados não são iniciados.
+**Criar** monta a pasta; ela é aplicada no próximo reinício do contêiner. A aba **Pastas montadas** lista cada montagem com o status e as ações **Reiniciar contêiner** (reinicia o contêiner do aplicativo, e o Nginx quando ele serve o aplicativo) e **Remover** (desmonta a pasta, remove a unidade e a pasta de destino quando ela fica vazia, e reinicia os contêineres). A pasta de desenvolvimento em si nunca é alterada. O Nginx serve os arquivos de todos os tipos menos Node, então só é reiniciado para esses aplicativos; contêineres parados não são iniciados. Quando montagens feitas por uma versão anterior usam unidades sem a verificação contra links, a aba mostra um aviso com **Atualizar unidades**, que as regrava (a senha é pedida uma vez) sem desmontar nada.
 
 | Status | Significado |
 |---|---|

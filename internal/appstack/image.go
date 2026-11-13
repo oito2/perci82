@@ -137,6 +137,17 @@ const (
 	downloadCurlOptions = "--connect-timeout 10 --max-time 600"
 )
 
+// phpunitSelect is the shell snippet of the PHP images that sets VER and
+// HASH to the newest PHPUnit release (and its phar's SHA-256) that runs on
+// the image's full PHP_VERSION: 9.6 needs PHP 7.3, 10.5 needs 8.1, 11.5
+// needs 8.2 and 12.5 needs 8.3.
+const phpunitSelect = `case "$PHP_VERSION" in \
+      7.*|8.0.*) VER=9.6.39; HASH=4c744cafd21b1a1f85f2a05e764fadba001a7e0758e2369fff71748988aa2187;; \
+      8.1.*) VER=10.5.55; HASH=3a29d4dd24dad475b3c761758854bd3d7ecdd85645097ff0589d98b408b7f4ba;; \
+      8.2.*|8.3.*) VER=11.5.39; HASH=63601d96eca81db5ab675657f4a0b4056ff7b4acfe0d5767a1d74f50b626456d;; \
+      *) VER=12.5.30; HASH=2f6d24d19d1238d6b5332f85a12a1aa021c79cc9e704fbe25fca93181752cfe1;; \
+    esac;`
+
 // phpDockerfileBody is the Dockerfile every perci-php<version> image builds
 // from, without the leading PHP_VERSION build-arg declaration, so the combo
 // Dockerfile can declare its arguments ahead of an extra first stage.
@@ -184,10 +195,7 @@ RUN set -e; \
 
 RUN set -e; \
     cd /tmp; \
-    MINOR=$(echo "${PHP_VERSION}" | cut -d. -f2); \
-    if [ "$MINOR" -ge 4 ]; then VER=12.5.30; HASH=2f6d24d19d1238d6b5332f85a12a1aa021c79cc9e704fbe25fca93181752cfe1; \
-    elif [ "$MINOR" -ge 2 ]; then VER=11.5.39; HASH=63601d96eca81db5ab675657f4a0b4056ff7b4acfe0d5767a1d74f50b626456d; \
-    else VER=10.5.55; HASH=3a29d4dd24dad475b3c761758854bd3d7ecdd85645097ff0589d98b408b7f4ba; fi; \
+    ` + phpunitSelect + ` \
     curl ` + downloadCurlOptions + ` -fsSL "https://phar.phpunit.de/phpunit-${VER}.phar" -o phpunit.phar; \
     echo "${HASH}  phpunit.phar" | sha256sum -c -; \
     mv phpunit.phar /usr/local/bin/phpunit; \

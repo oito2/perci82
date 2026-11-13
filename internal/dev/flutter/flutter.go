@@ -103,6 +103,9 @@ func InstallPrereqs(ctx context.Context, exe *executor.Executor, stdout io.Write
 }
 
 func installPrereqsFor(ctx context.Context, exe *executor.Executor, stdout io.Writer, family string) error {
+	if err := requireRelease(); err != nil {
+		return err
+	}
 	return installPrereqsWith(ctx, exe, stdout, family, !javaUsable(ctx, exe))
 }
 
@@ -333,8 +336,16 @@ func ensureJava(ctx context.Context, exe *executor.Executor, stdout io.Writer, f
 	return ensureJavaInstall(ctx, exe, stdout, family)
 }
 
+// requireRelease refuses the JDK and the native libraries on a
+// distribution release older than their package names exist on (a
+// variable so tests choose the answer).
+var requireRelease = distro.RequireSupportedRelease
+
 // ensureJavaInstall installs JDK 21 for family.
 func ensureJavaInstall(ctx context.Context, exe *executor.Executor, stdout io.Writer, family string) error {
+	if err := requireRelease(); err != nil {
+		return err
+	}
 	opts := executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}
 
 	ui.Info(stdout, i18n.Tr("sdk.run.java", nil))

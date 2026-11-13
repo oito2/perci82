@@ -46,6 +46,7 @@ var (
 	detectedFamily string
 	cachedID       string
 	cachedVer      string
+	cachedIDLike   string
 )
 
 // loadOSRelease reads and parses /etc/os-release exactly once per process
@@ -54,6 +55,7 @@ func loadOSRelease() {
 	osReleaseOnce.Do(func() {
 		data, _ := os.ReadFile("/etc/os-release") // err == read as empty content
 		detectedFamily, cachedID, cachedVer = parseOSRelease(string(data))
+		cachedIDLike = osReleaseField(string(data), "ID_LIKE")
 	})
 }
 

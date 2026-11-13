@@ -1029,6 +1029,15 @@ export class DevFoldersScreen {
              */
             this["rows"] = [];
         }
+        if (!("outdatedUnits" in $$source)) {
+            /**
+             * OutdatedUnits counts the mounts whose systemd unit predates the
+             * checks against links (UpdateDevFolderUnits rewrites them).
+             * @member
+             * @type {number}
+             */
+            this["outdatedUnits"] = 0;
+        }
 
         Object.assign(this, $$source);
     }

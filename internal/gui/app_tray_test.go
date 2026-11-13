@@ -16,6 +16,7 @@
 package gui
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -328,17 +329,43 @@ func newUninstallHome(t *testing.T, onUninstall func() error) (*DevHomeService, 
 // lastUninstall is the last call newUninstallHome's recorder received.
 var lastUninstall uninstallCall
 
-// Perci82 Dev uninstalls itself as "dev", and "Também remover
-// configurações" also takes its folders under ~/.perci.
+// Perci82 Dev uninstalls itself as "dev". Removing its settings takes
+// ~/.perci/git, and ~/.perci/appstack only with the containers that mount
+// it; the MariaDB dumps in appstack/backups always stay.
 func TestDevSelfUninstall_PassesItsAppAndDataDirs(t *testing.T) {
 	h, _ := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
-	for _, removeConfig := range []bool{false, true} {
-		if err := h.selfUninstall(io.Discard, removeConfig, false, "", "", ""); !errors.Is(err, selfupdate.ErrUninstalled) {
+	appstackDir := filepath.Join(os.Getenv("HOME"), ".perci", "appstack")
+	cases := []struct {
+		removeConfig, removeDocker, backups bool
+		want                                []string
+	}{
+		{false, false, false, nil},
+		{true, false, true, []string{"git"}},
+		{true, true, false, []string{"git", "appstack"}},
+		{true, true, true, []string{"git", "appstack/certs", "appstack/nginx"}},
+	}
+	for _, c := range cases {
+		_ = os.RemoveAll(appstackDir)
+		for _, d := range []string{"certs", "nginx"} {
+			if err := os.MkdirAll(filepath.Join(appstackDir, d), 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if c.backups {
+			if err := os.MkdirAll(filepath.Join(appstackDir, "backups"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var out bytes.Buffer
+		if err := h.selfUninstall(&out, c.removeConfig, c.removeDocker, "", "", ""); !errors.Is(err, selfupdate.ErrUninstalled) {
 			t.Fatalf("selfUninstall: %v", err)
 		}
 		got := lastUninstall
-		if got.app != "dev" || got.opts.RemoveConfig != removeConfig || !slices.Equal(got.opts.DataDirs, []string{"appstack", "git"}) {
-			t.Errorf("removeConfig=%v: uninstall got %+v", removeConfig, got)
+		if got.app != "dev" || got.opts.RemoveConfig != c.removeConfig || !slices.Equal(got.opts.DataDirs, c.want) {
+			t.Errorf("%+v: uninstall got %+v", c, got)
+		}
+		if c.removeConfig && c.removeDocker && c.backups && !strings.Contains(out.String(), filepath.Join(appstackDir, "backups")) {
+			t.Errorf("%+v: the log does not say where the backups stay:\n%s", c, out.String())
 		}
 	}
 }

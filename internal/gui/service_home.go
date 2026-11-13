@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -547,10 +549,38 @@ const uninstallQuitDelay = 1500 * time.Millisecond
 // so tests never remove the test binary.
 var uninstallApp = selfupdate.Uninstall
 
-// devDataDirs are the folders under ~/.perci only Perci82 Dev writes
-// (Docker stack files, the Git accounts' gitconfig files), removed with
-// its settings.
-var devDataDirs = []string{"appstack", "git"}
+// devDataDirs returns the folders under ~/.perci, only Perci82 Dev
+// writes, that go with its settings: the Git accounts' gitconfig files
+// always, and the Docker stack files only when the containers go too,
+// since they still mount them. The MariaDB dumps in appstack/backups are
+// the user's data and always stay; w tells where.
+func devDataDirs(w io.Writer, removeDocker bool) []string {
+	dirs := []string{"git"}
+	if !removeDocker {
+		ui.Info(w, i18n.Tr("devuninstall.appstackKept", nil))
+		return dirs
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return dirs
+	}
+	appstackDir := filepath.Join(home, ".perci", "appstack")
+	backups := filepath.Join(appstackDir, "backups")
+	if _, err := os.Lstat(backups); err != nil {
+		return append(dirs, "appstack")
+	}
+	entries, err := os.ReadDir(appstackDir)
+	if err != nil {
+		return dirs
+	}
+	for _, e := range entries {
+		if e.Name() != "backups" {
+			dirs = append(dirs, filepath.Join("appstack", e.Name()))
+		}
+	}
+	ui.Info(w, i18n.Tr("devuninstall.backupsKept", i18n.Args{"path": backups}))
+	return dirs
+}
 
 // selfUninstall is RunSelfUninstall's body: optional backups, optional
 // Docker cleanup, then selfupdate.Uninstall (whose ErrUninstalled means
@@ -619,7 +649,11 @@ func (h *DevHomeService) selfUninstall(w io.Writer, removeConfig, removeDocker b
 		}
 	}
 
-	err := uninstallApp(ctx, h.exe, w, packaging.AppDev, selfupdate.UninstallOptions{RemoveConfig: removeConfig, DataDirs: devDataDirs})
+	var dataDirs []string
+	if removeConfig {
+		dataDirs = devDataDirs(w, removeDocker)
+	}
+	err := uninstallApp(ctx, h.exe, w, packaging.AppDev, selfupdate.UninstallOptions{RemoveConfig: removeConfig, DataDirs: dataDirs})
 	if errors.Is(err, selfupdate.ErrUninstalled) {
 		if fErr := gitaccount.Forget(ctx, h.exe, w, accounts); fErr != nil {
 			ui.Warning(w, i18n.Tr("devuninstall.forgetFailed", i18n.Args{"error": fErr.Error()}))

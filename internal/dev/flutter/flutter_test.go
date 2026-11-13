@@ -413,3 +413,8 @@ func TestCloneFlutter_LowSpeedLimit(t *testing.T) {
 		t.Errorf("clone command: %s", out)
 	}
 }
+
+// The package's tests never depend on the release of the machine running them.
+func init() {
+	requireRelease = func() error { return nil }
+}

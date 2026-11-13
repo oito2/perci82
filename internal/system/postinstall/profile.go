@@ -97,6 +97,11 @@ func DetectProfile() *Profile {
 func detectProfile(id, de, ver string) *Profile {
 	switch id {
 	case "linuxmint":
+		// Linux Mint 21 (and LMDE, numbered after Debian) lack packages
+		// the profile installs, such as libfuse2t64.
+		if distro.VersionLess(ver, "22") {
+			return nil
+		}
 		switch de {
 		case "cinnamon":
 			return &mintCinnamonProfile
@@ -120,6 +125,10 @@ func detectProfile(id, de, ver string) *Profile {
 		}
 		return &fedoraProfile
 	case "zorin":
+		// Zorin OS 17 is based on Ubuntu 22.04, which lacks libfuse2t64.
+		if distro.VersionLess(ver, "18") {
+			return nil
+		}
 		switch de {
 		case "gnome":
 			return &zorinCoreProfile

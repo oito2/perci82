@@ -235,3 +235,19 @@ test("IA: Contextos: Importar lists the file, edits names and folders, and impor
   confirm();
   assert.deepEqual(JSON.parse(JSON.stringify(called("ImportAIContexts")[0].args)), ["/tmp/in.yaml", picks]);
 });
+
+test("IA: Contextos: Alterar keeps the folder when the menu item renders Configurar Projeto", async () => {
+  const sections = [{ id: "ai", label: "AI", items: [
+    { title: "Configurar Projeto", actionId: "aicontext-define" },
+    { title: "Gerenciar Contextos", actionId: "aicontext" },
+  ] }];
+  const record = { registered: true, hasContext: true, name: "Perci", models: ["Go"], agents: ["claude"] };
+  const { rows, actions, click, ctx } = await screen({ GetSections: sections, GetAIContextRecord: record });
+  evalIn(ctx, "loadMenu()");
+  await settle();
+  evalIn(ctx, "renderAIContextScreen()");
+  await settle();
+  click(actions(rows()[0])[1]);
+  await settle();
+  assert.equal(evalIn(ctx, "aicFolder"), "/ws/perci");
+});

@@ -15,7 +15,7 @@ Os pacotes vêm do `apt` (família Debian/Ubuntu) ou do `dnf` (Fedora). Instalar
 
 ## Pré-requisitos
 
-Cada linha tem seus próprios botões **Instalar**, **Atualizar** e **Desinstalar**. Um item que depende de outro mostra **Requer: …** e o seu **Instalar** fica desativado até esse item ser instalado. **Desinstalar** pede confirmação, com um aviso quando a remoção leva mais do que o próprio item.
+Cada linha tem seus próprios botões **Instalar**, **Atualizar** e **Desinstalar**. Um item que depende de outro mostra **Requer: …** e o seu **Instalar** fica desativado até esse item ser instalado. **Desinstalar** pede confirmação, com um aviso quando a remoção leva mais do que o próprio item. Instalar e atualizar precisam do Ubuntu 24.04, Debian 13, Linux Mint 22, LMDE 7, Zorin OS 18, Pop!_OS 24.04 ou de uma versão mais recente: as versões anteriores não têm alguns dos pacotes (como o `libfuse2t64`).
 
 | Item | Origem | Observações |
 |---|---|---|
@@ -33,7 +33,7 @@ Cada linha tem seus próprios botões **Instalar**, **Atualizar** e **Desinstala
 | Libsecret Tools | `libsecret-1-0`, `libsecret-1-dev`, `libsecret-tools` (`apt`) ou `libsecret`, `libsecret-devel`, `git-credential-libsecret` (`dnf`) | Desinstalar mantém o `libsecret-1-0` |
 | Librsvg Tools | `librsvg2-bin` + `librsvg2-dev` (`apt`) ou `librsvg2-tools` + `librsvg2-devel` (`dnf`) | |
 | GitHub CLI (gh) | No `apt`, adiciona o repositório assinado do GitHub (`/etc/apt/sources.list.d/github-cli.list`) e instala o `gh`; no `dnf`, pacote `gh` | Requer Curl; desinstalar também remove o repositório |
-| Docker Engine | `docker.io`, `docker-compose-v2`, `docker-buildx` (`apt`) ou `moby-engine`, `docker-compose`, `docker-buildx` (`dnf`) | Ativa o serviço `docker` e adiciona você ao grupo `docker` (acesso equivalente ao de root); depois, encerre a sessão e entre de novo |
+| Docker Engine | `docker.io`, `docker-compose-v2` (`docker-compose` no Debian), `docker-buildx` (`apt`) ou `moby-engine`, `docker-compose`, `docker-buildx` (`dnf`) | Ativa o serviço `docker` e adiciona você ao grupo `docker` (acesso equivalente ao de root); depois, encerre a sessão e entre de novo |
 | Node.js | A versão LTS pelo nvm v0.40.8 (script oficial) em `~/.nvm` | Requer Curl; sem senha. Atualizar passa para a LTS mais recente, levando os pacotes npm globais. Desinstalar apaga o `~/.nvm` inteiro (todas as versões e pacotes globais, inclusive o Codex CLI) e as linhas do nvm nos arquivos de inicialização do shell |
 | Flatpak Builder Tools | Pacotes `pipx`, `python3-aiohttp`, `python3-tomlkit`; clona o `flatpak-builder-tools` em `~/tools/flatpak-builder-tools` num commit fixo e instala o `flatpak-node-generator` com o `pipx` | Requer Git e Flatpak Builder. Desinstalar mantém os três pacotes |
 | Libfuse2 | `libfuse2t64` (`apt`) ou `fuse-libs` (`dnf`) | |

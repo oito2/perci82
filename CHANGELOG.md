@@ -39,12 +39,26 @@ First release of Perci82 Dev.
 - The Moodle and PHP + Slim standards no longer describe the `php-<app>` wrappers or the Docker setup; that is in PHP Perci82.
 - AI contexts no longer keep `vendor/` out of the agents' reach (`.claude/settings.json`, `.aiexclude`, `.geminiignore`): applying or updating a context removes that rule from projects that have it.
 - Themes come from the oito2 design system: Configurações → Tema offers "Definido pelo sistema", which follows the desktop's light or dark preference, accent color and high contrast (and changes with them while the app is open), and the 13 oito2 presets (Everforest, Rosé Pine, Nord, Dracula/Alucard, Catppuccin). A daisyUI theme saved by Perci 1.9 shows as "Definido pelo sistema" until another theme is chosen.
+- Ambiente installs and updates prerequisites and Flutter's packages only on Ubuntu 24.04, Debian 13, Linux Mint 22, LMDE 7, Zorin OS 18, Pop!_OS 24.04 or later: older releases lack packages such as `libfuse2t64` and `openjdk-21-jdk`, and get a message naming the release needed.
 
 ### Removed
 
 - The sidebar mascot's app icon choice (Ícone do Aplicativo): the app has a single icon.
 - The daisyUI themes of Perci 1.9 (light, dark, cupcake, synthwave, retro, valentine, halloween, garden).
 - The sidebar, its breadcrumb and the mascot logo, replaced by the section tabs; the sidebar logo choice (Logo da Sidebar) in Configurações went first, and a logo saved by Perci 1.9 is kept in `config.yaml` but no longer shown.
+
+### Fixed
+
+- The PHP images pick the PHPUnit release by the image's full PHP version: 9.6 for PHP 7.4 and 8.0 (they got 12.5 and 10.5, which don't run there), 10.5 for 8.1, 11.5 for 8.2 and 8.3, and 12.5 for 8.4.
+- Ambiente → Docker Engine installs on Debian, where Compose v2 is the `docker-compose` package (`docker-compose-v2` exists only on Ubuntu and its derivatives).
+- Contextos de IA no longer fails to preview, update or remove a project whose Claude Code rule for PHP Perci82 is still there after the standard was unchecked or its Docker app was removed.
+- Gerenciar Contextos → Alterar opens Configurar Projeto on the row's folder (it opened without a folder).
+- "Também remover configurações" removes `~/.perci/appstack` only together with the Docker containers, which still use it, and always keeps the MariaDB backups in `~/.perci/appstack/backups`.
+
+### Security
+
+- Installing or updating the Antigravity IDE refuses an extracted app folder or a `chrome-sandbox` replaced by a symbolic link while the password dialog is open, so the setuid bit can only land on the verified copy in `/opt/antigravity`.
+- The systemd units of Docker → Pastas de Desenvolvimento refuse to mount when a folder on the way to the development folder or to the destination has become a symbolic link, and a destination reached through a link is refused when the mount is created. Mounts made earlier show a warning on the Pastas montadas tab with Atualizar unidades, which rewrites their units.
 
 ## [System 1.0.0] - 2026-11-12
 
@@ -69,6 +83,7 @@ First release of Perci82 System, split from Perci 1.9.0.
 - New window layout: sections as tabs at the top (Visão Geral, Pós-instalação, Atualizar, Fontes, Templates, Flatpaks, Configurações) and the screen's own tabs (Itens, Execução) below its title. Section, screen and tab names follow the chosen language. The window is at least 1180 × 640 px.
 - Flatpak scope options read "Sistema (todos os usuários)" and "Usuário (só você)".
 - Themes come from the oito2 design system: Configurações → Tema offers "Definido pelo sistema", which follows the desktop's light or dark preference, accent color and high contrast (and changes with them while the app is open), and the 13 oito2 presets (Everforest, Rosé Pine, Nord, Dracula/Alucard, Catppuccin).
+- Pós-instalação offers the Linux Mint profiles from Linux Mint 22 and the Zorin OS profiles from Zorin OS 18 on; older releases (and LMDE) are shown as not supported, since they lack packages the profiles install, such as `libfuse2t64`.
 
 ### Removed
 

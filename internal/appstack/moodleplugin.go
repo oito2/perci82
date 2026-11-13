@@ -406,7 +406,12 @@ func prepareMount(stdout io.Writer, plan MoodlePluginPlan) (preparedMount, error
 		return preparedMount{}, fmt.Errorf("create %s: %w", plan.Dest, err)
 	}
 	// Checked again right before the privileged step: the folders created
-	// above must not have led outside the app through a link.
+	// above must not have led outside the app through a link, and the
+	// mount unit refuses any link on the way to the destination.
+	if real, err := filepath.EvalSymlinks(plan.Dest); err != nil || real != plan.Dest {
+		p.drop()
+		return preparedMount{}, errors.New(i18n.Tr("devfolder.destHasLink", i18n.Args{"dest": plan.Dest}))
+	}
 	if !resolvedWithin(plan.HTML, plan.Dest) {
 		p.drop()
 		return preparedMount{}, errors.New(i18n.Tr("devfolder.destOutsideAt", i18n.Args{"dest": plan.Dest, "app": plan.App}))
@@ -522,16 +527,8 @@ func unmountSteps(unit, dest string) []executor.PrivilegedStep {
 // the steps remove the unit again.
 func mountUnitSteps(plan MoodlePluginPlan) (steps []executor.PrivilegedStep, tmp string, err error) {
 	content := mountUnitContent(plan)
-	f, err := os.CreateTemp("", "perci-mount-*.mount")
+	tmp, err = stageUnit(content)
 	if err != nil {
-		return nil, "", err
-	}
-	tmp = f.Name()
-	if _, err := f.WriteString(content); err != nil {
-		_ = f.Close()
-		return nil, tmp, err
-	}
-	if err := f.Close(); err != nil {
 		return nil, tmp, err
 	}
 	sum := sha256.Sum256([]byte(content))
@@ -566,6 +563,7 @@ func mountUnitContent(plan MoodlePluginPlan) string {
 		"Description=perci: " + plan.label() + " in " + plan.App + "\n" +
 		"RequiresMountsFor=" + unitPath(plan.DevPath) + "\n" +
 		"Before=docker.service\n" +
+		noLinkAsserts(plan.DevPath, plan.Dest) +
 		"\n" +
 		"[Mount]\n" +
 		"What=" + unitPath(plan.DevPath) + "\n" +

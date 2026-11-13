@@ -70,6 +70,9 @@ type DevFolderRow struct {
 type DevFoldersScreen struct {
 	Apps []DevFolderApp `json:"apps"`
 	Rows []DevFolderRow `json:"rows"`
+	// OutdatedUnits counts the mounts whose systemd unit predates the
+	// checks against links (UpdateDevFolderUnits rewrites them).
+	OutdatedUnits int `json:"outdatedUnits"`
 }
 
 // DevFolderCheck is the result of checking the form: Locked means the
@@ -125,6 +128,7 @@ func (t *DevToolsService) GetDevFolders() (DevFoldersScreen, error) {
 			DeclaredAs: st.DeclaredAs,
 		})
 	}
+	screen.OutdatedUnits = appstack.OutdatedMountUnits(cfg)
 	return screen, nil
 }
 
@@ -255,5 +259,13 @@ func (t *DevToolsService) ApplyDevFolders(folder string) error {
 func (t *DevToolsService) RemoveDevFolder(folder, relPath string) error {
 	return t.runAction(func(stdout io.Writer) error {
 		return appstack.RemoveDevFolder(context.Background(), t.exe, stdout, folder, relPath)
+	})
+}
+
+// UpdateDevFolderUnits rewrites the systemd units of the mounts that
+// predate the checks against links (one password prompt).
+func (t *DevToolsService) UpdateDevFolderUnits() error {
+	return t.runAction(func(stdout io.Writer) error {
+		return appstack.UpdateMountUnits(context.Background(), t.exe, stdout)
 	})
 }

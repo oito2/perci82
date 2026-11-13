@@ -139,7 +139,7 @@ func makeAppTree(t *testing.T, sandbox string) string {
 	if err := os.WriteFile(extra, []byte("x"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(extra, 0o4755); err != nil {
+	if err := os.Chmod(extra, 0o755|os.ModeSetuid); err != nil {
 		t.Fatal(err)
 	}
 	return src
@@ -382,5 +382,77 @@ func TestInstallScript_KeepsStaleBackupOnRefusal(t *testing.T) {
 	}
 	if _, err := os.Stat(installDir + ".old"); err != nil {
 		t.Errorf("the backup must be kept: %v", err)
+	}
+}
+
+// A chrome-sandbox replaced by a link to another file (with the same
+// content, so the checksum still matches) is refused, and the link's
+// target never gets the setuid bit.
+func TestInstallScript_RefusesSandboxLink(t *testing.T) {
+	if _, err := exec.LookPath("sha256sum"); err != nil {
+		t.Skip("sha256sum not available")
+	}
+	installDir := filepath.Join(t.TempDir(), "antigravity")
+	src := makeAppTree(t, "genuine")
+	sum, err := fileSHA256(filepath.Join(src, "chrome-sandbox"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(t.TempDir(), "system-binary")
+	if err := os.WriteFile(target, []byte("genuine"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sandbox := filepath.Join(src, "chrome-sandbox")
+	if err := os.Remove(sandbox); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, sandbox); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runInstallScript(t, installDir, src, sum); err == nil {
+		t.Fatal("a chrome-sandbox link should be refused")
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&(os.ModeSetuid|os.ModeSetgid) != 0 || info.Mode().Perm() != 0o755 {
+		t.Errorf("the link's target mode changed to %v", info.Mode())
+	}
+	if _, err := os.Stat(installDir); !os.IsNotExist(err) {
+		t.Error("nothing should be installed")
+	}
+}
+
+// An app folder replaced by a link (to a folder of setuid binaries) is
+// refused before anything is copied or changed.
+func TestInstallScript_RefusesSourceLink(t *testing.T) {
+	if _, err := exec.LookPath("sha256sum"); err != nil {
+		t.Skip("sha256sum not available")
+	}
+	installDir := filepath.Join(t.TempDir(), "antigravity")
+	elsewhere := t.TempDir()
+	victim := filepath.Join(elsewhere, "su-like")
+	if err := os.WriteFile(victim, []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(victim, 0o755|os.ModeSetuid); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(t.TempDir(), "Antigravity")
+	if err := os.Symlink(elsewhere, src); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runInstallScript(t, installDir, src, strings.Repeat("0", 64)); err == nil {
+		t.Fatal("a source folder link should be refused")
+	}
+	info, err := os.Stat(victim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSetuid == 0 {
+		t.Error("the setuid bit of a file behind the link must be left alone")
 	}
 }

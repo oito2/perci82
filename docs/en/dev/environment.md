@@ -15,7 +15,7 @@ Packages come from `apt` (Debian/Ubuntu family) or `dnf` (Fedora). Package insta
 
 ## Prerequisites
 
-Each row has its own **Install**, **Update** and **Uninstall** buttons. An item that depends on another shows **Requires: …** and its **Install** stays off until that item is installed. **Uninstall** asks for confirmation, with a warning when the removal takes more than the item itself.
+Each row has its own **Install**, **Update** and **Uninstall** buttons. An item that depends on another shows **Requires: …** and its **Install** stays off until that item is installed. **Uninstall** asks for confirmation, with a warning when the removal takes more than the item itself. Installing and updating need Ubuntu 24.04, Debian 13, Linux Mint 22, LMDE 7, Zorin OS 18, Pop!_OS 24.04 or a later release: older releases lack some of the packages (such as `libfuse2t64`).
 
 | Item | Source | Notes |
 |---|---|---|
@@ -33,7 +33,7 @@ Each row has its own **Install**, **Update** and **Uninstall** buttons. An item 
 | Libsecret Tools | `libsecret-1-0`, `libsecret-1-dev`, `libsecret-tools` (`apt`) or `libsecret`, `libsecret-devel`, `git-credential-libsecret` (`dnf`) | Uninstall keeps `libsecret-1-0` |
 | Librsvg Tools | `librsvg2-bin` + `librsvg2-dev` (`apt`) or `librsvg2-tools` + `librsvg2-devel` (`dnf`) | |
 | GitHub CLI (gh) | On `apt`, adds GitHub's signed repository (`/etc/apt/sources.list.d/github-cli.list`) and installs `gh`; on `dnf`, package `gh` | Requires Curl; uninstall also removes the repository |
-| Docker Engine | `docker.io`, `docker-compose-v2`, `docker-buildx` (`apt`) or `moby-engine`, `docker-compose`, `docker-buildx` (`dnf`) | Enables the `docker` service and adds you to the `docker` group (root-equivalent access); log out and back in afterwards |
+| Docker Engine | `docker.io`, `docker-compose-v2` (`docker-compose` on Debian), `docker-buildx` (`apt`) or `moby-engine`, `docker-compose`, `docker-buildx` (`dnf`) | Enables the `docker` service and adds you to the `docker` group (root-equivalent access); log out and back in afterwards |
 | Node.js | The LTS version through nvm v0.40.8 (official script) in `~/.nvm` | Requires Curl; no password. Update moves to the newest LTS, carrying over the global npm packages. Uninstall deletes the whole `~/.nvm` (every version and global package, Codex CLI included) and the nvm lines in the shell startup files |
 | Flatpak Builder Tools | Packages `pipx`, `python3-aiohttp`, `python3-tomlkit`; clones `flatpak-builder-tools` into `~/tools/flatpak-builder-tools` at a fixed commit and installs `flatpak-node-generator` with `pipx` | Requires Git and Flatpak Builder. Uninstall keeps the three packages |
 | Libfuse2 | `libfuse2t64` (`apt`) or `fuse-libs` (`dnf`) | |

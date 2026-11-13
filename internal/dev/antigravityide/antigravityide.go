@@ -163,16 +163,26 @@ func doInstallOrUpdate(ctx context.Context, exe *executor.Executor, stdout io.Wr
 // installScript is doInstallOrUpdate's privileged batch. $1 = installDir,
 // $2 = extracted app dir (user-owned), $3 = expected chrome-sandbox SHA-256,
 // $4 = chrome-sandbox mode. Positional parameters keep every value out of
-// the script text. The previous install is kept as $1.old until the new one
-// is in place and is moved back when the final rename fails.
+// the script text. The tree is copied into a staging dir root creates
+// (0700), so a link put in place of $2 or of chrome-sandbox while the
+// password dialog is open can never make chown, chmod or sha256sum act on
+// a file outside it: $2 must be a directory, chrome-sandbox a regular file,
+// and chown never follows links. The previous install is kept as $1.old
+// until the new one is in place and is moved back when the final rename
+// fails.
 const installScript = `set -e
 new="$1.new"; old="$1.old"
 rm -rf -- "$new"
-cp -a --no-preserve=ownership -- "$2" "$new"
-chown -R root:root -- "$new"
+if [ ! -d "$2" ] || [ -L "$2" ]; then echo "The extracted app folder is not a directory." >&2; exit 1; fi
+mkdir -m 0700 -- "$new"
+cp -a --no-preserve=ownership -- "$2/." "$new/"
+chown -hR root:root -- "$new"
 chmod -R u-s,g-s -- "$new"
-printf '%s  %s\n' "$3" "$new/chrome-sandbox" | sha256sum -c --status - || { rm -rf -- "$new"; echo "chrome-sandbox changed after it was verified" >&2; exit 1; }
-chmod "$4" -- "$new/chrome-sandbox"
+sb="$new/chrome-sandbox"
+if [ ! -f "$sb" ] || [ -L "$sb" ]; then rm -rf -- "$new"; echo "chrome-sandbox is not a regular file." >&2; exit 1; fi
+printf '%s  %s\n' "$3" "$sb" | sha256sum -c --status - || { rm -rf -- "$new"; echo "chrome-sandbox changed after it was verified" >&2; exit 1; }
+chmod 0755 -- "$new"
+chmod "$4" -- "$sb"
 if [ -e "$1" ]; then rm -rf -- "$old"; mv -- "$1" "$old"; fi
 if ! mv -- "$new" "$1"; then
   rm -rf -- "$new"

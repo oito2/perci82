@@ -16,8 +16,8 @@ The screen shows the items of the profile that matches the machine (`/etc/os-rel
 |---|---|
 | Ubuntu 24.04 / Ubuntu 26.04 | Ubuntu 24.04 or 26.04 with any desktop but Budgie |
 | Ubuntu Budgie 24.04 / Ubuntu Budgie 26.04 | Ubuntu 24.04 or 26.04 with Budgie |
-| Linux Mint Cinnamon / Linux Mint XFCE | Linux Mint with Cinnamon or XFCE (any version) |
-| ZorinOS 18.1 / ZorinOS 18.1 Lite | Zorin OS with GNOME (Core) or XFCE (Lite) (any version) |
+| Linux Mint Cinnamon / Linux Mint XFCE | Linux Mint 22 or later with Cinnamon or XFCE |
+| ZorinOS 18.1 / ZorinOS 18.1 Lite | Zorin OS 18 or later with GNOME (Core) or XFCE (Lite) |
 | Fedora 44 / Fedora 44 Budgie | Fedora with any desktop, or with Budgie (any version) |
 | Pop!_OS 24.04 COSMIC | Pop!_OS 24.04 with COSMIC |
 

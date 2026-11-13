@@ -21,7 +21,7 @@
 2. In the confirmation window, check what you want (every option starts unchecked):
    - **Backups before removing** — **Docker (containers and development folders)**, **Repositories (Git accounts)** and **AI contexts (registered folders)**. Each backup is saved to its own file, in the format that the matching Export/Import screen reads. The save windows open one after the other once you confirm; if you cancel one, nothing is removed. A failed backup also stops the uninstall before anything is removed.
    - **Also remove** — **The Docker containers (Nginx, MariaDB and apps)**: the containers and each app's command in `~/.local/bin` are removed; the data on disk under the workspace is kept.
-   - **Also remove** — **Perci82 Dev's settings**: its keys in `~/.perci/config.yaml`, the folders `~/.perci/appstack` and `~/.perci/git`, the `includeIf` rules of the Git accounts in `~/.gitconfig` and the accounts' tokens in the keyring.
+   - **Also remove** — **Perci82 Dev's settings**: its keys in `~/.perci/config.yaml`, the folder `~/.perci/git` and, only when the Docker containers are removed too (they still use it), `~/.perci/appstack` — except `~/.perci/appstack/backups`, the MariaDB backups, which are always kept —, the `includeIf` rules of the Git accounts in `~/.gitconfig` and the accounts' tokens in the keyring.
 3. Click **Uninstall** and type your password when asked. The **Run** tab shows the progress, and the window closes when it finishes.
 
 The binary, the menu entry, the icons and the login autostart are removed. The `~/.perci` folder itself goes only when neither Perci82 System nor the old Perci is installed and nothing else is left in it. SSH keys, repositories and Perci82 System's settings are always kept.

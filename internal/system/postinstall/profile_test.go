@@ -199,6 +199,10 @@ func TestDetectProfile(t *testing.T) {
 		{"zorin", "xfce", "18", "zorin-lite"},
 		{"pop", "cosmic", "24.04", "popos-cosmic"},
 		{"linuxmint", "budgie", "22.3", ""},
+		{"linuxmint", "cinnamon", "21.3", ""},
+		{"linuxmint", "cinnamon", "7", ""}, // LMDE 7
+		{"zorin", "gnome", "17", ""},
+		{"zorin", "gnome", "18.1", "zorin-core"},
 		{"arch", "gnome", "", ""},
 	}
 	for _, c := range cases {

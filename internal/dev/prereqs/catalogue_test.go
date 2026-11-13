@@ -16,9 +16,12 @@
 package prereqs
 
 import (
+	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/oito2/perci82/internal/distro"
+	"github.com/oito2/perci82/internal/executor"
 )
 
 func TestLibfuse2Pkg(t *testing.T) {
@@ -88,14 +91,18 @@ func TestDockerPkgs(t *testing.T) {
 	tests := []struct {
 		name   string
 		family string
+		hasV2  bool
 		want   []string
 	}{
-		{"fedora", distro.Fedora, []string{"moby-engine", "docker-compose", "docker-buildx"}},
-		{"debian", distro.Debian, []string{"docker.io", "docker-compose-v2", "docker-buildx"}},
-		{"unknown family falls back to debian packages", "arch", []string{"docker.io", "docker-compose-v2", "docker-buildx"}},
+		{"fedora", distro.Fedora, false, []string{"moby-engine", "docker-compose", "docker-buildx"}},
+		{"ubuntu", distro.Debian, true, []string{"docker.io", "docker-compose-v2", "docker-buildx"}},
+		{"debian, without docker-compose-v2", distro.Debian, false, []string{"docker.io", "docker-compose", "docker-buildx"}},
+		{"unknown family falls back to debian packages", "arch", true, []string{"docker.io", "docker-compose-v2", "docker-buildx"}},
 	}
+	defer func(orig func(string) bool) { aptHasPackage = orig }(aptHasPackage)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			aptHasPackage = func(name string) bool { return tt.hasV2 && name == "docker-compose-v2" }
 			got := dockerPkgs(tt.family)
 			if len(got) != len(tt.want) {
 				t.Fatalf("dockerPkgs(%q) = %v, want %v", tt.family, got, tt.want)
@@ -107,4 +114,33 @@ func TestDockerPkgs(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The package's tests never ask the real apt which packages exist.
+func init() {
+	aptHasPackage = func(name string) bool { return name == "docker-compose-v2" }
+}
+
+// Installs and updates are refused on a release older than the package
+// names exist on, before anything runs; removal still works.
+func TestInstallRefusedOnOldRelease(t *testing.T) {
+	defer func(orig func() error) { requireRelease = orig }(requireRelease)
+	requireRelease = func() error { return errors.New("too old") }
+	exe := &executor.Executor{DryRun: true}
+	var out bytes.Buffer
+	p := Prereq{ID: "libfuse2", Name: "Libfuse2"}
+	if err := installFor(t.Context(), exe, &out, p, distro.Debian); err == nil || err.Error() != "too old" {
+		t.Errorf("install = %v, want the release error", err)
+	}
+	if err := updateFor(t.Context(), exe, &out, p, distro.Debian); err == nil || err.Error() != "too old" {
+		t.Errorf("update = %v, want the release error", err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("something ran: %q", out.String())
+	}
+}
+
+// The package's tests never depend on the release of the machine running them.
+func init() {
+	requireRelease = func() error { return nil }
 }
