@@ -352,3 +352,30 @@ func TestClaudeDenyRules_ReadsTheGitListing(t *testing.T) {
 		t.Errorf("rules = %v", rules)
 	}
 }
+
+// An agent's settings file Perci merges into keeps its permissions and
+// gets no backup, since it may hold tokens.
+func TestGenerateSharedFiles_SettingsKeepModeWithoutBackup(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	dir := t.TempDir()
+	settings := filepath.Join(dir, ".claude", "settings.json")
+	if err := os.MkdirAll(filepath.Dir(settings), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(settings, []byte(`{"env": {"API_TOKEN": "secret"}}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := GenerateSharedFiles(dir, []Model{models[0]}, AgentIDs(), true, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(settings)
+	if err != nil || info.Mode().Perm() != 0o600 {
+		t.Errorf("settings.json mode = %v (%v), want 0600", info.Mode(), err)
+	}
+	if !strings.Contains(readFile(t, settings), `"API_TOKEN": "secret"`) {
+		t.Error("the user's keys were lost")
+	}
+	if _, err := os.Stat(settings + ".perci-bak"); !os.IsNotExist(err) {
+		t.Error("settings.json got a backup")
+	}
+}

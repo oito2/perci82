@@ -246,3 +246,43 @@ func TestImport_FailingFolderDoesNotStopTheOthers(t *testing.T) {
 		t.Errorf("registered = %+v", all)
 	}
 }
+
+// A folder the file gives as the home folder, a folder above it, a hidden
+// folder of it or a relative folder a link leads out of the workspace is
+// refused unless the user picks the folder; picking it is accepted.
+func TestPlanImport_RefusesSensitiveFolders(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	ws := filepath.Join(home, "ws")
+	outside := t.TempDir()
+	if err := os.MkdirAll(ws, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(ws, "out")); err != nil {
+		t.Fatal(err)
+	}
+	agents := []string{AgentCodex}
+	file := TransferFile{Kind: TransferKind, Version: 1, Contexts: []TransferContext{
+		{Name: "Home", Path: home, Agents: agents},
+		{Name: "Root", Path: "/", Agents: agents},
+		{Name: "Hidden", Path: filepath.Join(home, ".claude"), Agents: agents},
+		{Name: "Link", Path: "out/p", Relative: true, Agents: agents},
+		{Name: "Fine", Path: "proj", Relative: true, Agents: agents},
+	}}
+	got := PlanImport(file, nil, ws, nil)
+	for _, ic := range got[:4] {
+		if ic.State != ImportInvalid || ic.Reason == "" {
+			t.Errorf("%s: %+v, want invalid", ic.Name, ic)
+		}
+	}
+	if got[4].State != ImportPending {
+		t.Errorf("Fine: %+v, want pending", got[4])
+	}
+	if err := CheckImport(file, []ImportPick{{Source: "Home", Name: "H"}}, nil, ws); err == nil {
+		t.Error("the home folder from the file was accepted")
+	}
+	picked := filepath.Join(home, "picked")
+	if err := CheckImport(file, []ImportPick{{Source: "Home", Name: "H", Path: picked}}, nil, ws); err != nil {
+		t.Errorf("a picked folder was refused: %v", err)
+	}
+}

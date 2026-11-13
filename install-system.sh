@@ -119,14 +119,15 @@ require_trusted_url() {
 }
 
 # Verifies the build provenance attestation of file $1 with the GitHub CLI
-# when it is installed and authenticated; fails the installation when the
+# when it is installed and authenticated: it must come from this
+# repository's release workflow. Fails the installation when the
 # attestation does not match. Without a usable gh the check is skipped.
 verify_attestation() {
     if ! command -v gh &>/dev/null || ! gh auth status &>/dev/null; then
         info "GitHub CLI not available or not logged in — skipping attestation check."
         return 0
     fi
-    gh attestation verify "$1" --repo "$REPO" &>/dev/null || die "Attestation verification failed for $(basename -- "$1"). Aborting installation."
+    gh attestation verify "$1" --repo "$REPO" --signer-workflow "$REPO/.github/workflows/release.yml" &>/dev/null || die "Attestation verification failed for $(basename -- "$1"). Aborting installation."
     success "Attestation verified for $(basename -- "$1")."
 }
 
@@ -155,7 +156,7 @@ privileged_install() {
 
 # Installs the menu entry from the verified release archive $1 (SHA-256
 # $2): root copies it into its own temp file, re-verifies it and extracts
-# share/applications/*.desktop + share/icons/hicolor/* into /usr.
+# only share/applications/*.desktop and share/icons/hicolor/* into /usr.
 install_menu_entry() {
     # shellcheck disable=SC2016 # $1..$3 expand inside the root shell
     as_root sh -c '
@@ -167,7 +168,8 @@ install_menu_entry() {
             echo "checksum mismatch: menu entry archive" >&2
             exit 1
         fi
-        tar -xzf "$staged" -C /usr --no-same-owner --no-same-permissions --no-overwrite-dir
+        tar -xzf "$staged" -C /usr --no-same-owner --no-same-permissions --no-overwrite-dir \
+            --wildcards "share/applications/*.desktop" "share/icons/hicolor/*"
         rm -f -- "$staged"
         if command -v gtk-update-icon-cache >/dev/null 2>&1; then
             gtk-update-icon-cache -q -t -f "$3" || true
@@ -283,14 +285,17 @@ main() {
 
     info "Downloading $asset_name..."
     "${CURL[@]}" -o "$_tmpdir/$asset_name" "$binary_url"
-    checksums=$("${CURL[@]}" "$checksums_url")
+    "${CURL[@]}" -o "$_tmpdir/checksums.txt" "$checksums_url"
+    checksums=$(<"$_tmpdir/checksums.txt")
 
     info "Verifying checksum..."
     binary_sum=$(checksum_for "$checksums" "$asset_name")
     [[ -n "$binary_sum" ]] || die "Checksum entry for '$asset_name' not found in checksums.txt. Aborting for safety."
     verify_sha256 "$_tmpdir/$asset_name" "$binary_sum"
     success "Checksum verified."
-    verify_attestation "$_tmpdir/$asset_name"
+    # The attestation of checksums.txt covers, through their checksums, the
+    # binary and the menu entry archive.
+    verify_attestation "$_tmpdir/checksums.txt"
 
     dest="${INSTALL_DIR}/${BINARY_NAME}"
     info "Installing the binary to $dest..."

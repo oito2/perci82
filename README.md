@@ -113,7 +113,7 @@ Perci82 Dev:
 curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-dev.sh | bash
 ```
 
-The installers need `curl`, `jq`, `sha256sum`, `tar` and `sudo`. They check the binary's SHA-256 (and its build attestation when the GitHub CLI is logged in), install it as `/usr/local/bin/perci82-system` or `/usr/local/bin/perci82-dev` and add the application menu entry. When the old Perci (`prci`) is installed, they ask whether to remove it; its settings in `~/.perci` are kept, since both apps read them. `install-dev.sh` finds a release only from Perci82 Dev's first release on.
+The installers need `curl`, `jq`, `sha256sum`, `tar` and `sudo`. They check the binary's SHA-256 (and, when the GitHub CLI is logged in, the release workflow's attestation of `checksums.txt`), install it as `/usr/local/bin/perci82-system` or `/usr/local/bin/perci82-dev` and add the application menu entry. When the old Perci (`prci`) is installed, they ask whether to remove it; its settings in `~/.perci` are kept, since both apps read them. `install-dev.sh` finds a release only from Perci82 Dev's first release on.
 
 ## Update & Maintenance
 

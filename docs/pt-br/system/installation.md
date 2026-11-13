@@ -25,9 +25,9 @@ curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --ma
 O script precisa de `curl`, `jq`, `sha256sum`, `tar` e `sudo`. Ele:
 
 1. Procura a versão mais recente do Perci82 System no GitHub (tags `system-vX.Y.Z`; rascunhos e pré-lançamentos são ignorados).
-2. Baixa `perci82-system-linux-amd64` e `checksums.txt` e confere o SHA-256 do binário. Com o GitHub CLI (`gh`) instalado e logado, confere também a attestation de build.
+2. Baixa `perci82-system-linux-amd64` e `checksums.txt` e confere o SHA-256 do binário. Com o GitHub CLI (`gh`) instalado e logado, confere também se o `checksums.txt` tem a attestation do workflow de release deste repositório, que garante o binário e o arquivo da entrada no menu pelos checksums deles.
 3. Instala o binário como `/usr/local/bin/perci82-system` (com `sudo` quando essa pasta não é gravável).
-4. Extrai em `/usr` o arquivo da entrada no menu, `perci82-system-menu.tar.gz` (também conferido pelo `checksums.txt`): a entrada no menu de aplicativos e os ícones. Uma falha aqui não desfaz a instalação; nesse caso, rode `perci82-system` num terminal.
+4. Extrai em `/usr` o arquivo da entrada no menu, `perci82-system-menu.tar.gz` (também conferido pelo `checksums.txt`): só a entrada no menu de aplicativos e os ícones, o que mais houver no arquivo é ignorado. Uma falha aqui não desfaz a instalação; nesse caso, rode `perci82-system` num terminal.
 5. Quando o Perci antigo (`prci`) está instalado, lista os arquivos dele e pergunta se deve removê-los. As configurações dele em `~/.perci` são mantidas: o Perci82 System as lê.
 
 Abra o **Perci82 System** pelo menu de aplicativos ou rode `perci82-system`.
@@ -77,7 +77,7 @@ Isso gera `dist/perci82-system-linux-amd64`, `dist/perci82-system-menu.tar.gz` (
 
 ## Atualizar
 
-**Visão Geral → Atualização → Verificar** procura uma versão mais nova do Perci82 System; **Atualizar** só aparece quando existe uma. A atualização baixa o novo binário, confere o SHA-256 dele pelo `checksums.txt` da release, substitui o binário instalado e pede que você reinicie o aplicativo. Veja a [Visão Geral](overview.md).
+**Visão Geral → Atualização → Verificar** procura uma versão mais nova do Perci82 System; **Atualizar** só aparece quando existe uma. A atualização baixa o novo binário, confere o SHA-256 dele pelo `checksums.txt` da release, substitui o binário instalado e pede que você reinicie o aplicativo. O checksum vem da mesma release do GitHub que o binário, então a atualização confia nessa release; ela não confere a attestation de build. Para conferir, use o comando de [Instalação manual](#instalação-manual) antes de atualizar. Veja a [Visão Geral](overview.md).
 
 Rodar o script de instalação de novo também instala a versão mais recente.
 

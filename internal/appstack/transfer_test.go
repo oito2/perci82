@@ -249,3 +249,29 @@ func TestImportConfig_PluginMounts(t *testing.T) {
 		t.Errorf("records = %+v", recs)
 	}
 }
+
+// A development folder an import file names outside the home folder, as
+// the home folder itself or inside a hidden folder of it is never mounted.
+func TestPluginImportStates_RefusesSensitiveFolders(t *testing.T) {
+	workspace, _ := pluginStack(t, map[string]string{"local": "local"})
+	home := os.Getenv("HOME")
+	ssh := filepath.Join(home, ".ssh")
+	if err := os.MkdirAll(ssh, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	file := ExportedConfig{WorkspacePath: workspace, MoodlePlugins: []config.MoodlePluginMount{
+		{App: "mdle", Component: "local_a", DevPath: ssh, RelPath: "local/a"},
+		{App: "mdle", Component: "local_b", DevPath: home, RelPath: "local/b"},
+		{App: "mdle", Component: "local_c", DevPath: outside, RelPath: "local/c"},
+	}}
+	states, err := PluginImportStates(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, st := range states {
+		if st.Mounted || !strings.Contains(st.Reason, "pasta pessoal") {
+			t.Errorf("%s: state %+v, want refused", st.Mount.DevPath, st)
+		}
+	}
+}

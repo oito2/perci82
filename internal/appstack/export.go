@@ -348,10 +348,38 @@ func pluginImportCheck(cfg *config.Config, m config.MoodlePluginMount) (mounted 
 	if info, err := os.Stat(m.DevPath); err != nil || !info.IsDir() {
 		return false, i18n.Tr("transfer.noDevFolder", i18n.Args{"path": m.DevPath})
 	}
+	if sensitiveDevPath(m.DevPath) {
+		return false, i18n.Tr("transfer.sensitiveDevFolder", i18n.Args{"path": m.DevPath})
+	}
 	if _, err := PlanDevFolder(cfg, m.DevPath, m.App, targetOf(m)); err != nil {
 		return false, err.Error()
 	}
 	return false, ""
+}
+
+// sensitiveDevPath reports whether a development folder named by an
+// import file, links resolved, is outside the home folder, the home folder
+// itself or inside one of its hidden folders (~/.ssh, ~/.config...): the
+// file, not the user, chose it, and the app's container could read and
+// change it. Such a folder can still be mounted by hand, through the file
+// picker.
+func sensitiveDevPath(path string) bool {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return true
+	}
+	if r, err := filepath.EvalSymlinks(home); err == nil {
+		home = r
+	}
+	if r, err := filepath.EvalSymlinks(path); err == nil {
+		path = r
+	}
+	rel, err := filepath.Rel(home, path)
+	if err != nil || rel == "." || !filepath.IsLocal(rel) {
+		return true
+	}
+	first, _, _ := strings.Cut(filepath.ToSlash(rel), "/")
+	return strings.HasPrefix(first, ".")
 }
 
 // ImportConfig applies the items of exported that sel names onto the local

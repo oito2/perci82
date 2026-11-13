@@ -509,25 +509,71 @@ func TestConductLegacyNote(t *testing.T) {
 func TestApply_BackupAndSymlink(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "CODE_OF_CONDUCT.md"), "my own code\n")
-	shared := filepath.Join(t.TempDir(), "shared-pt.md")
+	if err := os.Chmod(filepath.Join(dir, "CODE_OF_CONDUCT.md"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	shared := filepath.Join(dir, "shared", "conduta.md")
 	writeFile(t, shared, "shared\n")
 	link := filepath.Join(dir, "docs", "pt-br", "codigo-de-conduta.md")
 	if err := os.MkdirAll(filepath.Dir(link), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(shared, link); err != nil {
+	if err := os.Symlink("../../shared/conduta.md", link); err != nil {
 		t.Fatal(err)
 	}
 
 	mustApply(t, dir, RowConduct, ghOpts())
-	if bak := readFile(t, filepath.Join(dir, "CODE_OF_CONDUCT.md.perci-bak")); bak != "my own code\n" {
-		t.Errorf("backup = %q", bak)
+	bak := filepath.Join(dir, "CODE_OF_CONDUCT.md.perci-bak")
+	if got := readFile(t, bak); got != "my own code\n" {
+		t.Errorf("backup = %q", got)
+	}
+	if info, err := os.Stat(bak); err != nil || info.Mode().Perm() != 0o600 {
+		t.Errorf("the backup must keep the original's mode 0600 (got %v, %v)", info.Mode(), err)
 	}
 	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
 		t.Errorf("the symlink was replaced (err=%v)", err)
 	}
 	if !strings.Contains(readFile(t, shared), "**contact@example.org**") {
-		t.Error("the link target was not written")
+		t.Error("the link target inside the repository was not written")
+	}
+}
+
+// A file or folder versioned as a link to outside the repository is never
+// written through; the row's other files are.
+func TestApply_RefusesLinksOutside(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "bashrc")
+	writeFile(t, outside, "mine\n")
+	if err := os.MkdirAll(filepath.Join(dir, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "CODE_OF_CONDUCT.md")); err != nil {
+		t.Fatal(err)
+	}
+	elsewhere := t.TempDir()
+	if err := os.Symlink(elsewhere, filepath.Join(dir, "docs", "pt-br")); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Apply(dir, RowConduct, ghOpts()); err == nil {
+		t.Fatal("every file of the row leads outside: Apply should fail")
+	}
+	if got := readFile(t, outside); got != "mine\n" {
+		t.Errorf("the file outside was written: %q", got)
+	}
+	if entries, _ := os.ReadDir(elsewhere); len(entries) != 0 {
+		t.Errorf("the folder outside got %d entries", len(entries))
+	}
+
+	if err := os.Remove(filepath.Join(dir, "CODE_OF_CONDUCT.md")); err != nil {
+		t.Fatal(err)
+	}
+	msg, err := Apply(dir, RowConduct, ghOpts())
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if !strings.Contains(msg, "docs/pt-br") || !exists(filepath.Join(dir, "CODE_OF_CONDUCT.md")) {
+		t.Errorf("the file inside should be written and the refusal reported: %q", msg)
 	}
 }
 

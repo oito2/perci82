@@ -30,7 +30,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oito2/perci82/internal/fsutil"
 	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
 )
@@ -279,7 +278,7 @@ func writeClaudeSettings(dir string, rules []string, stdout io.Writer) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
 	}
-	if err := fsutil.WriteGenerated(path, merged, 0o644); err != nil {
+	if err := writeMergedConfig(path, merged); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	ui.Info(stdout, i18n.Tr("aic.run.updated", i18n.Args{"path": path}))

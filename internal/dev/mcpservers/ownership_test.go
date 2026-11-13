@@ -43,6 +43,14 @@ func TestCreatedByPerci(t *testing.T) {
 		{"sqlite", "uvx", []string{sqliteServerPkg, "--db-path", "/d"}, true},
 		{"sqlite", "uvx", []string{"mcp-server-sqlite-evil"}, false},
 		{"dart-flutter", "npx", []string{"-y", filesystemServerPkg}, false},
+		{"context7", "npx", []string{"-y", "@upstash/context7-mcp@1.0.0"}, true},
+		{"context7", "npx", []string{"-y", context7ServerPkg, "--api-key", "K"}, false},
+		{"filesystem", "npx", []string{"-y", filesystemServerPkg, "/a", "/b"}, false},
+		{"filesystem", "npx", []string{"-y", filesystemServerPkg}, false},
+		{"dbhub", "npx", []string{"-y", dbhubServerPkg, "--config=/w/dbhub.toml"}, true},
+		{"dbhub", "npx", []string{"-y", dbhubServerPkg, "--dsn=mysql://u:p@h/db"}, false},
+		{"chrome-devtools", "npx", []string{"-y", chromeDevToolsServerPkg, "--isolated", "--no-usage-statistics"}, true},
+		{"chrome-devtools", "npx", []string{"-y", chromeDevToolsServerPkg, "--headless"}, false},
 	} {
 		if got := createdByPerci(tc.slug, tc.command, tc.args); got != tc.want {
 			t.Errorf("createdByPerci(%s, %s, %v) = %v, want %v", tc.slug, tc.command, tc.args, got, tc.want)
@@ -250,5 +258,33 @@ func lookBash() (string, error) {
 func TestDartFlutter_CodexMarketplaceIsPinned(t *testing.T) {
 	if !regexp.MustCompile(`^flutter/agent-plugins@[0-9a-f]{40}$`).MatchString(dartFlutterCodexMarket) {
 		t.Errorf("codex marketplace = %q, want owner/repo@<full sha>", dartFlutterCodexMarket)
+	}
+}
+
+// Updating Perci's own Antigravity entry keeps the keys it does not write.
+func TestAntigravitySetServer_KeepsForeignKeys(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	path := filepath.Join(home, ".gemini", "config", "mcp_config.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	old := `{"mcpServers": {"context7": {"command": "npx", "args": ["-y", "@upstash/context7-mcp@1.0.0"], "env": {"TOKEN": "t"}}}}`
+	if err := os.WriteFile(path, []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	command, args, err := launchOf("context7", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := antigravitySetServer("context7", true, "", "context7", command, args); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"TOKEN": "t"`) || !strings.Contains(string(data), context7ServerPkg) {
+		t.Errorf("entry after the update:\n%s", data)
 	}
 }

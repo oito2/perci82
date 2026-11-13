@@ -27,7 +27,7 @@ An AI context is the set of rule files Perci82 Dev writes into a project folder 
 
 Codex and Antigravity read `AGENTS.md` as it is. The kept-out files are credentials (`.env`, `*.pem`, `*.key`, `config.php`, `wp-config.php`, `auth.json`…), dependency and data folders (`node_modules/`, `moodledata/`, `.git/`…), IDE folders and test/profiling output; `dist/`, `build/`, `out/`, `env/` and `.next/` stay readable when git tracks files in them.
 
-A replaced file keeps a copy with the `.perci-bak` suffix. A `CLAUDE.md` or `GEMINI.md` that is a link to `AGENTS.md` is kept. Perci82 Dev does not change `opencode.jsonc`; it tells you which entry to add by hand.
+A replaced file keeps a copy with the `.perci-bak` suffix, except the agents' settings files Perci82 Dev only merges its keys into (`.claude/settings.json`, `.gemini/settings.json`, `opencode.json`): they may hold tokens, so they get no copy and keep their permissions. A `CLAUDE.md` or `GEMINI.md` that is a link to `AGENTS.md` is kept. Perci82 Dev does not change `opencode.jsonc`; it tells you which entry to add by hand.
 
 ## Set Up Project
 
@@ -150,11 +150,11 @@ A **different selection** badge means the folder's files hold other standards or
 | **already registered here** | Kept as it is |
 | **unavailable** | It can't be imported; the reason is shown |
 
-Relative paths go into this machine's workspace. Each folder gets a name on this machine (**Name on this machine**), unique here and in the import, and **Change folder** picks another folder for it. Standards and agents this version doesn't know are left out and listed.
+Relative paths go into this machine's workspace. Each folder gets a name on this machine (**Name on this machine**), unique here and in the import, and **Change folder** picks another folder for it. Standards and agents this version doesn't know are left out and listed. A folder of the file that is your home folder, a folder above it or a hidden folder of it (such as `~/.claude`), or a relative folder that a link leads out of the workspace, is unavailable until you choose it with **Change folder**.
 
 ## Project notes
 
-With **Settings → Project notes** set (saved as `project_notes_path`; see [Settings](settings.md)), each project gets a notes folder outside its repository, `<project notes folder>/<project folder name>/`:
+With **Settings → Project notes** set (saved as `project_notes_path`; see [Settings](settings.md)), each project gets a notes folder outside its repository, `<project notes folder>/<project folder name>/`. When another registered project already uses that name (two projects in different places with the same folder name), the new one gets `<project folder name>-2`, `-3`… The name is saved in the context's record (`notes` in `ai_contexts`), so it never changes afterwards:
 
 ```text
 <project notes folder>/<project>/

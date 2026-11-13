@@ -81,7 +81,7 @@ const (
 // rooted at base. With a token, the list includes the private ones;
 // without, only the public ones. The token goes only in a request header.
 func ListRemoteRepos(ctx context.Context, base string, acc config.GitAccount, token string) ([]RemoteRepo, error) {
-	client := &http.Client{Timeout: apiTimeout}
+	client := &http.Client{Timeout: apiTimeout, CheckRedirect: sameOriginRedirect}
 	var repos []RemoteRepo
 	for page := 1; page <= maxPages; page++ {
 		got, err := fetchRepoPage(ctx, client, base, acc, token, page)
@@ -95,6 +95,20 @@ func ListRemoteRepos(ctx context.Context, base string, acc config.GitAccount, to
 	}
 	slices.SortFunc(repos, func(a, b RemoteRepo) int { return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)) })
 	return repos, nil
+}
+
+// sameOriginRedirect follows a redirect only to the scheme and host of
+// the first request (at most 5 times): net/http would forward the
+// PRIVATE-TOKEN header to any host, and Authorization from https to http.
+func sameOriginRedirect(req *http.Request, via []*http.Request) error {
+	first := via[0].URL
+	if req.URL.Scheme != first.Scheme || !strings.EqualFold(req.URL.Host, first.Host) {
+		return fmt.Errorf("refusing the redirect from %s to %s", first.Host, req.URL.Redacted())
+	}
+	if len(via) >= 5 {
+		return errors.New("too many redirects")
+	}
+	return nil
 }
 
 type repoPage struct {

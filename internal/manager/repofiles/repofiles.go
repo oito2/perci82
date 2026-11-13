@@ -296,8 +296,15 @@ func Apply(dir, id string, opts Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	var skipped []string
 	for _, f := range files {
 		path := filepath.Join(dir, f.rel)
+		// A repository's content is not trusted: a file or folder versioned
+		// as a link must never lead the write outside the repository.
+		if target, inside := resolvedInside(dir, path); !inside {
+			skipped = append(skipped, i18n.Tr("repofiles.linkOutside", i18n.Args{"file": f.rel, "target": target}))
+			continue
+		}
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return "", fmt.Errorf("create %s: %w", filepath.Dir(f.rel), err)
 		}
@@ -305,7 +312,38 @@ func Apply(dir, id string, opts Options) (string, error) {
 			return "", fmt.Errorf("write %s: %w", f.rel, err)
 		}
 	}
-	return label(id, opts) + " gravado.", nil
+	if len(skipped) == len(files) {
+		return "", errors.New(strings.Join(skipped, " "))
+	}
+	return strings.Join(append([]string{i18n.Tr("repofiles.written", i18n.Args{"label": label(id, opts)})}, skipped...), " "), nil
+}
+
+// resolvedInside resolves the deepest existing part of path, following
+// links, and reports where it leads and whether that stays inside root.
+// An existing part that cannot be resolved (a dangling link) counts as
+// outside.
+func resolvedInside(root, path string) (string, bool) {
+	if r, err := filepath.EvalSymlinks(root); err == nil {
+		root = r
+	}
+	for p := path; ; p = filepath.Dir(p) {
+		if _, err := os.Lstat(p); err == nil {
+			real, err := filepath.EvalSymlinks(p)
+			if err != nil {
+				return p, false
+			}
+			rest, err := filepath.Rel(p, path)
+			if err != nil {
+				return p, false
+			}
+			target := filepath.Join(real, rest)
+			rel, err := filepath.Rel(root, target)
+			return target, err == nil && filepath.IsLocal(rel)
+		}
+		if filepath.Dir(p) == p {
+			return path, false
+		}
+	}
 }
 
 // Remove deletes the files of row id from dir, then the folders under

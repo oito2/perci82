@@ -100,7 +100,7 @@ Servidores MCP registrados no Claude Code, no Codex e no Antigravity, cada um pe
 | Codex | `codex mcp add` / `codex mcp remove` | Sim | Pulado |
 | Antigravity | Edita o `mcp_config.json`, mantendo as outras entradas | `~/.gemini/config/mcp_config.json` | `<pasta>/.agents/mcp_config.json` |
 
-O Codex só é registrado quando o **Tipo de Instalação** é Global: o escopo por projeto dele não está confirmado como já lançado. Um servidor com o mesmo nome que não foi registrado pelo Perci é mantido, nunca substituído, e **Remover** não mexe nele.
+O Codex só é registrado quando o **Tipo de Instalação** é Global: o escopo por projeto dele não está confirmado como já lançado. Um servidor com o mesmo nome que não foi registrado pelo Perci é mantido, nunca substituído, e **Remover** não mexe nele; o mesmo vale para uma entrada cujo comando ou argumentos foram alterados (uma opção ou chave de API a mais, outro pacote). No arquivo do Antigravity, as chaves que o Perci não grava na própria entrada (como `env`) são mantidas quando ela é atualizada.
 
 | Botão | O que faz |
 |---|---|

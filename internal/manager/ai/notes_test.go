@@ -249,3 +249,34 @@ func TestWriteJSONGrants_LeavesNonObjectFiles(t *testing.T) {
 		}
 	}
 }
+
+// Two projects with the same folder name in different places get their
+// own notes folders, and removing the first never moves the second's.
+func TestNotesDir_SameFolderNameElsewhere(t *testing.T) {
+	first, notes := notesSetup(t, true)
+	second := filepath.Join(filepath.Dir(filepath.Dir(first)), "fork", "loja")
+	if err := os.MkdirAll(second, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{first, second} {
+		var out bytes.Buffer
+		if err := GenerateSharedFiles(p, ModelsNamed([]string{"Linux Bash"}), []string{AgentClaude}, true, &out); err != nil {
+			t.Fatal(err)
+		}
+		if err := RecordContext(filepath.Base(filepath.Dir(p)), p, []string{"Linux Bash"}, []string{AgentClaude}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := NotesDir(first); got != notes {
+		t.Errorf("first notes = %s, want %s", got, notes)
+	}
+	if got := NotesDir(second); got != notes+"-2" {
+		t.Errorf("second notes = %s, want %s-2", got, notes)
+	}
+	if err := ForgetContext(first); err != nil {
+		t.Fatal(err)
+	}
+	if got := NotesDir(second); got != notes+"-2" {
+		t.Errorf("after removing the first, second notes = %s, want %s-2", got, notes)
+	}
+}

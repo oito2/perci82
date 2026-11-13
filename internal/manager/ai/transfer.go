@@ -249,6 +249,62 @@ func planOne(t TransferContext, path string, contexts []config.AIContext) Import
 	return ic
 }
 
+// checkFileFolder marks plan invalid when its folder, as the import file
+// gives it, is one Perci must not write agent files into without the user
+// choosing it in the file picker: the home folder, a folder above it, a
+// hidden folder of it (~/.claude, ~/.config...), or a relative folder that
+// a link leads out of the workspace.
+func checkFileFolder(plan *ImportContext, t TransferContext, workspace string) {
+	if plan.State != ImportApply && plan.State != ImportPending {
+		return
+	}
+	if reason := fileFolderProblem(plan.Path, t.Relative, workspace); reason != "" {
+		plan.State, plan.Reason = ImportInvalid, reason
+	}
+}
+
+// fileFolderProblem is checkFileFolder's reason for path, or "".
+func fileFolderProblem(path string, relative bool, workspace string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return i18n.Tr("aic.folderTooWide", i18n.Args{"path": path})
+	}
+	home = resolveExisting(filepath.Clean(home))
+	real := resolveExisting(path)
+	if rel, err := filepath.Rel(real, home); err == nil && (rel == "." || filepath.IsLocal(rel)) {
+		return i18n.Tr("aic.folderTooWide", i18n.Args{"path": path})
+	}
+	if rel, err := filepath.Rel(home, real); err == nil && filepath.IsLocal(rel) {
+		if first, _, _ := strings.Cut(filepath.ToSlash(rel), "/"); strings.HasPrefix(first, ".") {
+			return i18n.Tr("aic.folderTooWide", i18n.Args{"path": path})
+		}
+	}
+	if relative {
+		ws := resolveExisting(filepath.Clean(workspace))
+		if rel, err := filepath.Rel(ws, real); err != nil || !filepath.IsLocal(rel) {
+			return i18n.Tr("aic.folderOutsideWorkspace", i18n.Args{"path": path})
+		}
+	}
+	return ""
+}
+
+// resolveExisting resolves the links of the deepest existing part of
+// path and joins the rest to it.
+func resolveExisting(path string) string {
+	for p := path; ; p = filepath.Dir(p) {
+		if real, err := filepath.EvalSymlinks(p); err == nil {
+			rest, err := filepath.Rel(p, path)
+			if err != nil {
+				return path
+			}
+			return filepath.Join(real, rest)
+		}
+		if filepath.Dir(p) == p {
+			return path
+		}
+	}
+}
+
 // PlanImport checks every folder of f against this machine, with paths
 // (keyed by the folder's name in f) replacing the folders the file gives
 // and relative paths placed under workspace — without applying anything.
@@ -256,10 +312,14 @@ func PlanImport(f TransferFile, contexts []config.AIContext, workspace string, p
 	out := make([]ImportContext, len(f.Contexts))
 	for i, t := range f.Contexts {
 		path := t.resolvePath(workspace)
+		picked := false
 		if p := paths[t.Name]; p != "" {
-			path = filepath.Clean(p)
+			path, picked = filepath.Clean(p), true
 		}
 		out[i] = planOne(t, path, contexts)
+		if !picked {
+			checkFileFolder(&out[i], t, workspace)
+		}
 	}
 	return out
 }
@@ -297,6 +357,9 @@ func planPicks(f TransferFile, picks []ImportPick, contexts []config.AIContext, 
 			path = filepath.Clean(p.Path)
 		}
 		plan := planOne(t, path, contexts)
+		if p.Path == "" {
+			checkFileFolder(&plan, t, workspace)
+		}
 		if plan.State != ImportApply && plan.State != ImportPending {
 			return nil, fmt.Errorf("%q: %s", p.Source, plan.Reason)
 		}

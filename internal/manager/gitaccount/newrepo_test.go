@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/oito2/perci82/internal/config"
@@ -253,5 +254,30 @@ func TestMarkCloned(t *testing.T) {
 	})
 	if repos[0].LocalPath != "labs/perci" || repos[1].LocalPath != "" || repos[2].LocalPath != "apps/app" {
 		t.Errorf("MarkCloned = %+v", repos)
+	}
+}
+
+// A redirect to another host is refused, so the token header never reaches
+// it.
+func TestListRemoteRepos_RefusesRedirectElsewhere(t *testing.T) {
+	var leaked atomic.Bool
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("PRIVATE-TOKEN") != "" || r.Header.Get("Authorization") != "" {
+			leaked.Store(true)
+		}
+		_, _ = w.Write([]byte("[]"))
+	}))
+	t.Cleanup(other.Close)
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, strings.Replace(other.URL, "127.0.0.1", "localhost", 1)+r.URL.Path, http.StatusFound)
+	}))
+	t.Cleanup(first.Close)
+
+	acc := config.GitAccount{Provider: ProviderGitLab, Host: "gitlab.example.org", Username: "oito2"}
+	if _, err := ListRemoteRepos(t.Context(), first.URL, acc, "glpat_secret"); err == nil {
+		t.Error("the redirect to another host should fail the listing")
+	}
+	if leaked.Load() {
+		t.Error("the token reached the other host")
 	}
 }

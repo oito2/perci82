@@ -219,7 +219,7 @@ func writeOpenCodeConfig(dir string, doc map[string]any, stdout io.Writer) error
 		return err
 	}
 	path := filepath.Join(dir, openCodeConfig)
-	if err := fsutil.WriteGenerated(path, buf.Bytes(), 0o644); err != nil {
+	if err := writeMergedConfig(path, buf.Bytes()); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	ui.Info(stdout, i18n.Tr("aic.run.updated", i18n.Args{"path": path}))
@@ -321,4 +321,16 @@ func openCodeHasProjectRules(dir string) bool {
 	}
 	list, err := instructionsOf(doc)
 	return err == nil && slices.ContainsFunc(list, isOpenCodeRulesEntry)
+}
+
+// writeMergedConfig writes an agent's settings file Perci only merges its
+// keys into (.claude/settings.json, .gemini/settings.json, opencode.json):
+// atomically, through a symlink, keeping the file's permissions (0644 for
+// a new file) and leaving no backup, since such files may hold tokens.
+func writeMergedConfig(path string, data []byte) error {
+	mode := os.FileMode(0o644)
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+	}
+	return fsutil.WriteThroughLink(path, data, mode)
 }

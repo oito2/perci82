@@ -43,9 +43,9 @@ var notesSubdirs = []string{"notes", "plans", "references"}
 // notesPlaceholder stands for the notes folder in the templates.
 const notesPlaceholder = "{{NOTES_DIR}}"
 
-// NotesDir returns the notes folder of the project in dir: the folder
-// named after dir under the project_notes_path setting, or "" when the
-// setting is empty or the config can't be read.
+// NotesDir returns the notes folder of the project in dir under the
+// project_notes_path setting (see notesNames), or "" when the setting is
+// empty or the config can't be read.
 func NotesDir(dir string) string {
 	cfg, err := config.Load()
 	if err != nil || cfg.ProjectNotesPath == "" {
@@ -55,7 +55,57 @@ func NotesDir(dir string) string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(cfg.ProjectNotesPath, filepath.Base(abs))
+	return filepath.Join(cfg.ProjectNotesPath, notesNames(cfg, abs)[abs])
+}
+
+// notesNames gives every registered context, and the folder extra when it
+// is not registered (extra may be ""), its notes folder name: the recorded
+// one, otherwise the project folder's name, with a -2, -3... suffix when
+// a context before it in the list (or a recorded name) already took it.
+// Two projects in different places with the same folder name never share
+// notes.
+func notesNames(cfg *config.Config, extra string) map[string]string {
+	names := map[string]string{}
+	taken := map[string]bool{}
+	for _, c := range cfg.AIContexts {
+		if c.Notes != "" {
+			names[c.Path] = c.Notes
+			taken[c.Notes] = true
+		}
+	}
+	paths := make([]string, 0, len(cfg.AIContexts)+1)
+	for _, c := range cfg.AIContexts {
+		paths = append(paths, c.Path)
+	}
+	paths = append(paths, extra)
+	for _, p := range paths {
+		if p == "" || names[p] != "" {
+			continue
+		}
+		base := filepath.Base(p)
+		name := base
+		for n := 2; taken[name]; n++ {
+			name = fmt.Sprintf("%s-%d", base, n)
+		}
+		names[p] = name
+		taken[name] = true
+	}
+	return names
+}
+
+// FreezeNotes records in every context of cfg the notes folder name it
+// uses now, when a notes folder is set, so that adding or removing another
+// context never moves its notes.
+func FreezeNotes(cfg *config.Config) {
+	if cfg.ProjectNotesPath == "" {
+		return
+	}
+	names := notesNames(cfg, "")
+	for i := range cfg.AIContexts {
+		if cfg.AIContexts[i].Notes == "" {
+			cfg.AIContexts[i].Notes = names[cfg.AIContexts[i].Path]
+		}
+	}
 }
 
 // isNotesFolder reports whether path is a notes folder Perci set up: it

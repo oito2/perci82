@@ -145,7 +145,7 @@ The **+** button opens three tabs:
 | Pull/merge request template | `.github/PULL_REQUEST_TEMPLATE.md` on GitHub, `.gitlab/merge_request_templates/Default.md` on GitLab |
 | `.github/FUNDING.yml` | **coming soon** |
 
-Each row offers **Create**, **Update** or **Remove** by its state. **Update** replaces the file and keeps the previous version as `<file>.perci-bak`.
+Each row offers **Create**, **Update** or **Remove** by its state. **Update** replaces the file and keeps the previous version as `<file>.perci-bak`, with its permissions. A file or folder that is a link to outside the repository is never written through: that file is skipped and the reason shown.
 
 ### Pending repositories
 
@@ -181,7 +181,7 @@ accounts:
 
 In the **Import** tab, **Choose file** reads an export file and lists what it would do:
 
-- **new account** — gets its folder (created when missing; **Change folder** picks another), an SSH key without a passphrase at `~/.ssh/perci_<id>` (an existing key there is reused), the built-in server keys and its `includeIf` rule.
+- **new account** — gets its folder (created when missing; **Change folder** picks another; a folder in the file outside your home folder, or the home folder itself, makes the account unavailable until you pick one), an SSH key without a passphrase at `~/.ssh/perci_<id>` (an existing key there is reused), the built-in server keys and its `includeIf` rule.
 - **already set up — merges with …** — same user on the same server: the account keeps its data and only gains the repositories.
 - Repositories already pending or already cloned are marked; one whose folder holds something else is skipped, with the reason.
 

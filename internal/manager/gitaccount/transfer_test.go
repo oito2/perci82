@@ -26,6 +26,7 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/executor"
+	"github.com/oito2/perci82/internal/i18n"
 )
 
 // initRepo creates a git repository at dir with origin url ("" for none).
@@ -369,5 +370,24 @@ func TestClonePending(t *testing.T) {
 	}
 	if err := ClonePending(t.Context(), quietExecutor(), &out, config.GitAccount{}); err == nil {
 		t.Error("ClonePending without pending repositories succeeded")
+	}
+}
+
+// A new account's folder written in the file must be below the home
+// folder; the same folder chosen in the picker is accepted.
+func TestPlanImport_RefusesWideFolders(t *testing.T) {
+	home := isolate(t)
+	for _, folder := range []string{home, "/", "/srv/elsewhere"} {
+		plan := PlanImport(t.Context(), nil, sampleFile(folder), nil, nil)[0]
+		if plan.Reason == "" {
+			t.Errorf("folder %s from the file should be refused", folder)
+		}
+		picked := PlanImport(t.Context(), nil, sampleFile(folder), nil, map[string]string{sampleFile(folder).Accounts[0].Name: home})[0]
+		if picked.Reason == i18n.Tr("git.folderTooWide", i18n.Args{"path": home}) {
+			t.Errorf("a picked folder must not get the width check: %q", picked.Reason)
+		}
+	}
+	if plan := PlanImport(t.Context(), nil, sampleFile(filepath.Join(home, "repos")), nil, nil)[0]; plan.Reason != "" {
+		t.Errorf("a folder below home was refused: %s", plan.Reason)
 	}
 }

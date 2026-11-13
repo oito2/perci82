@@ -25,9 +25,9 @@ curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --ma
 The script needs `curl`, `jq`, `sha256sum`, `tar` and `sudo`. It:
 
 1. Finds the newest Perci82 System release on GitHub (tags `system-vX.Y.Z`; drafts and prereleases are skipped).
-2. Downloads `perci82-system-linux-amd64` and `checksums.txt`, and checks the binary's SHA-256. When the GitHub CLI (`gh`) is installed and logged in, it also checks the build attestation.
+2. Downloads `perci82-system-linux-amd64` and `checksums.txt`, and checks the binary's SHA-256. When the GitHub CLI (`gh`) is installed and logged in, it also checks that `checksums.txt` was attested by this repository's release workflow, which vouches for the binary and the menu entry archive through their checksums.
 3. Installs the binary as `/usr/local/bin/perci82-system` (with `sudo` when that folder isn't writable).
-4. Extracts the menu entry archive `perci82-system-menu.tar.gz` (checked against `checksums.txt` too) into `/usr`: the application menu entry and the icons. A failure here doesn't undo the install; run `perci82-system` from a terminal instead.
+4. Extracts the menu entry archive `perci82-system-menu.tar.gz` (checked against `checksums.txt` too) into `/usr`: only the application menu entry and the icons, whatever else the archive holds. A failure here doesn't undo the install; run `perci82-system` from a terminal instead.
 5. When the old Perci (`prci`) is installed, lists its files and asks whether to remove them. Its settings in `~/.perci` are kept: Perci82 System reads them.
 
 Open **Perci82 System** from the application menu, or run `perci82-system`.
@@ -77,7 +77,7 @@ It writes `dist/perci82-system-linux-amd64`, `dist/perci82-system-menu.tar.gz` (
 
 ## Updating
 
-**Overview → Updates → Check** looks for a newer Perci82 System release; **Update** appears only when there is one. The update downloads the new binary, checks its SHA-256 against the release's `checksums.txt`, replaces the installed binary and asks you to restart the app. See [Overview](overview.md).
+**Overview → Updates → Check** looks for a newer Perci82 System release; **Update** appears only when there is one. The update downloads the new binary, checks its SHA-256 against the release's `checksums.txt`, replaces the installed binary and asks you to restart the app. The checksum comes from the same GitHub release as the binary, so the update trusts that release; it does not check the build attestation. To check it yourself, use the command in [Manual install](#manual-install) before updating. See [Overview](overview.md).
 
 Running the install script again also installs the newest release.
 

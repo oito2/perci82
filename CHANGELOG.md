@@ -54,9 +54,16 @@ First release of Perci82 Dev.
 - Contextos de IA no longer fails to preview, update or remove a project whose Claude Code rule for PHP Perci82 is still there after the standard was unchecked or its Docker app was removed.
 - Gerenciar Contextos → Alterar opens Configurar Projeto on the row's folder (it opened without a folder).
 - "Também remover configurações" removes `~/.perci/appstack` only together with the Docker containers, which still use it, and always keeps the MariaDB backups in `~/.perci/appstack/backups`.
+- Two projects in different places with the same folder name no longer share a notes folder: the second gets `<name>-2` (`-3`…), saved in its context's record as `notes`, so it never moves.
 
 ### Security
 
+- Repositórios → Arquivos never writes through a file or folder that is a link to outside the repository (a cloned repository could point `SUPPORT.md` at `~/.bashrc`); that file is skipped with the reason, and `.perci-bak` copies keep the original's permissions.
+- Listing an account's repositories refuses a redirect to another host or from https to http, so the API token never leaves the account's server.
+- Importing Git accounts refuses a new account whose folder in the file is outside the home folder or the home folder itself, until a folder is picked; importing Docker settings never mounts a development folder outside the home folder, the home folder itself or one inside a hidden folder of it; importing AI contexts refuses folders that are the home folder, above it, a hidden folder of it or led out of the workspace by a link, until a folder is picked.
+- The agents' settings files an AI context merges into (`.claude/settings.json`, `.gemini/settings.json`, `opencode.json`) keep their permissions and get no `.perci-bak` copy, since they may hold tokens.
+- An MCP entry whose command or arguments were changed (an API key, an extra option) is no longer taken for Perci's: Instalar, Atualizar and Remover leave it alone, and Antigravity's own entries keep the keys Perci does not write, such as `env`.
+- `install-dev.sh` checks, when the GitHub CLI is logged in, that `checksums.txt` was attested by the release workflow (covering the binary and the menu entry archive), and extracts only menu entries and icons from the archive.
 - Installing or updating the Antigravity IDE refuses an extracted app folder or a `chrome-sandbox` replaced by a symbolic link while the password dialog is open, so the setuid bit can only land on the verified copy in `/opt/antigravity`.
 - The systemd units of Docker → Pastas de Desenvolvimento refuse to mount when a folder on the way to the development folder or to the destination has become a symbolic link, and a destination reached through a link is refused when the mount is created. Mounts made earlier show a warning on the Pastas montadas tab with Atualizar unidades, which rewrites their units.
 
@@ -90,6 +97,10 @@ First release of Perci82 System, split from Perci 1.9.0.
 - The app icon choice (Ícone do Aplicativo): the app has a single icon.
 - The daisyUI themes of Perci 1.9 (light, dark, cupcake, synthwave, retro, valentine, halloween, garden).
 - The sidebar, its breadcrumb and the mascot logo, replaced by the section tabs, and the sidebar logo choice (Logo da Sidebar).
+
+### Security
+
+- `install-system.sh` checks, when the GitHub CLI is logged in, that `checksums.txt` was attested by the release workflow (covering the binary and the menu entry archive), and extracts only menu entries and icons from the archive.
 
 [Unreleased]: https://github.com/oito2/perci82/commits/main
 [Dev 1.0.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.0

@@ -171,7 +171,7 @@ In Moodle, after applying, open Site administration → Notifications to install
 
 The file holds only definitions: the workspace path, the Nginx and MariaDB containers with MariaDB's credentials **in plain text** (keep it as a secret), the app settings and the mounted folders. It doesn't hold project files nor databases. The format is the same as Perci 1.9's: files exported by Perci 1.9 import here without conversion.
 
-**Import**: **Choose file**, check the items and click **Import**. The tab shows the file's workspace, marks the items that already exist here (they are replaced and recreated) and disables the mounted folders that can't be made on this machine (for example a development folder that doesn't exist here). The confirmation lists the start and worker commands the checked apps will run. Then:
+**Import**: **Choose file**, check the items and click **Import**. The tab shows the file's workspace, marks the items that already exist here (they are replaced and recreated) and disables the mounted folders that can't be made on this machine (for example a development folder that doesn't exist here, or one outside your home folder, the home folder itself or inside a hidden folder of it, such as `~/.ssh`; mount such a folder by hand in [Development Folders](#development-folders)). The confirmation lists the start and worker commands the checked apps will run. Then:
 
 - The whole file is checked before anything changes. It is refused when this machine has another workspace path set, and when an app uses the database and MariaDB exists neither here nor in the selection.
 - The checked items are added to this machine's settings, replacing the ones with the same folder; nothing else changes. When no workspace path is set here, the file's is adopted.

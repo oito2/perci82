@@ -59,11 +59,16 @@ func WriteFileAtomic(path string, data []byte, mode os.FileMode) error {
 
 // WriteGenerated writes a generated file: through a symlink at path (the
 // link's target is written, the link kept), atomically, and when a
-// different version already exists it is first saved as path + ".perci-bak".
+// different version already exists it is first saved as path +
+// ".perci-bak", with the permissions of that version.
 func WriteGenerated(path string, data []byte, mode os.FileMode) error {
 	path = resolveLink(path)
 	if old, err := os.ReadFile(path); err == nil && !bytes.Equal(old, data) {
-		if err := WriteFileAtomic(path+".perci-bak", old, mode); err != nil {
+		bakMode := mode
+		if info, err := os.Stat(path); err == nil {
+			bakMode = info.Mode().Perm()
+		}
+		if err := WriteFileAtomic(path+".perci-bak", old, bakMode); err != nil {
 			return err
 		}
 	}

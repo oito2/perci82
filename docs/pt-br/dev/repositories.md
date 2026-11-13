@@ -145,7 +145,7 @@ O botão **+** abre três abas:
 | Modelo de pull/merge request | `.github/PULL_REQUEST_TEMPLATE.md` no GitHub, `.gitlab/merge_request_templates/Default.md` no GitLab |
 | `.github/FUNDING.yml` | **em breve** |
 
-Cada linha oferece **Criar**, **Atualizar** ou **Remover**, conforme o estado. **Atualizar** substitui o arquivo e guarda a versão anterior em `<arquivo>.perci-bak`.
+Cada linha oferece **Criar**, **Atualizar** ou **Remover**, conforme o estado. **Atualizar** substitui o arquivo e guarda a versão anterior em `<arquivo>.perci-bak`, com as permissões dela. Um arquivo ou pasta que é um link para fora do repositório nunca é gravado através do link: esse arquivo é pulado e o motivo é mostrado.
 
 ### Repositórios pendentes
 
@@ -181,7 +181,7 @@ accounts:
 
 Na aba **Importar**, **Selecionar arquivo** lê um arquivo exportado e lista o que seria feito:
 
-- **conta nova** — ganha a pasta (criada se não existir; **Trocar pasta** escolhe outra), uma chave SSH sem senha em `~/.ssh/perci_<id>` (uma chave que já esteja lá é reaproveitada), as chaves de servidor embutidas e a regra `includeIf`.
+- **conta nova** — ganha a pasta (criada se não existir; **Trocar pasta** escolhe outra; uma pasta do arquivo fora da sua pasta pessoal, ou a própria pasta pessoal, deixa a conta indisponível até você escolher uma), uma chave SSH sem senha em `~/.ssh/perci_<id>` (uma chave que já esteja lá é reaproveitada), as chaves de servidor embutidas e a regra `includeIf`.
 - **já cadastrada — mescla com …** — mesmo usuário no mesmo servidor: a conta mantém os dados dela e só ganha os repositórios.
 - Repositórios que já estão pendentes ou já estão clonados aparecem marcados; um cuja pasta tem outro conteúdo é ignorado, com o motivo.
 

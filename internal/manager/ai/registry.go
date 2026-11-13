@@ -186,11 +186,14 @@ func RecordContext(name, path string, modelNamesIn, agentIDs []string) error {
 		}
 		for i, c := range cfg.AIContexts {
 			if c.Path == path {
+				rec.Notes = c.Notes
 				cfg.AIContexts[i] = rec
+				FreezeNotes(cfg)
 				return nil
 			}
 		}
 		cfg.AIContexts = append(cfg.AIContexts, rec)
+		FreezeNotes(cfg)
 		return nil
 	})
 }
@@ -218,6 +221,7 @@ func ForgetContext(path string) error {
 		if i < 0 {
 			return ErrContextNotFound
 		}
+		FreezeNotes(cfg)
 		cfg.AIContexts = slices.Delete(cfg.AIContexts, i, i+1)
 		return nil
 	})

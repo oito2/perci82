@@ -460,6 +460,7 @@ func (h *DevHomeService) SetProjectNotesPath(path string) error {
 	}
 	return config.Update(func(cfg *config.Config) error {
 		cfg.ProjectNotesPath = path
+		managerai.FreezeNotes(cfg)
 		return nil
 	})
 }

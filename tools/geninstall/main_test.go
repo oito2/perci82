@@ -255,3 +255,50 @@ func TestInstallers_LegacyPerciKeptWithoutTerminal(t *testing.T) {
 		t.Errorf("output does not list the kept files:\n%s", out)
 	}
 }
+
+// The installers check the attestation of checksums.txt, which covers the
+// binary and the menu archive, and require it to come from the release
+// workflow; the menu archive only ever puts menu entries and icons in /usr.
+func TestInstallers_AttestationAndMenuArchive(t *testing.T) {
+	for _, file := range []string{"install-system.sh", "install-dev.sh"} {
+		t.Run(file, func(t *testing.T) {
+			path := filepath.Join(repoRoot, file)
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{
+				`verify_attestation "$_tmpdir/checksums.txt"`,
+				`--wildcards "share/applications/*.desktop" "share/icons/hicolor/*"`,
+			} {
+				if !strings.Contains(string(data), want) {
+					t.Errorf("%s lacks %s", file, want)
+				}
+			}
+
+			home := t.TempDir()
+			bin := t.TempDir()
+			log := filepath.Join(home, "gh.log")
+			gh := "#!/bin/sh\necho \"$@\" >> " + log + "\nexit 0\n"
+			if err := os.WriteFile(filepath.Join(bin, "gh"), []byte(gh), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := exec.LookPath("bash"); err != nil {
+				t.Skip("bash not installed")
+			}
+			abs, _ := filepath.Abs(path)
+			cmd := exec.CommandContext(t.Context(), "bash", "-c", `source "$1" && verify_attestation /tmp/checksums.txt`, "bash", abs)
+			cmd.Env = []string{"HOME=" + home, "PATH=" + bin + ":" + os.Getenv("PATH"), "LC_ALL=C"}
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("verify_attestation: %v\n%s", err, out)
+			}
+			got, err := os.ReadFile(log)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(got), "attestation verify /tmp/checksums.txt --repo oito2/perci82 --signer-workflow oito2/perci82/.github/workflows/release.yml") {
+				t.Errorf("gh ran with:\n%s", got)
+			}
+		})
+	}
+}

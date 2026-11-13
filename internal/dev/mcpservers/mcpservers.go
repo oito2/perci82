@@ -40,7 +40,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/oito2/perci82/internal/dev/localbin"
@@ -269,8 +268,9 @@ func launchOf(slug, param string) (command string, args []string, err error) {
 }
 
 // createdByPerci reports whether a server entry with this command and
-// arguments is the one Perci registers for slug, whatever the package
-// version or the parameter: the entry's command and marker match. For a
+// arguments is exactly the one Perci registers for slug, whatever the
+// package version or the parameter: an entry with an extra argument (an
+// API key, an option) was written or changed by someone else. For a
 // release binary, the command is the binary's path and there are no
 // arguments.
 func createdByPerci(slug, command string, args []string) bool {
@@ -282,7 +282,34 @@ func createdByPerci(slug, command string, args []string) bool {
 	if !ok || command != g.command {
 		return false
 	}
-	return slices.ContainsFunc(args, func(a string) bool { return a == g.marker || strings.HasPrefix(a, g.marker+"@") })
+	want := g.args(paramSlot)
+	if len(args) != len(want) {
+		return false
+	}
+	for i, w := range want {
+		if !argMatches(w, args[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// paramSlot stands for the parameter in the arguments createdByPerci
+// compares.
+const paramSlot = "\x00"
+
+// argMatches reports whether got is the argument want: the same text, the
+// same package at any version (or none), or any parameter where want holds
+// paramSlot.
+func argMatches(want, got string) bool {
+	if before, after, ok := strings.Cut(want, paramSlot); ok {
+		return len(got) > len(before)+len(after) && strings.HasPrefix(got, before) && strings.HasSuffix(got, after)
+	}
+	if want == got {
+		return true
+	}
+	base := pkgBase(want)
+	return base != want && pkgBase(got) == base
 }
 
 // errNotCreatedByPerci means a server of that name exists but was not
@@ -446,7 +473,13 @@ func antigravitySetServer(slug string, global bool, folder, name, command string
 			return fmt.Errorf("%s: %w", path, errNotCreatedByPerci)
 		}
 	}
-	servers[name] = map[string]any{"command": command, "args": args}
+	// Keys Perci does not write (env, options) stay in its own entry.
+	entry, _ := servers[name].(map[string]any)
+	if entry == nil {
+		entry = map[string]any{}
+	}
+	entry["command"], entry["args"] = command, args
+	servers[name] = entry
 	return writeJSONObject(path, doc)
 }
 

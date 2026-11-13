@@ -381,11 +381,15 @@ func PlanImport(ctx context.Context, exe *executor.Executor, f TransferFile, acc
 			p.ExistingID, p.ExistingName = existing.ID, existing.Name
 			acc = *existing
 		} else {
+			fromFile := true
 			if folder := folders[t.Name]; folder != "" {
 				acc.Folder = filepath.Clean(folder)
+				fromFile = false
 			}
 			if err := checkNewAccount(acc, accounts); err != nil {
 				p.Reason = err.Error()
+			} else if fromFile && folderTooWide(acc.Folder) {
+				p.Reason = i18n.Tr("git.folderTooWide", i18n.Args{"path": acc.Folder})
 			}
 		}
 		p.Folder = acc.Folder
@@ -408,6 +412,19 @@ func checkNewAccount(acc config.GitAccount, accounts []config.GitAccount) error 
 		return errors.New(i18n.Tr("git.notAFolder", i18n.Args{"path": acc.Folder}))
 	}
 	return checkClash(acc, accounts)
+}
+
+// folderTooWide reports whether folder, as written in an import file, is
+// outside the home folder or is the home folder itself: its includeIf rule
+// would give the account's identity and key to repositories that are not
+// the account's. A folder chosen in the file picker is not checked.
+func folderTooWide(folder string) bool {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return true
+	}
+	home = filepath.Clean(home)
+	return folder == home || !within(folder, home)
 }
 
 // repoImportState tells what importing r into acc would do.

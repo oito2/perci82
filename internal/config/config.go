@@ -134,6 +134,10 @@ type AIContext struct {
 	Path   string   `yaml:"path"`
 	Models []string `yaml:"models,omitempty"`
 	Agents []string `yaml:"agents,omitempty"`
+	// Notes is the folder of the project's notes under project_notes_path:
+	// the project folder's name, with a -2, -3... suffix when another
+	// context already has that name. Empty until a notes folder is set.
+	Notes string `yaml:"notes,omitempty"`
 }
 
 // GitAccount is one registered Git hosting account: its identity and SSH

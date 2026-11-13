@@ -100,7 +100,7 @@ MCP servers registered with Claude Code, Codex and Antigravity, each through its
 | Codex | `codex mcp add` / `codex mcp remove` | Yes | Skipped |
 | Antigravity | Edits `mcp_config.json`, keeping the other entries | `~/.gemini/config/mcp_config.json` | `<folder>/.agents/mcp_config.json` |
 
-Codex is only registered when the **Installation type** is Global: its per-project scope is not confirmed as released yet. A server with the same name that Perci did not register is kept, never replaced, and **Remove** leaves it alone.
+Codex is only registered when the **Installation type** is Global: its per-project scope is not confirmed as released yet. A server with the same name that Perci did not register is kept, never replaced, and **Remove** leaves it alone; so is an entry whose command or arguments were changed (an extra option or API key, another package). In Antigravity's file, the keys Perci does not write in its own entry (such as `env`) are kept when it is updated.
 
 | Button | What it does |
 |---|---|

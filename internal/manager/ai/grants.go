@@ -204,7 +204,7 @@ func writeJSONGrants(path string, edits []listEdit, stdout io.Writer) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
 	}
-	if err := fsutil.WriteGenerated(path, buf.Bytes(), 0o644); err != nil {
+	if err := writeMergedConfig(path, buf.Bytes()); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	ui.Info(stdout, i18n.Tr("aic.run.updated", i18n.Args{"path": path}))

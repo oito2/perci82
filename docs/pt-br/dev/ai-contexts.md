@@ -27,7 +27,7 @@ Um contexto de IA é o conjunto de arquivos de regras que o Perci82 Dev grava na
 
 O Codex e o Antigravity leem o `AGENTS.md` como está. Os arquivos mantidos fora são credenciais (`.env`, `*.pem`, `*.key`, `config.php`, `wp-config.php`, `auth.json`…), pastas de dependências e de dados (`node_modules/`, `moodledata/`, `.git/`…), pastas de IDE e saídas de teste e de profiling; `dist/`, `build/`, `out/`, `env/` e `.next/` continuam legíveis quando o git rastreia arquivos nelas.
 
-Um arquivo substituído fica com uma cópia com o sufixo `.perci-bak`. Um `CLAUDE.md` ou `GEMINI.md` que é um link para o `AGENTS.md` é mantido. O Perci82 Dev não altera o `opencode.jsonc`; ele informa qual entrada adicionar manualmente.
+Um arquivo substituído fica com uma cópia com o sufixo `.perci-bak`, menos os arquivos de configuração dos agentes em que o Perci82 Dev só mescla as chaves dele (`.claude/settings.json`, `.gemini/settings.json`, `opencode.json`): eles podem guardar tokens, então não ganham cópia e mantêm as permissões. Um `CLAUDE.md` ou `GEMINI.md` que é um link para o `AGENTS.md` é mantido. O Perci82 Dev não altera o `opencode.jsonc`; ele informa qual entrada adicionar manualmente.
 
 ## Configurar Projeto
 
@@ -150,11 +150,11 @@ Um selo **seleção diferente** indica que os arquivos da pasta têm outros padr
 | **já registrada aqui** | Mantida como está |
 | **indisponível** | Não pode ser importada; o motivo é mostrado |
 
-Caminhos relativos vão para o workspace desta máquina. Cada pasta recebe um nome nesta máquina (**Nome nesta máquina**), único aqui e na importação, e **Trocar pasta** escolhe outra pasta para ela. Padrões e agentes que esta versão não conhece ficam de fora e são listados.
+Caminhos relativos vão para o workspace desta máquina. Cada pasta recebe um nome nesta máquina (**Nome nesta máquina**), único aqui e na importação, e **Trocar pasta** escolhe outra pasta para ela. Padrões e agentes que esta versão não conhece ficam de fora e são listados. Uma pasta do arquivo que é a sua pasta pessoal, uma pasta acima dela ou uma pasta oculta dela (como `~/.claude`), ou uma pasta relativa que sai do workspace por um link, fica indisponível até você escolhê-la com **Trocar pasta**.
 
 ## Anotações de projeto
 
-Com **Configurações → Anotações de projeto** definida (salva como `project_notes_path`; veja [Configurações](settings.md)), cada projeto ganha uma pasta de anotações fora do repositório, `<pasta de anotações>/<nome da pasta do projeto>/`:
+Com **Configurações → Anotações de projeto** definida (salva como `project_notes_path`; veja [Configurações](settings.md)), cada projeto ganha uma pasta de anotações fora do repositório, `<pasta de anotações>/<nome da pasta do projeto>/`. Quando outro projeto registrado já usa esse nome (dois projetos em lugares diferentes com o mesmo nome de pasta), o novo ganha `<nome da pasta do projeto>-2`, `-3`… O nome fica salvo no registro do contexto (`notes` em `ai_contexts`), então não muda depois:
 
 ```text
 <pasta de anotações>/<projeto>/
