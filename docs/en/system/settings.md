@@ -34,7 +34,7 @@ Perci82 System keeps its theme apart from Perci82 Dev's.
 
 ## Where the settings are saved
 
-In `~/.perci/config.yaml`, shared with Perci82 Dev. Each app writes only its own keys and keeps the others as they are.
+In `~/.perci/config.yaml`, shared with Perci82 Dev. Each app writes only its own keys and keeps the others as they are. A `config.yaml` that is a symbolic link (a dotfiles manager's) stays one: its target is written.
 
 | Key | Holds |
 |---|---|

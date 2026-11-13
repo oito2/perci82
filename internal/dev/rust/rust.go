@@ -115,7 +115,7 @@ func Install(ctx context.Context, exe *executor.Executor, stdout io.Writer) erro
 
 	url := downloadBase + "/" + rustupVersion + "/" + t + "/rustup-init"
 	ui.Info(stdout, i18n.Tr("sdk.run.rustDownload", i18n.Args{"version": rustupVersion}))
-	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "curl", "-fsSL", "--connect-timeout", "10", "--max-time", "600", "-o", tmpPath, "--", url); err != nil {
+	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "curl", nettimeout.CurlArgs("-fsSL", "-o", tmpPath, "--", url)...); err != nil {
 		return fmt.Errorf("download rustup-init: %w", err)
 	}
 	if !exe.DryRun {

@@ -63,6 +63,7 @@ func fakeStack(t *testing.T, o stackOpts) string {
 printf '%s\n' "$*" >> '` + log + `'
 case "$1" in
 inspect) [ -n '` + o.status + `' ] || exit 1; printf '%s\n' '` + o.status + `' ;;
+ps) [ -z '` + o.status + `' ] || printf 'mdle\t%s\nnginx\t%s\n' '` + o.status + `' '` + o.status + `' ;;
 image) case "$*" in *nginx:*) [ ` + flag(o.noNginxImage) + ` = 1 ] && exit 1 ;; esac; exit 0 ;;
 build) [ ` + flag(o.buildFails) + ` = 1 ] && { echo "build failed" >&2; exit 1; } ;;
 run) case "$*" in
@@ -836,7 +837,8 @@ func TestPluginUnits(t *testing.T) {
 	}
 }
 
-// Each container is inspected once and asked once for all its folders.
+// One docker ps gives every app's status, and each container is asked
+// once for all its folders.
 func TestMoodlePluginStatuses_BatchesContainerCalls(t *testing.T) {
 	workspace, dev := pluginStack(t, map[string]string{"local": "local"})
 	dev2 := filepath.Join(filepath.Dir(dev), "second")
@@ -868,8 +870,11 @@ func TestMoodlePluginStatuses_BatchesContainerCalls(t *testing.T) {
 	if n := strings.Count(got, "exec nginx "); n != 1 {
 		t.Errorf("%d docker exec calls on nginx, want 1:\n%s", n, got)
 	}
-	if n := strings.Count(got, "inspect -f {{.State.Status}} -- mdle"); n != 1 {
-		t.Errorf("app container inspected %d times, want 1:\n%s", n, got)
+	if n := strings.Count(got, "inspect -f {{.State.Status}} -- mdle"); n != 0 {
+		t.Errorf("app container inspected %d times, want none (docker ps):\n%s", n, got)
+	}
+	if n := strings.Count(got, "ps -a"); n != 1 {
+		t.Errorf("%d docker ps calls, want 1:\n%s", n, got)
 	}
 }
 

@@ -263,3 +263,32 @@ function doneHandlerFor(actionId) {
   }
   return function () {};
 }
+
+// wireUninstall connects Visão Geral's uninstall, the same in both
+// applications: "Desinstalar" opens #uninstall-modal with every box of
+// opts.options unchecked; the modal's own "Desinstalar" calls
+// opts.collect(), which returns a promise of App.RunSelfUninstall's
+// arguments (null stops without uninstalling), and starts the uninstall
+// in the Execução tab. It lives here, in the first script, because the
+// home-app.js of each application calls it while loading.
+function wireUninstall(opts) {
+  const modal = document.getElementById("uninstall-modal");
+  btnSu2Uninstall.addEventListener("click", function () {
+    if (running) return;
+    opts.options.forEach(function (box) { box.checked = false; });
+    showDialog(modal);
+  });
+  document.getElementById("btn-uninstall-confirm").addEventListener("click", function () {
+    modal.close();
+    if (running || activeRun) return;
+    Promise.resolve(opts.collect()).then(function (args) {
+      if (!args || running || activeRun) return; // re-checked: the dialogs are async
+      dashboardRunningAction = "self-uninstall";
+      beginRun(t("dashboard.uninstall"), function () { return App.RunSelfUninstall.apply(null, args); }, {
+        buttons: [btnSu2Uninstall],
+        maxSteps: 1,
+        announce: t("uninstall.starting"),
+      });
+    }).catch(function (err) { openError(String(err)); });
+  });
+}

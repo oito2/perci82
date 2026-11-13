@@ -433,8 +433,8 @@ func (t *DevToolsService) RemoveAIContext(path string) error {
 // AI contexts export file.
 func (t *DevToolsService) PickAIContextExportPath() (string, error) {
 	return approvePath(t.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
-		Title:    "Exportar contextos de IA",
-		Filename: "perci-contextos-ia.yaml",
+		Title:    i18n.Tr("aic.dialog.exportFile", nil),
+		Filename: i18n.Tr("aic.dialog.exportName", nil),
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
 	}).PromptForSingleSelection())
 }

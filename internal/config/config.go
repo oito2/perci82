@@ -394,8 +394,9 @@ var mu sync.Mutex
 //
 // The file holds credentials (the MariaDB root/user passwords), so it is
 // 0600 and ~/.perci is kept 0700. The data is synced to disk before the
-// rename (fsutil.WriteFileAtomic), so a power loss cannot leave an empty
-// config.yaml.
+// rename, so a power loss cannot leave an empty config.yaml. A config.yaml
+// that is a symlink (as dotfile managers make it) stays one: its target is
+// written (fsutil.WriteThroughLink).
 func Update(mutate func(cfg *Config) error) error {
 	mu.Lock()
 	defer mu.Unlock()
@@ -436,7 +437,7 @@ func Update(mutate func(cfg *Config) error) error {
 	if err := checkOwnership(currentApp, changed); err != nil {
 		return err
 	}
-	if err := fsutil.WriteFileAtomic(path, merged, 0o600); err != nil {
+	if err := fsutil.WriteThroughLink(path, merged, 0o600); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
 	return nil
@@ -489,7 +490,7 @@ func (c *Config) Workspace() (string, error) {
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("obter diretório home: %w", err)
+		return "", fmt.Errorf("get home dir: %w", err)
 	}
 	return filepath.Join(home, "workspace"), nil
 }

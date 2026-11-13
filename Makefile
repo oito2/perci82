@@ -21,7 +21,7 @@ DIST     := dist
 # The production tag turns off Wails' debug mode (webview developer tools).
 TAGS     := production
 
-.PHONY: build build-system build-dev run-system run-dev test test-frontend lint lint-shell clean release release-system release-dev release-app generate-bindings generate check-generated parity-sync
+.PHONY: build build-system build-dev run-system run-dev test test-frontend lint lint-shell clean release release-system release-dev release-app generate-bindings check-bindings generate check-generated parity-sync
 
 # Builds both applications with the production tag only: GTK4 + WebKitGTK
 # 6.0 is the default stack. -trimpath keeps the builder's local paths out of
@@ -120,6 +120,18 @@ release-app:
 generate-bindings:
 	for app in $(APPS); do \
 		(cd cmd/$$app && wails3 generate bindings -names -b -d frontend/dist/bindings ./...) || exit 1; \
+	done
+
+# check-bindings regenerates each application's bindings into
+# $(DIST)/bindings-check/<app> and fails when they differ from the
+# versioned ones (a service method changed without make generate-bindings).
+# Requires the wails3 CLI, which empties its output folder before writing.
+check-bindings:
+	for app in $(APPS); do \
+		out="$(abspath $(DIST))/bindings-check/$$app"; \
+		mkdir -p "$$out" && \
+		(cd cmd/$$app && wails3 generate bindings -names -b -d "$$out" ./... >/dev/null) && \
+		diff -r "$$out" cmd/$$app/frontend/dist/bindings || { echo "cmd/$$app: bindings out of date, run make generate-bindings" >&2; exit 1; }; \
 	done
 
 # generate rewrites the generated files: those built from the oito2_ui

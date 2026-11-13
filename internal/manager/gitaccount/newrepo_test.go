@@ -200,7 +200,7 @@ func TestListRemoteRepos(t *testing.T) {
 		t.Run(c.provider+"/"+c.path, func(t *testing.T) {
 			srv := newAPIServer(t, http.StatusOK)
 			acc := config.GitAccount{Provider: c.provider, Host: "github.com", Username: "oito2"}
-			repos, err := ListRemoteRepos(t.Context(), srv.URL, acc, c.token)
+			repos, _, err := ListRemoteRepos(t.Context(), srv.URL, acc, c.token)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -238,7 +238,7 @@ func TestListRemoteRepos_Errors(t *testing.T) {
 		http.StatusInternalServerError: "500",
 	} {
 		srv := newAPIServer(t, status)
-		_, err := ListRemoteRepos(t.Context(), srv.URL, acc, "ghp_secret")
+		_, _, err := ListRemoteRepos(t.Context(), srv.URL, acc, "ghp_secret")
 		if err == nil || !strings.Contains(err.Error(), want) || strings.Contains(err.Error(), "ghp_secret") {
 			t.Errorf("status %d: %v", status, err)
 		}
@@ -250,7 +250,7 @@ func TestListRemoteRepos_Errors(t *testing.T) {
 		w.WriteHeader(http.StatusForbidden)
 	}))
 	t.Cleanup(limited.Close)
-	if _, err := ListRemoteRepos(t.Context(), limited.URL, acc, ""); err == nil || !strings.Contains(err.Error(), "limite") {
+	if _, _, err := ListRemoteRepos(t.Context(), limited.URL, acc, ""); err == nil || !strings.Contains(err.Error(), "limite") {
 		t.Errorf("rate-limited 403: %v", err)
 	}
 }
@@ -285,10 +285,27 @@ func TestListRemoteRepos_RefusesRedirectElsewhere(t *testing.T) {
 	t.Cleanup(first.Close)
 
 	acc := config.GitAccount{Provider: ProviderGitLab, Host: "gitlab.example.org", Username: "oito2"}
-	if _, err := ListRemoteRepos(t.Context(), first.URL, acc, "glpat_secret"); err == nil {
+	if _, _, err := ListRemoteRepos(t.Context(), first.URL, acc, "glpat_secret"); err == nil {
 		t.Error("the redirect to another host should fail the listing")
 	}
 	if leaked.Load() {
 		t.Error("the token reached the other host")
+	}
+}
+
+// A listing that fills every page it may read says it may be incomplete.
+func TestListRemoteRepos_Truncated(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		items := make([]map[string]any, perPage)
+		for i := range items {
+			items[i] = repoItem(false, "oito2", fmt.Sprintf("r%s-%d", r.URL.Query().Get("page"), i), false)
+		}
+		_ = json.NewEncoder(w).Encode(items)
+	}))
+	t.Cleanup(srv.Close)
+	acc := config.GitAccount{Provider: ProviderGitHub, Host: "github.com", Username: "oito2"}
+	repos, truncated, err := ListRemoteRepos(t.Context(), srv.URL, acc, "")
+	if err != nil || !truncated || len(repos) != MaxRemoteRepos {
+		t.Errorf("got %d repos, truncated %v, err %v; want %d, true", len(repos), truncated, err, MaxRemoteRepos)
 	}
 }

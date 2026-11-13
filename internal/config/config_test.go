@@ -386,3 +386,31 @@ func TestUpdate_MutateErrorWritesNothing(t *testing.T) {
 		t.Errorf("config changed: %+v, %v", cfg, err)
 	}
 }
+
+// A config.yaml that is a symlink (dotfile managers) stays one: the
+// target gets the change.
+func TestUpdate_KeepsTheSymlink(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	target := filepath.Join(t.TempDir(), "dotfiles-config.yaml")
+	if err := os.WriteFile(target, []byte("language: en\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(home, ".perci"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(home, ".perci", "config.yaml")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.Update(func(c *config.Config) error { c.WorkspacePath = "/w"; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("config.yaml is no longer a symlink (%v)", err)
+	}
+	data, err := os.ReadFile(target)
+	if err != nil || !strings.Contains(string(data), "/w") || !strings.Contains(string(data), "language: en") {
+		t.Errorf("target = %q, %v", data, err)
+	}
+}

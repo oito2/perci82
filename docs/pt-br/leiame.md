@@ -90,6 +90,7 @@ make lint
 make test
 make test-frontend
 make check-generated
+make check-bindings   # precisa do CLI wails3 da versão do Wails no go.mod
 ```
 
 As cores, medidas, presets e textos comuns da interface (OK, Cancelar, Voltar…) vêm do [oito2_ui](https://github.com/oito2/oito2_ui), copiados como fixtures em `internal/theme/parity/`. Para atualizá-los, clone o oito2_ui em `references/oito2_ui` (ou passe `OITO2_UI=<pasta>`) e rode:

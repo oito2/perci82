@@ -121,7 +121,7 @@ Cada linha também tem **Verificar**, **Baixar** e um botão **+** que abre o di
 
 **Como** escolhe um de três modos:
 
-- **Escolher da lista da conta** — **Carregar repositórios da conta** lista os repositórios da conta no provedor (também os privados, com token); os já clonados aparecem marcados e não podem ser escolhidos.
+- **Escolher da lista da conta** — **Carregar repositórios da conta** lista os repositórios da conta no provedor (também os privados, com token; no máximo 1000, com um aviso quando pode haver mais); os já clonados aparecem marcados e não podem ser escolhidos.
 - **Clonar por URL ou nome** — um nome (`perci`) ou uma URL de um repositório da conta; uma URL HTTPS é clonada por SSH. URLs de outro dono ou de outro host são recusadas.
 - **Iniciar um repositório local** — `git init`; com **Nome no provedor (opcional)**, o remote `origin` também é definido. Crie o repositório vazio no site antes do primeiro push.
 

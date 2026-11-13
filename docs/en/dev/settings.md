@@ -36,7 +36,7 @@ The folder that holds the [Docker](docker.md) apps' files (`<workspace>/localhos
 
 A folder outside the repositories with one subfolder per project that has an AI context: `PROJECT.md` (the project's rules), `notes/`, `plans/` and `references/`. The coding agents get access to it when a context is applied or updated. See [AI Contexts](ai-contexts.md).
 
-**Choose folder** saves the folder at once; **Turn off** clears it, and each project keeps its rules in its own `.instructions/PROJECT.md`. After changing this folder, use **Update** in **AI Contexts → Manage Contexts**.
+**Choose folder** saves the folder at once (only a folder chosen in this dialog, not one chosen for another setting); **Turn off** clears it, and each project keeps its rules in its own `.instructions/PROJECT.md`. After changing this folder, use **Update** in **AI Contexts → Manage Contexts**.
 
 ## System tray
 
@@ -49,7 +49,7 @@ The icon needs a desktop with StatusNotifierItem support: KDE, XFCE and COSMIC s
 
 ## Where the settings are saved
 
-In `~/.perci/config.yaml`, shared with Perci82 System. Each app writes only its own keys and keeps the others as they are, including keys it doesn't know.
+In `~/.perci/config.yaml`, shared with Perci82 System. Each app writes only its own keys and keeps the others as they are, including keys it doesn't know. A `config.yaml` that is a symbolic link (a dotfiles manager's) stays one: its target is written.
 
 | Key | Holds |
 |---|---|

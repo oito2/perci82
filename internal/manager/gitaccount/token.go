@@ -46,7 +46,7 @@ func StoreToken(ctx context.Context, exe *executor.Executor, acc config.GitAccou
 		return ErrNoKeyring
 	}
 	opts := executor.Options{Stdin: strings.NewReader(token)}
-	label := "perci: token da conta " + acc.Name
+	label := i18n.Tr("git.tokenLabel", i18n.Args{"name": acc.Name})
 	if err := exe.Run(ctx, opts, "secret-tool", "store", "--label="+label, "service", tokenService, "account", acc.ID); err != nil {
 		return fmt.Errorf("store the token in the keyring: %w", err)
 	}

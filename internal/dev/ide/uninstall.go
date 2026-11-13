@@ -32,18 +32,34 @@ func UninstallOne(ctx context.Context, exe *executor.Executor, stdout io.Writer,
 		script := `rm -rf "$HOME/.local/zed.app" "$HOME/.local/bin/zed" "$HOME/.local/share/applications/dev.zed.Zed.desktop" 2>/dev/null; true`
 		return exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "bash", "-c", script)
 	case "code":
-		opts := executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}
-		return aptDnfRemove(ctx, exe, "code", family, opts)
+		return removeWithRepo(ctx, exe, stdout, family, vscodeRepo)
 	case "codium":
-		opts := executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}
-		return aptDnfRemove(ctx, exe, "codium", family, opts)
+		return removeWithRepo(ctx, exe, stdout, family, vscodiumRepo)
 	}
 	return fmt.Errorf("no uninstaller for %s", e.Name)
 }
 
-func aptDnfRemove(ctx context.Context, exe *executor.Executor, pkg, family string, opts executor.Options) error {
-	if family != distro.Fedora && family != distro.Debian {
+// removeWithRepo removes repo's package and then the repository files
+// installing it added (the apt list and keyring, or the dnf .repo file),
+// in one privileged batch (one password prompt).
+func removeWithRepo(ctx context.Context, exe *executor.Executor, stdout io.Writer, family string, repo distro.SignedRepo) error {
+	if err := prereqs.CheckRemoval(ctx, exe, family, repo.PkgName); err != nil {
+		return err
+	}
+	var steps []executor.PrivilegedStep
+	switch family {
+	case distro.Debian:
+		steps = []executor.PrivilegedStep{
+			{Name: "apt-get", Env: distro.AptEnv, Args: distro.AptArgs("purge", "-y", "--", repo.PkgName)},
+			{Name: "rm", Args: []string{"-f", "--", repo.AptListPath, repo.KeyringPath}},
+		}
+	case distro.Fedora:
+		steps = []executor.PrivilegedStep{
+			{Name: "dnf", Args: []string{"remove", "-y", "--no-autoremove", "--", repo.PkgName}},
+			{Name: "rm", Args: []string{"-f", "--", repo.DnfRepoPath}},
+		}
+	default:
 		return fmt.Errorf("unsupported distro family for package removal: %s", family)
 	}
-	return prereqs.RemovePackages(ctx, exe, opts, family, pkg)
+	return exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, steps)
 }

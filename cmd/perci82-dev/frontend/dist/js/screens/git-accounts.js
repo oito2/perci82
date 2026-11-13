@@ -1282,14 +1282,22 @@ btnNrLoad.addEventListener("click", function () {
   btnNrLoad.disabled = true;
   nrListNote.textContent = t("nr.querying", { host: gacAccount ? gacAccount.host : t("nr.provider") });
   nrList.innerHTML = "";
-  App.ListGitAccountRemoteRepos(gacAccountId).then(function (res) {
-    const repos = (res && res.repos) || [];
+  // The answer may come after another account was opened: it is shown only
+  // for the account it was asked for, and only the latest one.
+  const forAccount = gacAccountId;
+  const current = latestOnly("nr-list", function (fn) { if (gacAccountId === forAccount) fn(); });
+  const mine = function (fn) {
+    return function (value) { current(function () { fn(value); }); };
+  };
+  App.ListGitAccountRemoteRepos(forAccount).then(mine(function (res) {
+    res = res || {};
+    const repos = res.repos || [];
     nrListNote.textContent = t(res.withToken ? "nr.listAll" : "nr.listPublic", { count: repos.length }) + (res.note ? " " + res.note : "");
     repos.forEach(function (r) { nrList.appendChild(buildNrItem(r)); });
-  }).catch(function (err) {
+  })).catch(mine(function (err) {
     nrListNote.textContent = "";
     openError(t("nr.listFailed", { error: gaErrText(err) }));
-  }).finally(function () {
+  })).finally(function () {
     btnNrLoad.disabled = false;
   });
 });

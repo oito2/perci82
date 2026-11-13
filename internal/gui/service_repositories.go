@@ -608,9 +608,16 @@ func (s *RepositoriesService) ListGitAccountRemoteRepos(ctx context.Context, id 
 			list.Note = i18n.Tr("git.tokenGone", nil)
 		}
 	}
-	list.Repos, err = gitaccount.ListRemoteRepos(ctx, gitaccount.APIBase(acc), acc, token)
+	var truncated bool
+	list.Repos, truncated, err = gitaccount.ListRemoteRepos(ctx, gitaccount.APIBase(acc), acc, token)
 	if err != nil {
 		return RemoteRepoList{}, err
+	}
+	if truncated {
+		if list.Note != "" {
+			list.Note += " "
+		}
+		list.Note += i18n.Tr("git.listTruncated", i18n.Args{"max": gitaccount.MaxRemoteRepos})
 	}
 	list.WithToken = token != ""
 	if local, err := gitaccount.ListRepos(ctx, s.exe, acc); err == nil {

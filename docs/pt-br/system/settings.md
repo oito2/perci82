@@ -34,7 +34,7 @@ O Perci82 System guarda o tema separado do tema do Perci82 Dev.
 
 ## Onde as configurações ficam salvas
 
-No `~/.perci/config.yaml`, compartilhado com o Perci82 Dev. Cada aplicativo grava só as próprias chaves e mantém as outras como estão.
+No `~/.perci/config.yaml`, compartilhado com o Perci82 Dev. Cada aplicativo grava só as próprias chaves e mantém as outras como estão. Um `config.yaml` que é um link simbólico (de um gerenciador de dotfiles) continua sendo link: o alvo dele é gravado.
 
 | Chave | Guarda |
 |---|---|

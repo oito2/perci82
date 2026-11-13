@@ -100,8 +100,8 @@ Same buttons and rules as [Prerequisites](#prerequisites).
 | IDE | Install | Uninstall |
 |---|---|---|
 | Zed Editor | Official script `https://zed.dev/install.sh` into `~/.local` (requires Curl; no password) | Removes `~/.local/zed.app`, `~/.local/bin/zed` and the menu entry; `~/.config/zed` stays |
-| VS Code | Adds Microsoft's signed repository and installs `code` (password) | Removes the `code` package; the repository, `~/.config/Code` and `~/.vscode` stay |
-| VSCodium | Adds VSCodium's signed repository and installs `codium` (password) | Removes the `codium` package; the repository, `~/.config/VSCodium` and `~/.vscode-oss` stay |
+| VS Code | Adds Microsoft's signed repository and installs `code` (password) | Removes the `code` package and Microsoft's repository and key (one password prompt); `~/.config/Code` and `~/.vscode` stay |
+| VSCodium | Adds VSCodium's signed repository and installs `codium` (password) | Removes the `codium` package and VSCodium's repository and key (one password prompt); `~/.config/VSCodium` and `~/.vscode-oss` stay |
 
 **Update** runs the install again.
 
@@ -112,7 +112,7 @@ Installs from a `.tar.gz` you download yourself from https://developer.android.c
 - The file must be an Android Studio archive (every entry under `android-studio/`).
 - It is extracted into `/opt/android-studio`, owned by your user; the password is asked to prepare that folder. A previous install is kept as `/opt/android-studio.old` until the extraction succeeds.
 - The setup wizard opens in its own window. To get a menu entry, choose **Create Desktop Entry** in its gear (or three-dot) menu.
-- **Uninstall** (password) removes `/opt/android-studio` and `~/.local/share/applications/jetbrains-studio.desktop`.
+- **Uninstall** (password, after a confirmation) removes `/opt/android-studio` and `~/.local/share/applications/jetbrains-studio.desktop`.
 
 ## Antigravity IDE
 
@@ -121,4 +121,4 @@ Installs from the `.tar.gz` of Antigravity IDE (Standalone), downloaded from htt
 - **Install** refuses when `/opt/antigravity` already exists: use **Update**.
 - The program goes to `/opt/antigravity`, owned by root (password). Its `chrome-sandbox` is SHA-256 checked after copying and gets the setuid permission (`4755`). An update replaces the previous version only once the new one is in place.
 - Creates the menu entry `~/.local/share/applications/antigravity.desktop` and the icon `~/.local/share/icons/hicolor/512x512/apps/antigravity.png`.
-- **Uninstall** (password) removes `/opt/antigravity`, the menu entry and the icon.
+- **Uninstall** (password, after a confirmation) removes `/opt/antigravity`, the menu entry and the icon.

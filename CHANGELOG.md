@@ -68,6 +68,12 @@ First release of Perci82 Dev.
 - Self-update has no fixed 5-minute limit: a slow download is never cut (it stops only when no data arrives for a minute), and the password dialog of the final step is never interrupted.
 - The Execução tab shows only its own action: a window no longer takes the output or the result of an action another window (the tray's) started.
 - Docker → Gerenciar: Iniciar, Parar and Reiniciar run one at a time, so a second click no longer shows an error.
+- Gerenciar Contextos → Exportar's save dialog and file name follow the language; the Node.js-missing message of npm installs, the keyring label of the account tokens and the repository files' result message are translated.
+- Uninstalling VS Code or VSCodium also removes the repository and key their install added, in the same password prompt; uninstalling Android Studio or Antigravity IDE asks first, like every other uninstall.
+- Testing an account's connection names a private key others can read as the cause (`chmod 600`), instead of telling to register the key on the provider.
+- The account's repository list says when it shows only the first 1000.
+- A `config.yaml` that is a symbolic link (dotfiles managers) stays one when the settings are saved.
+- Opening the window or ending an action never waits more than 5 seconds for the shell that refreshes `PATH` (a slow `nvm.sh`).
 
 ### Security
 
@@ -82,6 +88,7 @@ First release of Perci82 Dev.
 - The SSH command of the Git accounts accepts only the server keys in Perci82 Dev's `known_hosts` (`StrictHostKeyChecking=yes`), whatever the user's `~/.ssh/config` says; repository URLs from an import file reach git only in Perci's own SSH form; a key's passphrase goes to ssh-keygen and ssh-add through a 0600 file instead of an environment variable.
 - In `opencode.json`, Perci's `allow` permissions go first, so the user's later `deny` or `ask` rules keep the last word (OpenCode applies the last matching rule).
 - The nvm installer is run only after its SHA-256 matches.
+- A folder chosen in a file dialog is accepted only for the setting it was chosen for: the workspace, the notes folder and the Filesystem MCP folder each need their own choice, and the notes folder must be a folder.
 
 ## [System 1.0.0] - 2026-11-12
 
@@ -120,6 +127,9 @@ First release of Perci82 System, split from Perci 1.9.0.
 - Self-update has no fixed 5-minute limit: a slow download is never cut (it stops only when no data arrives for a minute), and the password dialog of the final step is never interrupted.
 - The Execução tab shows only the action this window started.
 - `make release` writes one `checksums.txt` covering both applications.
+- Pós-instalação's "Enabling the … component" message is translated.
+- A `config.yaml` that is a symbolic link (dotfiles managers) stays one when the settings are saved.
+- Perci82 System no longer refreshes `PATH` from a login shell at start and after each action: only Perci82 Dev installs tools that need it.
 
 ### Security
 

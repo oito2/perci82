@@ -155,8 +155,36 @@ func TestIDEs_EveryActionAtMostOnePrompt(t *testing.T) {
 	if InstallOne(context.Background(), exe, &buf, unknown, distro.Debian) == nil || UninstallOne(context.Background(), exe, &buf, unknown, distro.Debian) == nil {
 		t.Error("an unknown IDE must fail")
 	}
-	if aptDnfRemove(context.Background(), exe, "code", distro.Unknown, executor.Options{}) == nil {
+	if removeWithRepo(context.Background(), exe, &buf, distro.Unknown, vscodeRepo) == nil {
 		t.Error("an unknown family must fail")
+	}
+}
+
+// Uninstalling VS Code or VSCodium also removes the repository files their
+// install added, in the same privileged batch.
+func TestUninstall_RemovesTheRepository(t *testing.T) {
+	for _, tc := range []struct {
+		family string
+		repo   distro.SignedRepo
+		files  []string
+	}{
+		{distro.Debian, vscodeRepo, []string{vscodeRepo.AptListPath, vscodeRepo.KeyringPath}},
+		{distro.Fedora, vscodiumRepo, []string{vscodiumRepo.DnfRepoPath}},
+	} {
+		var buf bytes.Buffer
+		exe := &executor.Executor{DryRun: true, UsePolicyKit: true, Stdout: &buf, Stderr: &buf}
+		if err := removeWithRepo(context.Background(), exe, &buf, tc.family, tc.repo); err != nil {
+			t.Fatalf("%s: %v", tc.family, err)
+		}
+		out := buf.String()
+		for _, f := range tc.files {
+			if !strings.Contains(out, f) {
+				t.Errorf("%s: %s is not removed:\n%s", tc.family, f, out)
+			}
+		}
+		if n := strings.Count(out, "pkexec"); n != 1 {
+			t.Errorf("%s: %d prompts, want 1", tc.family, n)
+		}
 	}
 }
 

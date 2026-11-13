@@ -80,22 +80,27 @@ const (
 // ListRemoteRepos lists the repositories owned by acc's user at the API
 // rooted at base. With a token, the list includes the private ones;
 // without, only the public ones. The token goes only in a request header.
-func ListRemoteRepos(ctx context.Context, base string, acc config.GitAccount, token string) ([]RemoteRepo, error) {
+// truncated reports that the last page allowed (MaxRemoteRepos in all) was
+// full, so the list may lack repositories.
+func ListRemoteRepos(ctx context.Context, base string, acc config.GitAccount, token string) (repos []RemoteRepo, truncated bool, err error) {
 	client := &http.Client{Timeout: apiTimeout, CheckRedirect: sameOriginRedirect}
-	var repos []RemoteRepo
 	for page := 1; page <= maxPages; page++ {
 		got, err := fetchRepoPage(ctx, client, base, acc, token, page)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		repos = append(repos, got.repos...)
 		if got.count < perPage {
 			break
 		}
+		truncated = page == maxPages
 	}
 	slices.SortFunc(repos, func(a, b RemoteRepo) int { return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)) })
-	return repos, nil
+	return repos, truncated, nil
 }
+
+// MaxRemoteRepos is how many repositories ListRemoteRepos reads at most.
+const MaxRemoteRepos = perPage * maxPages
 
 // sameOriginRedirect follows a redirect only to the scheme and host of
 // the first request (at most 5 times): net/http would forward the

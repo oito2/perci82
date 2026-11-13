@@ -213,6 +213,14 @@ func TestConnection(ctx context.Context, exe *executor.Executor, acc config.GitA
 		}
 	}
 	switch {
+	case user == "" && strings.Contains(text, "UNPROTECTED PRIVATE KEY FILE"):
+		// ssh ignores a private key others can read, then reports
+		// "Permission denied": the cause is local, not the server.
+		mode := ""
+		if info, err := os.Stat(acc.SSHKey); err == nil {
+			mode = fmt.Sprintf("%#o", info.Mode().Perm())
+		}
+		return "", errors.New(i18n.Tr("git.keyTooOpen", i18n.Args{"path": acc.SSHKey, "mode": mode}))
 	case user == "" && strings.Contains(text, "Permission denied"):
 		return "", errors.New(i18n.Tr("git.keyRefused", i18n.Args{"host": acc.Host, "user": acc.Username}))
 	case user == "" && strings.Contains(text, "Host key verification failed"):

@@ -365,33 +365,22 @@ func (h *SystemHomeService) RunSelfUninstall(removeConfig bool) error {
 // "action-done" event, time enough to read the success line in the
 // terminal panel.
 func (h *homeCore) runUninstall(body func(w io.Writer) error) error {
-	if !runMu.TryLock() {
-		return errActionRunning
-	}
-	id := h.startRun()
-	go func() {
-		defer runMu.Unlock()
-		beginAction()
-		defer endAction()
-		w := h.newEventWriter(id)
-		quit := false
-		err := runRecovered(func() error {
-			err := body(w)
+	quit := false
+	return h.runActionThen(body,
+		func(err error) error {
 			if errors.Is(err, selfupdate.ErrUninstalled) {
 				quit = true
 				return nil
 			}
 			return err
+		},
+		func() {
+			if quit {
+				time.Sleep(uninstallQuitDelay)
+				quitAllowed.Store(true)
+				h.wailsApp.Quit()
+			}
 		})
-		w.Flush()
-		h.emitDone(id, err)
-		if quit {
-			time.Sleep(uninstallQuitDelay)
-			quitAllowed.Store(true)
-			h.wailsApp.Quit()
-		}
-	}()
-	return nil
 }
 
 // GetWorkspacePath returns the persisted workspace folder, "" when unset
@@ -407,7 +396,7 @@ func (h *DevHomeService) GetWorkspacePath() string {
 // PickWorkspaceFolder opens the native folder picker for the workspace
 // path, with CanCreateDirectories enabled.
 func (h *DevHomeService) PickWorkspaceFolder() (string, error) {
-	return h.pickFolder(i18n.Tr("settings.workspace.pickTitle", nil))
+	return h.pickFolderFor(purposeWorkspace, i18n.Tr("settings.workspace.pickTitle", nil))
 }
 
 // SetWorkspacePath persists the workspace folder path chosen via
@@ -424,7 +413,7 @@ func (h *DevHomeService) SetWorkspacePath(path string) error {
 	if expanded, expandErr := config.ExpandPath(path); expandErr == nil {
 		path = expanded
 	}
-	if err := requireApprovedPath(path); err != nil {
+	if err := requireApprovedPathFor(purposeWorkspace, path); err != nil {
 		return err
 	}
 	return config.Update(func(cfg *config.Config) error {
@@ -446,7 +435,7 @@ func (h *DevHomeService) GetProjectNotesPath() string {
 // PickProjectNotesFolder opens the native folder picker for the project
 // notes folder.
 func (h *DevHomeService) PickProjectNotesFolder() (string, error) {
-	return h.pickFolder(i18n.Tr("notes.pickTitle", nil))
+	return h.pickFolderFor(purposeNotes, i18n.Tr("notes.pickTitle", nil))
 }
 
 // SetProjectNotesPath persists the project notes folder chosen via
@@ -455,7 +444,10 @@ func (h *DevHomeService) PickProjectNotesFolder() (string, error) {
 // write access to it.
 func (h *DevHomeService) SetProjectNotesPath(path string) error {
 	if path != "" {
-		if err := requireApprovedPath(path); err != nil {
+		if err := requireApprovedPathFor(purposeNotes, path); err != nil {
+			return err
+		}
+		if err := requireFolder(path); err != nil {
 			return err
 		}
 	}

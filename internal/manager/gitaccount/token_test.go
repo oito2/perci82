@@ -63,7 +63,7 @@ func TestTokenStoreLookupDelete(t *testing.T) {
 	if bytes.Contains(calls, []byte("ghp_secret")) {
 		t.Errorf("the token appeared on secret-tool's command line:\n%s", calls)
 	}
-	if !strings.Contains(string(calls), "store --label=perci: token da conta OITO2 service perci-git account oito2") {
+	if !strings.Contains(string(calls), "store --label=Perci82: token da conta OITO2 service perci-git account oito2") {
 		t.Errorf("secret-tool store arguments:\n%s", calls)
 	}
 

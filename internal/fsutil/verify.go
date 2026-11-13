@@ -31,7 +31,7 @@ import (
 func VerifyFile(path string, h hash.Hash, want string) error {
 	f, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("abrir %s para verificação: %w", path, err)
+		return fmt.Errorf("open %s to verify it: %w", path, err)
 	}
 	defer func() { _ = f.Close() }()
 	if _, err := io.Copy(h, f); err != nil {

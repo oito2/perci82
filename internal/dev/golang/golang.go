@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/oito2/perci82/internal/dev/nettimeout"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/fsutil"
 	"github.com/oito2/perci82/internal/i18n"
@@ -178,7 +179,7 @@ func download(ctx context.Context, exe *executor.Executor, stdout io.Writer, dir
 	ui.Info(stdout, i18n.Tr("dev.downloading", i18n.Args{"url": url}))
 	if err := exe.Run(ctx,
 		executor.Options{Stdout: stdout, Stderr: stdout},
-		"curl", "-fSL", "--connect-timeout", "10", "--max-time", "600", "--progress-bar", "-o", dest, url,
+		"curl", nettimeout.CurlArgs("-fSL", "--progress-bar", "-o", dest, url)...,
 	); err != nil {
 		return "", "", fmt.Errorf("download tarball: %w", err)
 	}

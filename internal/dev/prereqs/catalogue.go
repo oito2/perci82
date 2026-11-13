@@ -788,7 +788,7 @@ func installAppImageTool(ctx context.Context, exe *executor.Executor, stdout io.
 	defer func() { _ = os.Remove(tmpPath) }()
 
 	ui.Info(stdout, i18n.Tr("prereq.run.appimageDownload", nil))
-	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "curl", "-fsSL", "--connect-timeout", "10", "--max-time", "600", "-o", tmpPath, "--", toolURL); err != nil {
+	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "curl", nettimeout.CurlArgs("-fsSL", "-o", tmpPath, "--", toolURL)...); err != nil {
 		return fmt.Errorf("download appimagetool: %w", err)
 	}
 

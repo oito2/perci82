@@ -105,17 +105,14 @@ function buildAgentSkillRow(row) {
     if (running) return;
     const global = asTable.isGlobal();
     if (row.installed) {
-      startExecution(t("skills.run.remove", { name: row.name }));
-      App.RemoveAgentSkill(row.slug, global, asTable.folder).catch(failRun);
+      beginRun(t("skills.run.remove", { name: row.name }), function () { return App.RemoveAgentSkill(row.slug, global, asTable.folder); });
     } else {
-      startExecution(t("skills.run.install", { name: row.name }));
-      App.InstallAgentSkill(row.slug, global, asTable.folder).catch(failRun);
+      beginRun(t("skills.run.install", { name: row.name }), function () { return App.InstallAgentSkill(row.slug, global, asTable.folder); });
     }
   });
   btnUpdate.addEventListener("click", function () {
     if (running || btnUpdate.disabled) return;
-    startExecution(t("skills.run.update", { name: row.name }));
-    App.UpdateAgentSkill(row.slug, asTable.isGlobal(), asTable.folder).catch(failRun);
+    beginRun(t("skills.run.update", { name: row.name }), function () { return App.UpdateAgentSkill(row.slug, asTable.isGlobal(), asTable.folder); });
   });
 
   wrap.appendChild(btnToggle);

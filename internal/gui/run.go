@@ -224,7 +224,10 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 	// builds (~/.local/bin, nvm's Node): tools installed there would read
 	// as missing. Blocking, but only a shell sourcing nvm.sh — before any
 	// binding can check what's installed.
-	localbin.RefreshPath(context.Background(), first.exe)
+	refreshPath = p.App != config.AppSystem
+	if refreshPath {
+		localbin.RefreshPath(context.Background(), first.exe)
+	}
 
 	// ui.Step normally just writes one line; the hook also emits a "step"
 	// event to the frontend (title + progress bar in the Execução tab).

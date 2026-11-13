@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/oito2/perci82/internal/dev/nettimeout"
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
@@ -134,7 +135,7 @@ const (
 	xdebugVersion       = "3.4.7"
 	xdebugVersionPHP74  = "3.1.6"
 	composerImage       = "2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac"
-	downloadCurlOptions = "--connect-timeout 10 --max-time 600"
+	downloadCurlOptions = nettimeout.CurlShellFlags
 )
 
 // phpunitSelect is the shell snippet of the PHP images that sets VER and

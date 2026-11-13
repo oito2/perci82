@@ -52,28 +52,34 @@ func InstallOne(ctx context.Context, exe *executor.Executor, stdout io.Writer, e
 // installVSCode installs VS Code from Microsoft's signed apt/dnf
 // repository through distro.InstallFromSignedRepo.
 func installVSCode(ctx context.Context, exe *executor.Executor, stdout io.Writer, family string) error {
-	return distro.InstallFromSignedRepo(ctx, exe, stdout, family, distro.SignedRepo{
-		KeyringPath:    "/usr/share/keyrings/microsoft-archive-keyring.gpg",
-		KeyURL:         "https://packages.microsoft.com/keys/microsoft.asc",
-		AptListPath:    "/etc/apt/sources.list.d/vscode.list",
-		AptListContent: "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/repos/code stable main\n",
-		DnfRepoPath:    "/etc/yum.repos.d/vscode.repo",
-		DnfRepoBody:    "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc\n",
-		PkgName:        "code",
-	})
+	return distro.InstallFromSignedRepo(ctx, exe, stdout, family, vscodeRepo)
+}
+
+// vscodeRepo is Microsoft's signed repository of VS Code.
+var vscodeRepo = distro.SignedRepo{
+	KeyringPath:    "/usr/share/keyrings/microsoft-archive-keyring.gpg",
+	KeyURL:         "https://packages.microsoft.com/keys/microsoft.asc",
+	AptListPath:    "/etc/apt/sources.list.d/vscode.list",
+	AptListContent: "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/repos/code stable main\n",
+	DnfRepoPath:    "/etc/yum.repos.d/vscode.repo",
+	DnfRepoBody:    "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc\n",
+	PkgName:        "code",
 }
 
 func installVSCodium(ctx context.Context, exe *executor.Executor, stdout io.Writer, family string) error {
-	return distro.InstallFromSignedRepo(ctx, exe, stdout, family, distro.SignedRepo{
-		KeyringPath: "/usr/share/keyrings/vscodium-archive-keyring.gpg",
-		KeyURL:      "https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg",
-		AptListPath: "/etc/apt/sources.list.d/vscodium.sources",
-		AptListContent: "Types: deb\nURIs: https://download.vscodium.com/debs\nSuites: vscodium\n" +
-			"Components: main\nArchitectures: amd64 arm64\n" +
-			"Signed-by: /usr/share/keyrings/vscodium-archive-keyring.gpg\n",
-		DnfRepoPath: "/etc/yum.repos.d/vscodium.repo",
-		DnfRepoBody: "[vscodium]\nname=download.vscodium.com\nbaseurl=https://download.vscodium.com/rpms/\n" +
-			"enabled=1\ngpgcheck=1\ngpgkey=https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg\n",
-		PkgName: "codium",
-	})
+	return distro.InstallFromSignedRepo(ctx, exe, stdout, family, vscodiumRepo)
+}
+
+// vscodiumRepo is VSCodium's signed repository.
+var vscodiumRepo = distro.SignedRepo{
+	KeyringPath: "/usr/share/keyrings/vscodium-archive-keyring.gpg",
+	KeyURL:      "https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg",
+	AptListPath: "/etc/apt/sources.list.d/vscodium.sources",
+	AptListContent: "Types: deb\nURIs: https://download.vscodium.com/debs\nSuites: vscodium\n" +
+		"Components: main\nArchitectures: amd64 arm64\n" +
+		"Signed-by: /usr/share/keyrings/vscodium-archive-keyring.gpg\n",
+	DnfRepoPath: "/etc/yum.repos.d/vscodium.repo",
+	DnfRepoBody: "[vscodium]\nname=download.vscodium.com\nbaseurl=https://download.vscodium.com/rpms/\n" +
+		"enabled=1\ngpgcheck=1\ngpgkey=https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg\n",
+	PkgName: "codium",
 }

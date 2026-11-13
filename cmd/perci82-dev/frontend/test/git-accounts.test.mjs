@@ -708,3 +708,18 @@ test("Configurar Conta: the form explains the SSH key and the token, and opens t
   click(element("btn-ga-token-page"));
   assert.equal(opened.length, 3, "an invalid host is never opened");
 });
+
+test("Novo Repositório: a list that arrives after another account was opened is not shown", async () => {
+  let answer;
+  const { ctx, element } = await openAccount({
+    ListGitAccountRemoteRepos: () => new Promise((r) => { answer = r; }),
+  });
+  ctx.openNewRepo();
+  element("btn-nr-load").disabled = false;
+  click(element("btn-nr-load"));
+  evalIn(ctx, 'gacAccountId = "outra"');
+  answer({ withToken: true, repos: [{ name: "perci", sshUrl: "git@github.com:oito2/perci.git" }] });
+  await tick();
+  await tick();
+  assert.equal(element("nr-list").children.length, 0);
+});

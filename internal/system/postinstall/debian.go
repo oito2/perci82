@@ -53,7 +53,7 @@ func enableUbuntuComponents(ctx context.Context, exe *executor.Executor, stdout 
 			continue
 		}
 		steps = append(steps, executor.PrivilegedStep{
-			Announce: "Habilitando " + component + "...",
+			Announce: i18n.Tr("postinstall.run.enablingComponent", i18n.Args{"component": component}),
 			Name:     "add-apt-repository", Args: []string{"-y", component},
 		})
 	}

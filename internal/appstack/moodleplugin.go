@@ -38,6 +38,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -787,13 +788,21 @@ func MoodlePluginStatuses(ctx context.Context, exe *executor.Executor, cfg *conf
 
 	// Per app: the container status and, for a running one, the ids of the
 	// mounted folders as the container sees them.
-	appStatus := map[string]string{}
+	var appNames []string
+	for _, m := range cfg.MoodlePlugins {
+		if !slices.Contains(appNames, m.App) {
+			appNames = append(appNames, m.App)
+		}
+	}
+	// One `docker ps` for every app; an unreachable daemon leaves them all
+	// without a status.
+	appStatus, err := ContainerStatuses(ctx, exe, appNames)
+	if err != nil {
+		appStatus = map[string]string{}
+	}
 	appPaths := map[string][]string{}
 	nginxPaths := []string{}
 	for _, m := range cfg.MoodlePlugins {
-		if _, seen := appStatus[m.App]; !seen {
-			appStatus[m.App] = ContainerStatus(ctx, exe, m.App)
-		}
 		if p, ok := containerPath(appTypes[m.App], m.RelPath); ok && appStatus[m.App] == "running" {
 			appPaths[m.App] = append(appPaths[m.App], p)
 		}

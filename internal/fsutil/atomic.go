@@ -31,7 +31,7 @@ import (
 func WriteFileAtomic(path string, data []byte, mode os.FileMode) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
-		return fmt.Errorf("criar arquivo temporário: %w", err)
+		return fmt.Errorf("create temp file: %w", err)
 	}
 	tmpPath := tmp.Name()
 	defer func() { _ = os.Remove(tmpPath) }() // no-op after a successful rename
@@ -42,17 +42,17 @@ func WriteFileAtomic(path string, data []byte, mode os.FileMode) error {
 	}
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()
-		return fmt.Errorf("gravar: %w", err)
+		return fmt.Errorf("write: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
 		_ = tmp.Close()
 		return fmt.Errorf("sync: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("fechar: %w", err)
+		return fmt.Errorf("close: %w", err)
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("renomear: %w", err)
+		return fmt.Errorf("rename: %w", err)
 	}
 	return nil
 }

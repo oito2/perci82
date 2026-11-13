@@ -121,7 +121,7 @@ Each row also has **Check**, **Pull** and a **+** button that opens the reposito
 
 **How** picks one of three modes:
 
-- **Pick from the account's list** — **Load the account's repositories** lists the account's repositories on the provider (private ones too, with a token); those already cloned are marked and can't be picked.
+- **Pick from the account's list** — **Load the account's repositories** lists the account's repositories on the provider (private ones too, with a token; at most 1000, with a note when there may be more); those already cloned are marked and can't be picked.
 - **Clone by URL or name** — a name (`perci`) or a URL of one of the account's repositories; an HTTPS URL is cloned over SSH. URLs of another owner or host are refused.
 - **Start a local repository** — `git init`; with **Name on the provider (optional)**, the `origin` remote is set too. Create the empty repository on the site before the first push.
 

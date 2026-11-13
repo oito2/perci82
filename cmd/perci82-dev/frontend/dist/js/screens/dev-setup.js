@@ -150,8 +150,12 @@ function renderFileAppScreen(item) {
     if (!window.__fileappPath || !cfg.update) return;
     runScreenAction(item, "fileapp.op.update", buttons, function () { return cfg.update(window.__fileappPath); });
   };
+  // Uninstalling asks first, like every other uninstall.
   btnFileappUninstall.onclick = function () {
-    runScreenAction(item, "fileapp.op.uninstall", buttons, cfg.uninstall);
+    if (running) return;
+    openConfirm(t("checklist.confirmRemoval"), t("itemTable.confirmUninstall", { name: item.title }), function () {
+      runScreenAction(item, "fileapp.op.uninstall", buttons, cfg.uninstall);
+    });
   };
 }
 

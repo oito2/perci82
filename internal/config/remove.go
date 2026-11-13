@@ -86,7 +86,7 @@ func RemoveOwnedKeys(app App) (empty bool, err error) {
 	if err != nil {
 		return false, err
 	}
-	if err := fsutil.WriteFileAtomic(path, out, 0o600); err != nil {
+	if err := fsutil.WriteThroughLink(path, out, 0o600); err != nil {
 		return false, fmt.Errorf("write config: %w", err)
 	}
 	return empty, nil

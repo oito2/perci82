@@ -81,3 +81,20 @@ test("Item table: IDEs uses its own bound methods and header", async () => {
   assert.deepEqual(runs, [["Node.js", "install"]]);
   assert.ok(!calls.some((c) => c.name === "RunPrereqAction" || c.name === "RunSDKAction"));
 });
+
+test("Android Studio: Desinstalar asks before it uninstalls", async () => {
+  const loaded = loadScripts(scriptOrder(), { fixtures: { GetAndroidStudioInfo: { installed: true } } });
+  loaded.ctx.renderFileAppScreen({ actionId: "androidstudio", title: "Android Studio" });
+  await tick();
+  const fire = (id) => {
+    const el = loaded.element(id);
+    if (el.onclick) el.onclick({});
+    (el.listeners.click || []).forEach((fn) => fn({}));
+  };
+  fire("btn-fileapp-uninstall");
+  assert.equal(loaded.calls.filter((c) => c.name === "UninstallAndroidStudio").length, 0, "nothing runs before the confirmation");
+  assert.match(loaded.element("confirm-modal-message").textContent, /Desinstalar Android Studio\?/);
+  fire("btn-confirm-ok");
+  await tick();
+  assert.equal(loaded.calls.filter((c) => c.name === "UninstallAndroidStudio").length, 1);
+});

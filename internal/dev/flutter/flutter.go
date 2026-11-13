@@ -191,7 +191,7 @@ func EnsureAndroidCmdlineTools(ctx context.Context, exe *executor.Executor, stdo
 	ui.Info(stdout, i18n.Tr("sdk.run.cmdlineToolsDownload", nil))
 	if err := exe.Run(ctx,
 		executor.Options{Stdout: stdout, Stderr: stdout},
-		"curl", "-fSL", "--connect-timeout", "10", "--max-time", "600", "--progress-bar", "-o", zipPath, androidCmdlineToolsURL,
+		"curl", nettimeout.CurlArgs("-fSL", "--progress-bar", "-o", zipPath, androidCmdlineToolsURL)...,
 	); err != nil {
 		return fmt.Errorf("download cmdline-tools: %w", err)
 	}
@@ -346,13 +346,12 @@ func ensureJavaInstall(ctx context.Context, exe *executor.Executor, stdout io.Wr
 	if err := requireRelease(); err != nil {
 		return err
 	}
-	opts := executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}
-
 	ui.Info(stdout, i18n.Tr("sdk.run.java", nil))
 	switch family {
 	case distro.Debian:
-		// Installs JDK 21 explicitly rather than the distro default JDK.
-		return exe.Run(ctx, opts, "apt-get", "install", "-y", "--", "openjdk-21-jdk")
+		// Installs JDK 21 explicitly rather than the distro default JDK,
+		// with a fresh package index and unattended apt options.
+		return distro.InstallPkgs(ctx, exe, stdout, family, "openjdk-21-jdk")
 	case distro.Fedora:
 		// JDK 21 comes from Adoptium's signed repository.
 		return distro.InstallFromSignedRepo(ctx, exe, stdout, family, temurinRepo)

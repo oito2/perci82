@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/i18n"
@@ -51,6 +52,9 @@ const shellPrelude = `export NVM_DIR="$HOME/.nvm"; ` +
 // which RefreshPath always extends with ~/.local/bin.
 var inheritedPath = os.Getenv("PATH")
 
+// refreshTimeout bounds the shell RefreshPath runs.
+const refreshTimeout = 5 * time.Second
+
 // RefreshPath replaces this process's PATH with the one shellPrelude
 // builds, so tools installed into ~/.local/bin or through nvm are found
 // without restarting. On failure the current PATH is kept.
@@ -58,6 +62,9 @@ func RefreshPath(ctx context.Context, exe *executor.Executor) {
 	if exe.DryRun {
 		return
 	}
+	// A slow or stuck nvm.sh must never hold up the window or an action.
+	ctx, cancel := context.WithTimeout(ctx, refreshTimeout)
+	defer cancel()
 	out, err := exe.Output(ctx, executor.Options{}, "bash", "-c", shellPrelude+`printf '%s' "$PATH"`)
 	if err != nil || strings.TrimSpace(out) == "" {
 		return
@@ -111,10 +118,10 @@ set -e
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 if ! command -v npm &>/dev/null; then
-    printf 'Node.js não encontrado. Execute DevStuff → Instalar Pré-requisitos primeiro.\n' >&2
+    printf '%s\n' "$3" >&2
     exit 1
 fi
 npm "$1" -g "$2"
 `
-	return exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "bash", "-c", script, "--", action, pkg)
+	return exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "bash", "-c", script, "--", action, pkg, i18n.Tr("dev.npmMissing", nil))
 }

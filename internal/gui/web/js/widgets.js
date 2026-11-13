@@ -134,8 +134,8 @@ function beginRun(label, call, opts) {
 // (a folder name, a path chosen in a native dialog, command output,
 // whatever it is) must never go into innerHTML without passing through
 // escHTML() (loose text) or escAttr() (inside an attribute, e.g.
-// data-url="...") first. A folder path chosen via
-// App.PickRepoWorkingFolder can contain any character on Linux
+// data-url="...") first. A folder path chosen in a native dialog
+// can contain any character on Linux
 // (including `<`/`>`/`"`), and since this is a Wails app, injected script
 // has direct access to every bound App method — it isn't "trapped" in a
 // browser tab sandbox the way a typical XSS would be. Prefer

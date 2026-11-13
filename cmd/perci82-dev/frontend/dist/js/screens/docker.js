@@ -89,8 +89,7 @@ btnDcCreate.addEventListener("click", function () {
   if (running) return;
   const kind = dcFinalKind();
   const req = readContainerFieldsValues("dc", kind, __dcCatalog);
-  startExecution(t("docker.run.create"));
-  App.CreateDockerContainer(req).catch(failRun);
+  beginRun(t("docker.run.create"), function () { return App.CreateDockerContainer(req); });
 });
 
 // --- "Docker :: Gerenciar Containers" --------------------------------------
@@ -123,8 +122,7 @@ function openEditModal(row) {
       const req = readContainerFieldsValues("edit", values.kind, catalog);
       req.folder = values.folder; // the original folder, even though its field is disabled
       editModal.close();
-      startExecution(t("docker.run.edit", { name: row.name }));
-      App.UpdateDockerContainer(req).catch(failRun);
+      beginRun(t("docker.run.edit", { name: row.name }), function () { return App.UpdateDockerContainer(req); });
     };
     editModal.showModal();
   }).catch(function (err) { openError(t("docker.editLoadFailed", { error: err })); });
@@ -187,8 +185,7 @@ function buildDockerRow(row) {
     if (running) return;
     openConfirm(t("docker.recreate"), t("docker.recreateConfirm", { name: row.name }), function () {
       if (running) return; // re-checked: the confirm dialog is async
-      startExecution(t("docker.run.recreate", { name: row.name }));
-      App.RecreateDockerContainer(row.family, row.folder).catch(failRun);
+      beginRun(t("docker.run.recreate", { name: row.name }), function () { return App.RecreateDockerContainer(row.family, row.folder); });
     });
   });
   wrap.appendChild(btnRecreate);
@@ -198,8 +195,7 @@ function buildDockerRow(row) {
     if (running) return;
     openConfirm(t("docker.updateImage"), updateImageMessage(row), function () {
       if (running) return; // re-checked: the confirm dialog is async
-      startExecution(t("docker.run.updateImage", { name: row.name }));
-      App.UpdateDockerContainerImage(row.family, row.folder).catch(failRun);
+      beginRun(t("docker.run.updateImage", { name: row.name }), function () { return App.UpdateDockerContainerImage(row.family, row.folder); });
     });
   });
   wrap.appendChild(btnUpdateImage);
@@ -211,8 +207,7 @@ function buildDockerRow(row) {
       if (running) return;
       openConfirm(t("docker.migrate"), t("docker.migrateConfirm", { name: row.name, folder: row.folder }), function () {
         if (running) return; // re-checked: the confirm dialog is async
-        startExecution(t("docker.run.migrate", { folder: row.folder }));
-        App.MigrateAppCommand(row.folder).catch(failRun);
+        beginRun(t("docker.run.migrate", { folder: row.folder }), function () { return App.MigrateAppCommand(row.folder); });
       });
     });
     wrap.appendChild(btnMigrate);
@@ -237,8 +232,7 @@ function buildDockerRow(row) {
       if (running) return;
       App.PickBackupPath().then(function (path) {
         if (!path || running) return; // re-checked: the dialog is async
-        startExecution(t("docker.run.backup"));
-        App.BackupMariaDBContainer(path).catch(failRun);
+        beginRun(t("docker.run.backup"), function () { return App.BackupMariaDBContainer(path); });
       });
     });
     wrap.appendChild(btnBackup);
@@ -250,8 +244,7 @@ function buildDockerRow(row) {
         if (!path) return;
         openConfirm(t("docker.restore"), t("docker.restoreConfirm"), function () {
           if (running) return; // re-checked: the dialogs are async
-          startExecution(t("docker.run.restore"));
-          App.RestoreMariaDBContainer(path).catch(failRun);
+          beginRun(t("docker.run.restore"), function () { return App.RestoreMariaDBContainer(path); });
         });
       });
     });
@@ -292,8 +285,7 @@ btnDockerlistUpdateAll.addEventListener("click", function () {
   openConfirm(t("docker.updateImages"), t("docker.updateImagesConfirm"),
     function () {
       if (running) return; // re-checked: the confirm dialog is async
-      startExecution(t("docker.updateImages"));
-      App.UpdateAllDockerImages().catch(failRun);
+      beginRun(t("docker.updateImages"), function () { return App.UpdateAllDockerImages(); });
     });
 });
 

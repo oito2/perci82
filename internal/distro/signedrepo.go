@@ -61,7 +61,7 @@ type SignedRepo struct {
 // behind.
 func InstallFromSignedRepo(ctx context.Context, exe *executor.Executor, stdout io.Writer, family string, r SignedRepo) error {
 	if err := requireHTTPS(r.KeyURL); err != nil {
-		return fmt.Errorf("chave de assinatura do repositório: %w", err)
+		return fmt.Errorf("repository signing key: %w", err)
 	}
 	sudo := executor.Options{RequiresSudo: true, Stdout: stdout, Stderr: stdout}
 	switch family {
@@ -154,10 +154,10 @@ func shellWords(words []string) string {
 func requireHTTPS(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return fmt.Errorf("URL inválida: %w", err)
+		return fmt.Errorf("invalid URL: %w", err)
 	}
 	if u.Scheme != "https" {
-		return fmt.Errorf("URL da chave de assinatura deve usar https, obtido %q: %s", u.Scheme, rawURL)
+		return fmt.Errorf("the signing key URL must use https, got %q: %s", u.Scheme, rawURL)
 	}
 	return nil
 }

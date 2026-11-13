@@ -52,6 +52,12 @@ jobs:
       - name: Check generated files
         run: make check-generated
 
+      # The wails3 CLI is the Wails module version go.mod pins.
+      - name: Check the generated bindings
+        run: |
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          PATH="$(go env GOPATH)/bin:$PATH" make check-bindings
+
       # ShellCheck comes with the runner; shfmt is pinned.
       - name: Lint the installers
         run: |

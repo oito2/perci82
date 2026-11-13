@@ -100,8 +100,8 @@ Mesmos botões e regras de [Pré-requisitos](#pré-requisitos).
 | IDE | Instalar | Desinstalar |
 |---|---|---|
 | Zed Editor | Script oficial `https://zed.dev/install.sh` em `~/.local` (requer Curl; sem senha) | Remove `~/.local/zed.app`, `~/.local/bin/zed` e o atalho do menu; `~/.config/zed` continua |
-| VS Code | Adiciona o repositório assinado da Microsoft e instala o `code` (senha) | Remove o pacote `code`; o repositório, `~/.config/Code` e `~/.vscode` continuam |
-| VSCodium | Adiciona o repositório assinado do VSCodium e instala o `codium` (senha) | Remove o pacote `codium`; o repositório, `~/.config/VSCodium` e `~/.vscode-oss` continuam |
+| VS Code | Adiciona o repositório assinado da Microsoft e instala o `code` (senha) | Remove o pacote `code` e o repositório e a chave da Microsoft (a senha é pedida uma vez); `~/.config/Code` e `~/.vscode` continuam |
+| VSCodium | Adiciona o repositório assinado do VSCodium e instala o `codium` (senha) | Remove o pacote `codium` e o repositório e a chave do VSCodium (a senha é pedida uma vez); `~/.config/VSCodium` e `~/.vscode-oss` continuam |
 
 **Atualizar** executa a instalação de novo.
 
@@ -112,7 +112,7 @@ Instala a partir de um `.tar.gz` que você mesmo baixa em https://developer.andr
 - O arquivo precisa ser um pacote do Android Studio (todas as entradas dentro de `android-studio/`).
 - Ele é extraído em `/opt/android-studio`, que pertence ao seu usuário; a senha é pedida para preparar essa pasta. Uma instalação anterior é mantida como `/opt/android-studio.old` até a extração dar certo.
 - O assistente de configuração abre na própria janela. Para ter um atalho no menu, escolha **Create Desktop Entry** no menu da engrenagem (ou de três pontos).
-- **Desinstalar** (senha) remove `/opt/android-studio` e `~/.local/share/applications/jetbrains-studio.desktop`.
+- **Desinstalar** (senha, depois de uma confirmação) remove `/opt/android-studio` e `~/.local/share/applications/jetbrains-studio.desktop`.
 
 ## Antigravity IDE
 
@@ -121,4 +121,4 @@ Instala a partir do `.tar.gz` do Antigravity IDE (Standalone), baixado em https:
 - **Instalar** recusa quando `/opt/antigravity` já existe: use **Atualizar**.
 - O programa vai para `/opt/antigravity`, que pertence ao root (senha). O seu `chrome-sandbox` tem o SHA-256 conferido depois da cópia e recebe a permissão setuid (`4755`). Uma atualização só substitui a versão anterior depois que a nova está no lugar.
 - Cria o atalho de menu `~/.local/share/applications/antigravity.desktop` e o ícone `~/.local/share/icons/hicolor/512x512/apps/antigravity.png`.
-- **Desinstalar** (senha) remove `/opt/antigravity`, o atalho de menu e o ícone.
+- **Desinstalar** (senha, depois de uma confirmação) remove `/opt/antigravity`, o atalho de menu e o ícone.

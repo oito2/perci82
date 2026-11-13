@@ -48,69 +48,51 @@ function renderAppDashboardStats() {
   });
 }
 
-// --- "Desinstalar Perci82 Dev" (Visão Geral): the button opens
-// #uninstall-modal with every option unchecked; its "Desinstalar" button
-// asks, one after the other, where to save each backup that was checked
-// (Docker in the format "Docker :: Exportar/Importar" reads, repositories
-// in the one of "Repositórios :: Gerenciar Repositórios", AI contexts in
-// the one of "Contextos de IA :: Exportar/Importar") and then starts the
-// uninstall. A cancelled "Salvar Como" dialog aborts the whole uninstall
-// instead of going on without the requested backup. Success closes the
-// window (App.RunSelfUninstall handles that). ---------------------------
-const uninstallModal = document.getElementById("uninstall-modal");
-const btnUninstallConfirm = document.getElementById("btn-uninstall-confirm");
-const uninstallOptions = [su2BackupConfig, su2BackupRepos, su2BackupAI, su2RemoveDocker, su2RemoveConfig];
+// --- "Desinstalar Perci82 Dev" (Visão Geral): the modal's options are
+// unchecked each time (wireUninstall). Its "Desinstalar" asks, one after
+// the other, where to save each backup that was checked (Docker in the
+// format "Docker :: Exportar/Importar" reads, repositories in the one of
+// "Repositórios :: Gerenciar Repositórios", AI contexts in the one of
+// "Contextos de IA :: Exportar/Importar") and then starts the uninstall. A
+// cancelled "Salvar Como" dialog aborts the whole uninstall instead of
+// going on without the requested backup. Success closes the window
+// (App.RunSelfUninstall handles that). -----------------------------------
+wireUninstall({
+  options: [su2BackupConfig, su2BackupRepos, su2BackupAI, su2RemoveDocker, su2RemoveConfig],
+  collect: function () {
+    const removeConfig = su2RemoveConfig.checked;
+    const removeDocker = su2RemoveDocker.checked;
 
-btnSu2Uninstall.addEventListener("click", function () {
-  if (running) return;
-  uninstallOptions.forEach(function (box) { box.checked = false; });
-  showDialog(uninstallModal);
-});
-
-btnUninstallConfirm.addEventListener("click", function () {
-  uninstallModal.close();
-  if (running || activeRun) return;
-  const removeConfig = su2RemoveConfig.checked;
-  const removeDocker = su2RemoveDocker.checked;
-
-  function startUninstall(backupPath, reposBackupPath, aiBackupPath) {
-    if (running || activeRun) return; // re-checked: the dialogs are async
-    dashboardRunningAction = "self-uninstall";
-    beginRun(t("dashboard.uninstall"), function () {
-      return App.RunSelfUninstall(removeConfig, removeDocker, backupPath, reposBackupPath, aiBackupPath);
-    }, {
-      buttons: [btnSu2Uninstall],
-      maxSteps: 1,
-      announce: t("uninstall.starting"),
-    });
-  }
-
-  // pick asks for one backup's path when wanted is set; "" means not
-  // wanted, null means the dialog was cancelled.
-  function pick(wanted, picker) {
-    if (!wanted) return Promise.resolve("");
-    return picker().then(function (path) { return path || null; });
-  }
-
-  // Each picker opens only after the previous one got a path; the first
-  // cancelled dialog stops the chain.
-  const wanted = [
-    [su2BackupConfig.checked, App.PickUninstallBackupPath],
-    [su2BackupRepos.checked, App.PickUninstallReposBackupPath],
-    [su2BackupAI.checked, App.PickUninstallAIContextsBackupPath],
-  ];
-  wanted.reduce(function (chain, w) {
-    return chain.then(function (paths) {
-      if (paths.indexOf(null) >= 0) return paths.concat([null]);
-      return pick(w[0], w[1]).then(function (path) { return paths.concat([path]); });
-    });
-  }, Promise.resolve([])).then(function (paths) {
-    if (paths.indexOf(null) >= 0) {
-      openMessage(t("uninstall.cancelledTitle"), t("uninstall.cancelled"), false);
-      return;
+    // pick asks for one backup's path when wanted is set; "" means not
+    // wanted, null means the dialog was cancelled.
+    function pick(wanted, picker) {
+      if (!wanted) return Promise.resolve("");
+      return picker().then(function (path) { return path || null; });
     }
-    startUninstall(paths[0], paths[1], paths[2]);
-  }).catch(function (err) { openError(t("uninstall.pickFailed", { error: err })); });
+
+    // Each picker opens only after the previous one got a path; the first
+    // cancelled dialog stops the chain.
+    const wanted = [
+      [su2BackupConfig.checked, App.PickUninstallBackupPath],
+      [su2BackupRepos.checked, App.PickUninstallReposBackupPath],
+      [su2BackupAI.checked, App.PickUninstallAIContextsBackupPath],
+    ];
+    return wanted.reduce(function (chain, w) {
+      return chain.then(function (paths) {
+        if (paths.indexOf(null) >= 0) return paths.concat([null]);
+        return pick(w[0], w[1]).then(function (path) { return paths.concat([path]); });
+      });
+    }, Promise.resolve([])).then(function (paths) {
+      if (paths.indexOf(null) >= 0) {
+        openMessage(t("uninstall.cancelledTitle"), t("uninstall.cancelled"), false);
+        return null;
+      }
+      return [removeConfig, removeDocker, paths[0], paths[1], paths[2]];
+    }).catch(function (err) {
+      openError(t("uninstall.pickFailed", { error: err }));
+      return null;
+    });
+  },
 });
 
 // Caminho do Workspace — same alert-card pattern as "Contextos de IA ::

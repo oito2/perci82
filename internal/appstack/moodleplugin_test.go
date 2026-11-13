@@ -286,6 +286,7 @@ func fakeStatDocker(t *testing.T, status, appID, nginxID string) {
 	script := `#!/bin/sh
 case "$1" in
 inspect) [ -n '` + status + `' ] || exit 1; printf '%s\n' '` + status + `' ;;
+ps) [ -z '` + status + `' ] || printf 'mdle\t%s\n' '` + status + `' ;;
 exec) c="$2"; shift 6; for p in "$@"; do case "$c" in nginx) printf '%s %s\n' "$p" '` + nginxID + `' ;; *) printf '%s %s\n' "$p" '` + appID + `' ;; esac; done ;;
 esac
 `

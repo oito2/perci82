@@ -186,11 +186,7 @@ var quitAllowed atomic.Bool
 // holds the action lock. When it does, it shows the main window and emits
 // "quit-blocked" so the frontend opens the Execução tab with a notice.
 func (t *TrayService) quitBlocked() bool {
-	if quitAllowed.Load() {
-		return false
-	}
-	if runMu.TryLock() {
-		runMu.Unlock()
+	if quitAllowed.Load() || !actionRunning() {
 		return false
 	}
 	t.FocusMainWindow()

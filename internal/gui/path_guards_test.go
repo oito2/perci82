@@ -196,7 +196,11 @@ func TestSetWorkspacePath_AcceptsOnlyPickedFolder(t *testing.T) {
 	if err := h.SetWorkspacePath(other); err == nil {
 		t.Fatal("a folder not picked in the dialog must be refused")
 	}
-	picked, _ := approvePath(t.TempDir(), nil)
+	elsewhere, _ := approvePath(t.TempDir(), nil)
+	if err := h.SetWorkspacePath(elsewhere); err == nil {
+		t.Fatal("a folder picked for another purpose must be refused")
+	}
+	picked, _ := approvePathFor(purposeWorkspace, t.TempDir(), nil)
 	if err := h.SetWorkspacePath(picked); err != nil {
 		t.Fatalf("picked folder refused: %v", err)
 	}
@@ -271,7 +275,11 @@ func TestRequireMCPParam(t *testing.T) {
 		t.Errorf("an empty parameter is the install's own error: %v", err)
 	}
 
-	picked, _ := approvePath(t.TempDir(), nil)
+	other, _ := approvePathFor(purposeWorkspace, t.TempDir(), nil)
+	if err := requireMCPParam("filesystem", true, "", other); err == nil {
+		t.Error("a folder picked as the workspace must not become the Filesystem folder")
+	}
+	picked, _ := approvePathFor(purposeMCPParam, t.TempDir(), nil)
 	if err := requireMCPParam("filesystem", true, "", picked); err != nil {
 		t.Errorf("picked: %v", err)
 	}
@@ -396,5 +404,28 @@ func TestInstallRecordsTheAcceptingAgents(t *testing.T) {
 		if r.Slug == "daisyui" && (!r.Installed || r.Partial) {
 			t.Errorf("row = %+v", r)
 		}
+	}
+}
+
+// The notes folder must be a folder picked for it: the agents get write
+// access to it.
+func TestSetProjectNotesPath_OnlyAFolderPickedForIt(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	h := &DevHomeService{}
+	asWorkspace, _ := approvePathFor(purposeWorkspace, t.TempDir(), nil)
+	if err := h.SetProjectNotesPath(asWorkspace); err == nil {
+		t.Error("a folder picked as the workspace was accepted as the notes folder")
+	}
+	file := filepath.Join(t.TempDir(), "backup.yaml")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = approvePathFor(purposeNotes, file, nil)
+	if err := h.SetProjectNotesPath(file); err == nil {
+		t.Error("a file was accepted as the notes folder")
+	}
+	notes, _ := approvePathFor(purposeNotes, t.TempDir(), nil)
+	if err := h.SetProjectNotesPath(notes); err != nil {
+		t.Errorf("the notes folder picked for it: %v", err)
 	}
 }

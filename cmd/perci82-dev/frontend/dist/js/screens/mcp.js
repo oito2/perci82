@@ -138,17 +138,14 @@ function buildMCPServerRow(row) {
     if (running || btnToggle.disabled) return;
     const global = mcpTable.isGlobal();
     if (row.installed) {
-      startExecution(t("mcps.run.remove", { name: row.name }));
-      App.RemoveMCPServer(row.slug, global, mcpTable.folder).catch(failRun);
+      beginRun(t("mcps.run.remove", { name: row.name }), function () { return App.RemoveMCPServer(row.slug, global, mcpTable.folder); });
     } else {
-      startExecution(t("mcps.run.install", { name: row.name }));
-      App.InstallMCPServer(row.slug, global, mcpTable.folder, currentParam).catch(failRun);
+      beginRun(t("mcps.run.install", { name: row.name }), function () { return App.InstallMCPServer(row.slug, global, mcpTable.folder, currentParam); });
     }
   });
   btnUpdate.addEventListener("click", function () {
     if (running || btnUpdate.disabled) return;
-    startExecution(t("mcps.run.update", { name: row.name }));
-    App.UpdateMCPServer(row.slug, mcpTable.isGlobal(), mcpTable.folder, currentParam).catch(failRun);
+    beginRun(t("mcps.run.update", { name: row.name }), function () { return App.UpdateMCPServer(row.slug, mcpTable.isGlobal(), mcpTable.folder, currentParam); });
   });
 
   updateButtonsState();

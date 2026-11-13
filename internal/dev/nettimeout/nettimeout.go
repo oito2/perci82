@@ -30,6 +30,12 @@ const Limit = 30 * time.Minute
 // whole transfer.
 var CurlFlags = []string{"--connect-timeout", "10", "--max-time", "600"}
 
+// CurlArgs returns CurlFlags followed by args: a bounded curl call's
+// arguments.
+func CurlArgs(args ...string) []string {
+	return append(append([]string{}, CurlFlags...), args...)
+}
+
 // CurlShellFlags is CurlFlags as text for a shell script.
 const CurlShellFlags = "--connect-timeout 10 --max-time 600"
 

@@ -63,18 +63,40 @@ func (b *serviceBase) emit(name string, data any) {
 // writes arbitrary content to any path it's handed would turn anything
 // running there into a write-anywhere primitive (~/.bashrc, autostart
 // entries...). Package-level, not per service: each service embeds its own
-// serviceBase by value.
+// serviceBase by value. Each path keeps the purposes it was picked for.
 var approvedPaths = struct {
 	sync.Mutex
-	set map[string]struct{}
-}{set: map[string]struct{}{}}
+	set map[string]map[pathPurpose]bool
+}{set: map[string]map[pathPurpose]bool{}}
+
+// pathPurpose names what a path was picked for. The settings that widen
+// what runs or what the agents reach accept only a path picked for them:
+// a folder chosen as the workspace is not, by that alone, a notes folder
+// the agents may write to.
+type pathPurpose string
+
+const (
+	purposeAny       pathPurpose = ""
+	purposeWorkspace pathPurpose = "workspace"
+	purposeNotes     pathPurpose = "notes"
+	purposeMCPParam  pathPurpose = "mcp-param"
+)
 
 // approvePath records a dialog's result (empty = cancelled) and passes it
 // through unchanged.
 func approvePath(path string, err error) (string, error) {
+	return approvePathFor(purposeAny, path, err)
+}
+
+// approvePathFor is approvePath for a dialog of one purpose.
+func approvePathFor(purpose pathPurpose, path string, err error) (string, error) {
 	if err == nil && path != "" {
 		approvedPaths.Lock()
-		approvedPaths.set[filepath.Clean(path)] = struct{}{}
+		clean := filepath.Clean(path)
+		if approvedPaths.set[clean] == nil {
+			approvedPaths.set[clean] = map[pathPurpose]bool{}
+		}
+		approvedPaths.set[clean][purpose] = true
 		approvedPaths.Unlock()
 	}
 	return path, err
@@ -83,11 +105,20 @@ func approvePath(path string, err error) (string, error) {
 // requireApprovedPath rejects any path that didn't come from a native
 // dialog in this session.
 func requireApprovedPath(path string) error {
+	return requireApprovedPathFor(purposeAny, path)
+}
+
+// requireApprovedPathFor rejects a path that didn't come from a native
+// dialog of purpose in this session; purposeAny accepts any dialog.
+func requireApprovedPathFor(purpose pathPurpose, path string) error {
 	if path == "" {
 		return errors.New(i18n.Tr("path.noneSelected", nil))
 	}
 	approvedPaths.Lock()
-	_, ok := approvedPaths.set[filepath.Clean(path)]
+	purposes, ok := approvedPaths.set[filepath.Clean(path)]
+	if ok && purpose != purposeAny {
+		ok = purposes[purpose]
+	}
 	approvedPaths.Unlock()
 	if !ok {
 		return errors.New(i18n.Tr("path.notPicked", i18n.Args{"path": path}))
@@ -117,12 +148,18 @@ func requireFolder(p string) error {
 // common case for "clone/init/install something new here"). Only the title
 // differs between callers.
 func (b *serviceBase) pickFolder(title string) (string, error) {
-	return approvePath(b.wailsApp.Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
+	return b.pickFolderFor(purposeAny, title)
+}
+
+// pickFolderFor is pickFolder for a dialog of one purpose.
+func (b *serviceBase) pickFolderFor(purpose pathPurpose, title string) (string, error) {
+	path, err := b.wailsApp.Dialog.OpenFileWithOptions(&application.OpenFileDialogOptions{
 		Title:                title,
 		CanChooseDirectories: true,
 		CanChooseFiles:       false,
 		CanCreateDirectories: true,
-	}).PromptForSingleSelection())
+	}).PromptForSingleSelection()
+	return approvePathFor(purpose, path, err)
 }
 
 // Output batching limits: a "log-line" event is emitted at most once per
@@ -159,6 +196,12 @@ type eventWriter struct {
 func (b *serviceBase) newEventWriter(id uint64) *eventWriter {
 	return &eventWriter{emit: func(s string) { b.emit("log-line", map[string]any{"runId": id, "text": s}) }}
 }
+
+// refreshPath tells whether this application refreshes its PATH from a
+// login shell's (localbin.RefreshPath) at start and after each action:
+// Perci82 Dev, whose tools install into ~/.local/bin, nvm and SDK folders.
+// Set by Run; true in tests.
+var refreshPath = true
 
 // runSeq numbers the actions; currentRun is the number of the action
 // running now (0 when none ran yet).
@@ -331,6 +374,13 @@ var errActionRunning = i18n.NewError("action.running")
 // always emitted, after runMu is released, so an action started as soon as
 // it arrives is not refused.
 func (b *serviceBase) runAction(fn func(stdout io.Writer) error) error {
+	return b.runActionThen(fn, nil, nil)
+}
+
+// runActionThen is runAction with two hooks: result, when set, turns fn's
+// error into the action's result (before runMu is released); after, when
+// set, runs once "action-done" was emitted.
+func (b *serviceBase) runActionThen(fn func(stdout io.Writer) error, result func(error) error, after func()) error {
 	if !runMu.TryLock() {
 		return errActionRunning
 	}
@@ -342,14 +392,22 @@ func (b *serviceBase) runAction(fn func(stdout io.Writer) error) error {
 			defer endAction()
 			w := b.newEventWriter(id)
 			err := runRecovered(func() error { return fn(w) })
+			if result != nil {
+				err = result(err)
+			}
 			w.Flush()
 			// The action may have installed a tool into ~/.local/bin or
 			// through nvm: refreshed before action-done, whose handlers
 			// re-check what's installed.
-			localbin.RefreshPath(context.Background(), b.exe)
+			if refreshPath {
+				localbin.RefreshPath(context.Background(), b.exe)
+			}
 			return err
 		}()
 		b.emitDone(id, err)
+		if after != nil {
+			after()
+		}
 	}()
 	return nil
 }

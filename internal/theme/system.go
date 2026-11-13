@@ -202,10 +202,43 @@ func WatchSystem(ctx context.Context, onChange func(SystemSettings)) error {
 			if sig == nil || sig.Name != portalSettings+".SettingChanged" {
 				continue
 			}
+			// A theme switch changes several keys at once: the burst is read
+			// once, after it ends, instead of once per signal.
+			if !settle(ctx, signals) {
+				return nil
+			}
 			if now := ReadSystem(ctx); now != last {
 				last = now
 				onChange(now)
 			}
+		}
+	}
+}
+
+// settleDelay is how long settle waits for another signal before the
+// burst counts as over.
+var settleDelay = 150 * time.Millisecond
+
+// settle drops the signals that keep arriving on signals, until none
+// arrives for settleDelay. It reports false when ctx ended or the channel
+// closed.
+func settle(ctx context.Context, signals <-chan *dbus.Signal) bool {
+	timer := time.NewTimer(settleDelay)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return false
+		case _, ok := <-signals:
+			if !ok {
+				return false
+			}
+			if !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(settleDelay)
+		case <-timer.C:
+			return true
 		}
 	}
 }

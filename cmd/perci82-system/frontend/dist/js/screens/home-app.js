@@ -30,28 +30,11 @@ function renderAppDashboardStats() {
   });
 }
 
-// --- "Desinstalar Perci82 System" (Visão Geral): the button opens
-// #uninstall-modal with the "Também remover configurações" option, unchecked
-// each time; its "Desinstalar" button starts the uninstall. ----------------
-const uninstallModal = document.getElementById("uninstall-modal");
-const btnUninstallConfirm = document.getElementById("btn-uninstall-confirm");
-
-btnSu2Uninstall.addEventListener("click", function () {
-  if (running) return;
-  su2RemoveConfig.checked = false;
-  showDialog(uninstallModal);
-});
-
-btnUninstallConfirm.addEventListener("click", function () {
-  uninstallModal.close();
-  if (running || activeRun) return;
-  const removeConfig = su2RemoveConfig.checked;
-  dashboardRunningAction = "self-uninstall";
-  beginRun(t("dashboard.uninstall"), function () { return App.RunSelfUninstall(removeConfig); }, {
-    buttons: [btnSu2Uninstall],
-    maxSteps: 1,
-    announce: t("uninstall.starting"),
-  });
+// --- "Desinstalar Perci82 System" (Visão Geral): the modal's only option
+// is "Também remover configurações", unchecked each time (wireUninstall). -
+wireUninstall({
+  options: [su2RemoveConfig],
+  collect: function () { return [su2RemoveConfig.checked]; },
 });
 
 // Escopo de instalação Flatpak — applies right away, like Tema,

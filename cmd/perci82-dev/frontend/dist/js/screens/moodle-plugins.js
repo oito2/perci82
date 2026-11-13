@@ -268,6 +268,8 @@ function renderMoodlePluginsScreen() {
   setMpLocked(null);
   setMpStatus("", "");
   btnMpCreate.disabled = true;
+  // The rows share loadMpRows' key: whichever answer is older is dropped.
+  const showRows = latestOnly("moodleplugins-rows", showMpRows);
   App.GetDevFolders().then(latestOnly("moodleplugins-screen", function (screen) {
     mpApps = {};
     (screen.apps || []).forEach(function (a) { mpApps[a.folder] = a; });
@@ -276,6 +278,6 @@ function renderMoodlePluginsScreen() {
     if (apps.length && !mpApp.value) mpApp.value = apps[0].value;
     mpApp.disabled = !apps.length;
     loadMpTypes();
-    showMpRows(screen);
+    showRows(screen);
   })).catch(function (err) { openError(t("devfolders.loadFailed", { error: err })); });
 }

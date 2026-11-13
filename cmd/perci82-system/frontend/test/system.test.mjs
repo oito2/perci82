@@ -128,7 +128,7 @@ test("the update check shows the version badge and Atualizar only for a newer re
   assert.match(element("su-status").textContent, /offline/);
 });
 
-test("Desinstalar opens the confirmation window, which starts the uninstall with the config choice", () => {
+test("Desinstalar opens the confirmation window, which starts the uninstall with the config choice", async () => {
   const { element, calls } = load();
   element("su2-remove-config").checked = true;
   element("btn-su2-uninstall").listeners.click[0]();
@@ -136,6 +136,7 @@ test("Desinstalar opens the confirmation window, which starts the uninstall with
   assert.ok(!calls.some((c) => c.name === "RunSelfUninstall"), "nothing runs before confirming");
   element("su2-remove-config").checked = true;
   element("btn-uninstall-confirm").listeners.click[0]();
+  await new Promise((r) => setTimeout(r, 0));
   const call = calls.find((c) => c.name === "RunSelfUninstall");
   assert.deepEqual(call && call.args, [true]);
 });

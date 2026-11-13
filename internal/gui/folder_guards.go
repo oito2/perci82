@@ -76,7 +76,7 @@ func requireKnownFolderUnlessGlobal(global bool, p string) error {
 // message.
 func requireMCPParam(slug string, global bool, folder, param string) error {
 	sv, ok := mcpservers.BySlug(slug)
-	if !ok || sv.Param == mcpservers.ParamNone || param == "" || requireApprovedPath(param) == nil {
+	if !ok || sv.Param == mcpservers.ParamNone || param == "" || requireApprovedPathFor(purposeMCPParam, param) == nil {
 		return nil
 	}
 	if cfg, err := config.Load(); err == nil {

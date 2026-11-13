@@ -183,6 +183,7 @@ func TestTestConnection(t *testing.T) {
 		{"gitlab greeting", `echo "Welcome to GitLab, @OITO2!"; exit 0`, "OITO2", ""},
 		{"other user", `echo "Hi kaduvelasco! You've successfully authenticated, but GitHub does not provide shell access." >&2; exit 1`, "kaduvelasco", "pertence ao usuário kaduvelasco"},
 		{"key refused", `echo "git@github.com: Permission denied (publickey)." >&2; exit 255`, "", "cadastre a chave pública"},
+		{"key too open", `printf 'WARNING: UNPROTECTED PRIVATE KEY FILE!\nThis private key will be ignored.\ngit@github.com: Permission denied (publickey).\n' >&2; exit 255`, "", "chmod 600"},
 		{"host key unknown", `echo "Host key verification failed." >&2; exit 255`, "", "ainda não foi confirmada"},
 		{"other failure", `echo "ssh: connect to host github.com port 22: Connection refused" >&2; exit 255`, "", "Connection refused"},
 	}

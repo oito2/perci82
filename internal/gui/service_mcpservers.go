@@ -48,12 +48,13 @@ func (t *DevToolsService) PickMCPServerParam(slug string) (string, error) {
 	}
 	switch sv.Param {
 	case mcpservers.ParamDirectory:
-		return t.pickFolder(sv.ParamLabelText())
+		return t.pickFolderFor(purposeMCPParam, sv.ParamLabelText())
 	case mcpservers.ParamFile:
-		return approvePath(t.wailsApp.Dialog.OpenFile().
+		path, err := t.wailsApp.Dialog.OpenFile().
 			SetTitle(sv.ParamLabelText()).
 			AddFilter("TOML (*.toml)", "*.toml").
-			PromptForSingleSelection())
+			PromptForSingleSelection()
+		return approvePathFor(purposeMCPParam, path, err)
 	}
 	return "", fmt.Errorf("%s takes no extra parameter", slug)
 }
