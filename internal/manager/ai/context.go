@@ -166,6 +166,7 @@ type Preset struct {
 // export files, so they never change.
 var modelLabelKeys = map[string]string{
 	docsBase:                          "aic.model.docs",
+	"Go: Servidor MCP":                "aic.model.goMCP",
 	"Documentação: Servidor MCP":      "aic.model.docsMCP",
 	"Documentação: Plugin Moodle":     "aic.model.docsMoodle",
 	"Documentação: Aplicação Desktop": "aic.model.docsDesktop",

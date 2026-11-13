@@ -404,7 +404,7 @@ func (h *DevHomeService) GetWorkspacePath() string {
 // PickWorkspaceFolder opens the native folder picker for the workspace
 // path, with CanCreateDirectories enabled.
 func (h *DevHomeService) PickWorkspaceFolder() (string, error) {
-	return h.pickFolder("Selecionar pasta do workspace")
+	return h.pickFolder(i18n.Tr("settings.workspace.pickTitle", nil))
 }
 
 // SetWorkspacePath persists the workspace folder path chosen via

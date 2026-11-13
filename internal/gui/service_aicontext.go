@@ -41,7 +41,7 @@ import (
 // PickAIContextFolder opens the native folder picker for the working
 // folder this screen operates on.
 func (t *DevToolsService) PickAIContextFolder() (string, error) {
-	return t.pickFolder("Selecionar pasta de trabalho")
+	return t.pickFolder(i18n.Tr("aic.dialog.folder", nil))
 }
 
 // AIContextItem is one standard of "Dev Tools :: IA: Contextos": Base is
@@ -471,7 +471,7 @@ func (t *DevToolsService) ExportAIContexts(path string, paths []string) error {
 // for an AI contexts export file.
 func (t *DevToolsService) PickAIContextImportPath() (string, error) {
 	return approvePath(t.wailsApp.Dialog.OpenFile().
-		SetTitle("Selecionar arquivo de contextos de IA").
+		SetTitle(i18n.Tr("aic.dialog.importFile", nil)).
 		AddFilter("YAML (*.yaml)", "*.yaml;*.yml").
 		PromptForSingleSelection())
 }

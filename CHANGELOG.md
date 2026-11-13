@@ -6,10 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Changes for the first release of Perci82 Dev.
+## [Dev 1.0.0] - 2026-11-13
+
+First release of Perci82 Dev.
 
 ### Added
 
+- Documentation of every Perci82 Dev screen, of installing and of uninstalling, in English (`docs/en/dev/`) and Portuguese (`docs/pt-br/dev/`).
 - **Perci82 Dev** (`perci82-dev`), split from Perci 1.9.0: the development screens (Ambiente, Docker, Repositórios, Contextos de IA, Skills & MCPs) and the system tray.
 - A new icon, under the application ID `io.github.oito2.perci82.dev`.
 - The installer `install-dev.sh`: it installs Perci82 Dev's newest release with its application menu entry and offers to remove the old Perci (`prci`), keeping `~/.perci`.
@@ -74,4 +77,5 @@ First release of Perci82 System, split from Perci 1.9.0.
 - The sidebar, its breadcrumb and the mascot logo, replaced by the section tabs, and the sidebar logo choice (Logo da Sidebar).
 
 [Unreleased]: https://github.com/oito2/perci82/commits/main
+[Dev 1.0.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.0
 [System 1.0.0]: https://github.com/oito2/perci82/releases/tag/system-v1.0.0

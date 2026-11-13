@@ -38,6 +38,15 @@ Principais recursos do Perci82 System:
 - **Fontes, templates de arquivos e Flatpaks** — listas que instalam o que você marca e removem o que você desmarca.
 - **Autoatualização e desinstalação** pela Visão Geral; interface em português e inglês; temas do oito2.
 
+Principais recursos do Perci82 Dev:
+
+- **Ambiente** — pré-requisitos, linguagens e SDKs, aplicativos de IA, terminais, IDEs, Android Studio e Antigravity IDE, instalados, atualizados e removidos item por item.
+- **Docker** — um stack com Nginx e MariaDB com HTTPS em `https://<app>.localhost`, contêineres de apps Moodle, PHP, Node e PHP + Node, cada um com o seu comando em `~/.local/bin`, e pastas de desenvolvimento montadas nos apps.
+- **Repositórios** — contas Git com chave SSH, identidade e token de API próprios; os repositórios de cada conta, com clonar, atualizar (pull) e exportar/importar.
+- **Contextos de IA** — regras para Claude Code, Gemini, Codex, OpenCode e Antigravity em cada projeto, com anotações de projeto guardadas fora do repositório.
+- **Skills & MCPs** — skills do skills.sh e servidores MCP, incluindo o Build82 e o Sync82, registrados nos agentes de programação.
+- **Bandeja do sistema** com uma janela compacta de Contêineres; autoatualização e desinstalação pela Visão Geral; interface em português e inglês; temas do oito2.
+
 ![Visão Geral do Perci82 System](../img/system-overview.png)
 
 ## Pré-requisitos e instalação rápida
@@ -48,7 +57,7 @@ Principais recursos do Perci82 System:
 | Windows | Não suportado | — | — |
 | macOS | Não suportado | — | — |
 
-Os binários das releases rodam em Linux amd64 com as bibliotecas de execução do GTK 4 e do WebKitGTK 6.0, que normalmente já estão presentes num Linux desktop. Para instalar uma release, veja a [Instalação automatizada](#instalação-automatizada); a instalação manual está em [Instalar o Perci82 System](system/installation.md#instalação-manual).
+Os binários das releases rodam em Linux amd64 com as bibliotecas de execução do GTK 4 e do WebKitGTK 6.0, que normalmente já estão presentes num Linux desktop. Para instalar uma release, veja a [Instalação automatizada](#instalação-automatizada); a instalação manual está em [Instalar o Perci82 System](system/installation.md#instalação-manual) e em [Instalar o Perci82 Dev](dev/installation.md#instalação-manual).
 
 ### Compilar a partir do código
 
@@ -98,19 +107,27 @@ Cada aplicativo tem o seu próprio instalador, que instala a release mais recent
 curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-system.sh | bash
 ```
 
-Os instaladores precisam de `curl`, `jq`, `sha256sum`, `tar` e `sudo`. Eles conferem o SHA-256 do binário (e a attestation de build, quando o GitHub CLI está logado), instalam em `/usr/local/bin/perci82-system` ou `/usr/local/bin/perci82-dev` e criam a entrada no menu de aplicativos. Quando o Perci antigo (`prci`) está instalado, perguntam se devem removê-lo; as configurações em `~/.perci` são mantidas, porque os dois aplicativos as usam. O instalador do Perci82 Dev, `install-dev.sh`, funciona do mesmo jeito a partir da primeira release do Perci82 Dev.
+Perci82 Dev:
+
+```bash
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-dev.sh | bash
+```
+
+Os instaladores precisam de `curl`, `jq`, `sha256sum`, `tar` e `sudo`. Eles conferem o SHA-256 do binário (e a attestation de build, quando o GitHub CLI está logado), instalam em `/usr/local/bin/perci82-system` ou `/usr/local/bin/perci82-dev` e criam a entrada no menu de aplicativos. Quando o Perci antigo (`prci`) está instalado, perguntam se devem removê-lo; as configurações em `~/.perci` são mantidas, porque os dois aplicativos as usam. O `install-dev.sh` só encontra uma release a partir da primeira release do Perci82 Dev.
 
 ## Atualização e manutenção
 
 - **Atualizar:** Visão Geral → **Verificar** procura uma release mais nova do aplicativo; **Atualizar** baixa a release, confere o SHA-256 e substitui o binário. Rodar o instalador de novo também instala a release mais recente. Compilações a partir do código informam a versão `dev` e não se atualizam sozinhas.
-- **Desinstalar:** Visão Geral → **Desinstalar** remove o binário, a entrada no menu e os ícones do aplicativo. "Também remover as configurações" remove só as configurações daquele aplicativo (e, no Perci82 Dev, os arquivos da stack Docker e das contas Git em `~/.perci`); a pasta `~/.perci` só é apagada quando nenhum outro aplicativo Perci82 nem o Perci antigo está instalado e não sobrou mais nada nela. Veja [Desinstalar o Perci82 System](system/uninstallation.md).
+- **Desinstalar:** Visão Geral → **Desinstalar** remove o binário, a entrada no menu e os ícones do aplicativo. "Também remover as configurações" remove só as configurações daquele aplicativo (e, no Perci82 Dev, os arquivos da stack Docker e das contas Git em `~/.perci`); a pasta `~/.perci` só é apagada quando nenhum outro aplicativo Perci82 nem o Perci antigo está instalado e não sobrou mais nada nela. A janela de desinstalação do Perci82 Dev também oferece backups do Docker, dos repositórios e dos contextos de IA, e a remoção dos contêineres Docker. Veja [Desinstalar o Perci82 System](system/uninstallation.md) e [Desinstalar o Perci82 Dev](dev/uninstallation.md).
 
 ## Documentação
 
 - [Índice da documentação](index.md)
 - [Instalar o Perci82 System](system/installation.md) e [desinstalá-lo](system/uninstallation.md)
 - Telas do Perci82 System: [Visão Geral](system/overview.md), [Pós-instalação](system/post-install.md), [Atualizar SO & Apps](system/update.md), [Fontes](system/fonts.md), [Templates](system/templates.md), [Flatpaks](system/flatpaks.md), [Configurações](system/settings.md)
-- [Solução de problemas](system/troubleshooting.md)
+- [Instalar o Perci82 Dev](dev/installation.md) e [desinstalá-lo](dev/uninstallation.md)
+- Telas do Perci82 Dev: [Visão Geral](dev/overview.md), [Ambiente](dev/environment.md), [Docker](dev/docker.md), [Repositórios](dev/repositories.md), [Contextos de IA](dev/ai-contexts.md), [Skills & MCPs](dev/skills-mcps.md), [Configurações](dev/settings.md)
+- Solução de problemas: [Perci82 System](system/troubleshooting.md) e [Perci82 Dev](dev/troubleshooting.md)
 
 ## Licença
 

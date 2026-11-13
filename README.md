@@ -38,6 +38,15 @@ Perci82 System's main features:
 - **Fonts, file templates and Flatpaks** — checklists that install what you check and remove what you uncheck.
 - **Self-update and uninstall** from the Overview screen; Portuguese and English interface; oito2 themes.
 
+Perci82 Dev's main features:
+
+- **Environment** — prerequisites, languages and SDKs, AI apps, terminals, IDEs, Android Studio and Antigravity IDE, installed, updated and removed item by item.
+- **Docker** — an Nginx and MariaDB stack with HTTPS at `https://<app>.localhost`, Moodle, PHP, Node and PHP + Node app containers, each with its own command in `~/.local/bin`, and development folders mounted into the apps.
+- **Repositories** — Git accounts with their own SSH key, identity and API token; each account's repositories, with clone, pull and export/import.
+- **AI Contexts** — rules for Claude Code, Gemini, Codex, OpenCode and Antigravity in each project, with project notes kept outside the repository.
+- **Skills & MCPs** — skills from skills.sh and MCP servers, Build82 and Sync82 included, registered with the coding agents.
+- **System tray** with a compact Containers window; self-update and uninstall from the Overview screen; Portuguese and English interface; oito2 themes.
+
 ![Perci82 System's Overview](docs/img/system-overview.png)
 
 ## Prerequisites & Quick Installation
@@ -48,7 +57,7 @@ Perci82 System's main features:
 | Windows | Not supported | — | — |
 | macOS | Not supported | — | — |
 
-Release binaries run on Linux amd64 with the GTK 4 and WebKitGTK 6.0 runtime libraries, normally already present on a desktop Linux. To install a release, see [Automated Installation](#automated-installation); the manual install is in [Installing Perci82 System](docs/en/system/installation.md#manual-install).
+Release binaries run on Linux amd64 with the GTK 4 and WebKitGTK 6.0 runtime libraries, normally already present on a desktop Linux. To install a release, see [Automated Installation](#automated-installation); the manual install is in [Installing Perci82 System](docs/en/system/installation.md#manual-install) and [Installing Perci82 Dev](docs/en/dev/installation.md#manual-install).
 
 ### Build from source
 
@@ -98,19 +107,27 @@ Each app has its own installer, which installs the app's newest release. Perci82
 curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-system.sh | bash
 ```
 
-The installers need `curl`, `jq`, `sha256sum`, `tar` and `sudo`. They check the binary's SHA-256 (and its build attestation when the GitHub CLI is logged in), install it as `/usr/local/bin/perci82-system` or `/usr/local/bin/perci82-dev` and add the application menu entry. When the old Perci (`prci`) is installed, they ask whether to remove it; its settings in `~/.perci` are kept, since both apps read them. Perci82 Dev's installer, `install-dev.sh`, works the same way from Perci82 Dev's first release on.
+Perci82 Dev:
+
+```bash
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-dev.sh | bash
+```
+
+The installers need `curl`, `jq`, `sha256sum`, `tar` and `sudo`. They check the binary's SHA-256 (and its build attestation when the GitHub CLI is logged in), install it as `/usr/local/bin/perci82-system` or `/usr/local/bin/perci82-dev` and add the application menu entry. When the old Perci (`prci`) is installed, they ask whether to remove it; its settings in `~/.perci` are kept, since both apps read them. `install-dev.sh` finds a release only from Perci82 Dev's first release on.
 
 ## Update & Maintenance
 
 - **Update:** Overview → **Check** looks for a newer release of the app; **Update** downloads it, checks its SHA-256 and replaces the binary. Running the installer again also installs the newest release. Builds from source report the version `dev` and don't update themselves.
-- **Uninstall:** Overview → **Uninstall** removes the app's binary, menu entry and icons. "Also remove the settings" removes only that app's settings (and, in Perci82 Dev, its Docker stack files and Git account files in `~/.perci`); `~/.perci` itself goes only when no other Perci82 app nor the old Perci is installed and nothing else is left in it. See [Uninstalling Perci82 System](docs/en/system/uninstallation.md).
+- **Uninstall:** Overview → **Uninstall** removes the app's binary, menu entry and icons. "Also remove the settings" removes only that app's settings (and, in Perci82 Dev, its Docker stack files and Git account files in `~/.perci`); `~/.perci` itself goes only when no other Perci82 app nor the old Perci is installed and nothing else is left in it. Perci82 Dev's uninstall window also offers backups of Docker, repositories and AI contexts, and removing the Docker containers. See [Uninstalling Perci82 System](docs/en/system/uninstallation.md) and [Uninstalling Perci82 Dev](docs/en/dev/uninstallation.md).
 
 ## Documentation
 
 - [Documentation index](docs/en/index.md)
 - [Installing Perci82 System](docs/en/system/installation.md) and [uninstalling it](docs/en/system/uninstallation.md)
 - Perci82 System's screens: [Overview](docs/en/system/overview.md), [Post-install](docs/en/system/post-install.md), [Update OS & Apps](docs/en/system/update.md), [Fonts](docs/en/system/fonts.md), [Templates](docs/en/system/templates.md), [Flatpaks](docs/en/system/flatpaks.md), [Settings](docs/en/system/settings.md)
-- [Troubleshooting](docs/en/system/troubleshooting.md)
+- [Installing Perci82 Dev](docs/en/dev/installation.md) and [uninstalling it](docs/en/dev/uninstallation.md)
+- Perci82 Dev's screens: [Overview](docs/en/dev/overview.md), [Environment](docs/en/dev/environment.md), [Docker](docs/en/dev/docker.md), [Repositories](docs/en/dev/repositories.md), [AI Contexts](docs/en/dev/ai-contexts.md), [Skills & MCPs](docs/en/dev/skills-mcps.md), [Settings](docs/en/dev/settings.md)
+- Troubleshooting: [Perci82 System](docs/en/system/troubleshooting.md) and [Perci82 Dev](docs/en/dev/troubleshooting.md)
 
 ## License
 
