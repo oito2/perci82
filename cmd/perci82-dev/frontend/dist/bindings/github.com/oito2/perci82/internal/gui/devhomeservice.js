@@ -66,6 +66,18 @@ export function GetProjectNotesPath() {
 }
 
 /**
+ * GetRepositorySummary counts the Git accounts and the repositories under
+ * their folders, without running git or reaching the network. A folder
+ * that cannot be read counts no repository.
+ * @returns {$CancellablePromise<$models.RepositorySummary>}
+ */
+export function GetRepositorySummary() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetRepositorySummary").then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
  * GetSections returns Perci82 Dev's sections, labeled in its language,
  * with one "Repositórios" item per registered Git account (an unreadable
  * config lists none).
@@ -73,7 +85,7 @@ export function GetProjectNotesPath() {
  */
 export function GetSections() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetSections").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType4($result);
+        return $$createType5($result);
     }));
 }
 
@@ -84,7 +96,7 @@ export function GetSections() {
  */
 export function GetSelfUpdateInfo() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetSelfUpdateInfo").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType6($result);
     }));
 }
 
@@ -96,7 +108,7 @@ export function GetSelfUpdateInfo() {
  */
 export function GetSystemScheme() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetSystemScheme").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType6($result);
+        return $$createType7($result);
     }));
 }
 
@@ -117,7 +129,7 @@ export function GetTheme() {
  */
 export function GetThemeOptions() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetThemeOptions").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType8($result);
+        return $$createType9($result);
     }));
 }
 
@@ -141,8 +153,8 @@ export function PickProjectNotesFolder() {
 
 /**
  * PickUninstallAIContextsBackupPath opens the native "Salvar Como" dialog
- * for the uninstall's "Fazer backup dos contextos de IA" checkbox — the
- * file "Dev Tools :: IA: Contextos" imports.
+ * for the uninstall's AI contexts backup — the file "Contextos de IA ::
+ * Exportar/Importar" imports.
  * @returns {$CancellablePromise<string>}
  */
 export function PickUninstallAIContextsBackupPath() {
@@ -151,9 +163,9 @@ export function PickUninstallAIContextsBackupPath() {
 
 /**
  * PickUninstallBackupPath opens the native "Salvar Como" dialog for the
- * uninstall's "Fazer backup das configurações" checkbox — it differs from
- * PickExportConfigPath only in its title/default filename; both save
- * through the same appstack.ExportConfig underneath.
+ * uninstall's Docker settings backup — it differs from PickExportConfigPath
+ * only in its title/default filename; both save through the same
+ * appstack.ExportConfig underneath.
  * @returns {$CancellablePromise<string>}
  */
 export function PickUninstallBackupPath() {
@@ -162,8 +174,8 @@ export function PickUninstallBackupPath() {
 
 /**
  * PickUninstallReposBackupPath opens the native "Salvar Como" dialog for
- * the uninstall's "Fazer backup dos repositórios" checkbox — the file
- * "Repositórios :: Gerenciar Repositórios" imports.
+ * the uninstall's repositories backup — the file "Repositórios ::
+ * Gerenciar Repositórios" imports.
  * @returns {$CancellablePromise<string>}
  */
 export function PickUninstallReposBackupPath() {
@@ -286,9 +298,10 @@ export function SetWorkspacePath(path) {
 const $$createType0 = $models.LanguageState.createFrom;
 const $$createType1 = i18n$0.Option.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.Section.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.SelfUpdateInfo.createFrom;
-const $$createType6 = theme$0.SystemScheme.createFrom;
-const $$createType7 = $models.ThemeOption.createFrom;
-const $$createType8 = $Create.Array($$createType7);
+const $$createType3 = $models.RepositorySummary.createFrom;
+const $$createType4 = $models.Section.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.SelfUpdateInfo.createFrom;
+const $$createType7 = theme$0.SystemScheme.createFrom;
+const $$createType8 = $models.ThemeOption.createFrom;
+const $$createType9 = $Create.Array($$createType8);

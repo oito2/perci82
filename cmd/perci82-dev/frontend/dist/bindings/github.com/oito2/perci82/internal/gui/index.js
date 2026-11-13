@@ -46,6 +46,7 @@ export {
     RepoExportItems,
     RepoFileChoice,
     RepoFilesView,
+    RepositorySummary,
     Section,
     SelfUpdateInfo,
     SingleAppInfo,

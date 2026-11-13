@@ -13,104 +13,108 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Perci82 Dev parts of Home: the Docker summary of Visão Geral, Desinstalar
-// with its backups, and the workspace and tray settings of Configurações.
+// Perci82 Dev parts of Home: the Docker and repositories summary of Visão
+// Geral, Desinstalar with its backups, and the workspace, project notes and
+// tray settings of Configurações.
 //
 // Classic script (not a module): shares one global scope with the other
 // scripts under js/.
 "use strict";
 
-// renderAppDashboardStats fills the "Contêineres Docker" stat of Visão Geral.
+const dashboardReposSummary = document.getElementById("dashboard-repos-summary");
+
+// renderAppDashboardStats fills the "Contêineres Docker" and "Repositórios"
+// cards of Visão Geral.
 function renderAppDashboardStats() {
   App.GetContainerRows().then(function (rows) {
     rows = rows || [];
     if (rows.length === 0) {
-      dashboardDockerSummary.textContent = "Nenhum";
+      dashboardDockerSummary.textContent = t("dashboard.dockerNone");
       return;
     }
     if (rows[0].dockerError) {
-      dashboardDockerSummary.textContent = "Docker inacessível";
+      dashboardDockerSummary.textContent = t("dashboard.dockerUnreachable");
       return;
     }
-    const runningCount = rows.filter(function (r) { return r.status === "running"; }).length;
-    dashboardDockerSummary.textContent = runningCount + " / " + rows.length;
+    const running = rows.filter(function (r) { return r.status === "running"; }).length;
+    dashboardDockerSummary.textContent = t("dashboard.dockerRunning", { running: running, total: rows.length });
+  });
+  App.GetRepositorySummary().then(function (sum) {
+    dashboardReposSummary.textContent = !sum || sum.accounts === 0
+      ? t("dashboard.reposNone")
+      : t("dashboard.reposSummary", { accounts: sum.accounts, repos: sum.repos });
+  }).catch(function () {
+    dashboardReposSummary.textContent = "—";
   });
 }
 
-// --- "Desinstalar Perci" (embedded in Visão Geral) — five independent
-// checkboxes (back up config / back up repositories / back up AI contexts /
-// remove Docker containers / also remove config), a "Desinstalar" button
-// after them. The config backup is a full export, in the format "Docker ::
-// Exportar/Importar" reads (App.PickUninstallBackupPath); the repositories
-// and AI contexts backups are separate files, in the formats "Repositórios
-// :: Gerenciar Repositórios" (App.PickUninstallReposBackupPath) and "Dev
-// Tools :: IA: Contextos" (App.PickUninstallAIContextsBackupPath) read. If
-// the user checks a backup and then cancels its "Salvar Como" dialog, the
-// whole uninstall is aborted instead of proceeding without the requested
-// backup. Success
-// closes the GUI's own window (App.RunSelfUninstall handles that). ------
+// --- "Desinstalar Perci82 Dev" (Visão Geral): the button opens
+// #uninstall-modal with every option unchecked; its "Desinstalar" button
+// asks, one after the other, where to save each backup that was checked
+// (Docker in the format "Docker :: Exportar/Importar" reads, repositories
+// in the one of "Repositórios :: Gerenciar Repositórios", AI contexts in
+// the one of "Contextos de IA :: Exportar/Importar") and then starts the
+// uninstall. A cancelled "Salvar Como" dialog aborts the whole uninstall
+// instead of going on without the requested backup. Success closes the
+// window (App.RunSelfUninstall handles that). ---------------------------
+const uninstallModal = document.getElementById("uninstall-modal");
+const btnUninstallConfirm = document.getElementById("btn-uninstall-confirm");
+const uninstallOptions = [su2BackupConfig, su2BackupRepos, su2BackupAI, su2RemoveDocker, su2RemoveConfig];
+
 btnSu2Uninstall.addEventListener("click", function () {
   if (running) return;
-  const removeConfig = su2RemoveConfig.checked;
-  const removeDocker = su2RemoveDocker.checked;
-  const backupConfig = su2BackupConfig.checked;
-  const backupRepos = su2BackupRepos.checked;
-  const backupAI = su2BackupAI.checked;
-
-  let message = "O binário do Perci82 Dev será removido do sistema.";
-  if (backupConfig) message += "\nUm backup das configurações será salvo antes.";
-  if (backupRepos) message += "\nUm backup das contas Git e dos repositórios será salvo antes.";
-  if (backupAI) message += "\nUm backup dos contextos de IA será salvo antes.";
-  if (removeDocker) message += "\nOs contêineres Docker registrados serão removidos (dados em disco são mantidos).";
-  message += removeConfig
-    ? "\nAs configurações do Perci82 Dev (no ~/.perci/config.yaml e as pastas appstack e git do ~/.perci) também serão removidas, junto com as regras das contas Git no ~/.gitconfig e os tokens do chaveiro (chaves SSH e repositórios ficam). As do Perci82 System são mantidas."
-    : "\nAs configurações em ~/.perci serão mantidas.";
-  message += "\n\nEsta ação não pode ser desfeita.";
-
-  openConfirm("Desinstalar o Perci82 Dev?", message, function () {
-    function startUninstall(backupPath, reposBackupPath, aiBackupPath) {
-      if (running || activeRun) return; // re-checked: the dialogs are async
-      dashboardRunningAction = "self-uninstall";
-      beginRun("Desinstalar", function () {
-        return App.RunSelfUninstall(removeConfig, removeDocker, backupPath, reposBackupPath, aiBackupPath);
-      }, {
-        buttons: [btnSu2Uninstall],
-        maxSteps: 1,
-        announce: "Desinstalando o Perci82 Dev...",
-      });
-    }
-
-    // pick asks for one backup's path when wanted is set; "" means not
-    // wanted, null means the dialog was cancelled.
-    function pick(wanted, picker) {
-      if (!wanted) return Promise.resolve("");
-      return picker().then(function (path) { return path || null; });
-    }
-
-    // Each picker opens only after the previous one got a path; the first
-    // cancelled dialog stops the chain.
-    const wanted = [
-      [backupConfig, App.PickUninstallBackupPath],
-      [backupRepos, App.PickUninstallReposBackupPath],
-      [backupAI, App.PickUninstallAIContextsBackupPath],
-    ];
-    wanted.reduce(function (chain, w) {
-      return chain.then(function (paths) {
-        if (paths.indexOf(null) >= 0) return paths.concat([null]);
-        return pick(w[0], w[1]).then(function (path) { return paths.concat([path]); });
-      });
-    }, Promise.resolve([])).then(function (paths) {
-      if (paths.indexOf(null) >= 0) {
-        openMessage("Desinstalação cancelada", "Nenhum caminho foi escolhido para o backup — a desinstalação não foi iniciada.", false);
-        return;
-      }
-      startUninstall(paths[0], paths[1], paths[2]);
-    }).catch(function (err) { openError("Falha ao escolher o arquivo de backup: " + err); });
-  });
+  uninstallOptions.forEach(function (box) { box.checked = false; });
+  showDialog(uninstallModal);
 });
 
-// Caminho do Workspace — same alert-card pattern as "Dev Tools :: IA:
-// Contextos", but unlike that screen (which always starts over with no
+btnUninstallConfirm.addEventListener("click", function () {
+  uninstallModal.close();
+  if (running || activeRun) return;
+  const removeConfig = su2RemoveConfig.checked;
+  const removeDocker = su2RemoveDocker.checked;
+
+  function startUninstall(backupPath, reposBackupPath, aiBackupPath) {
+    if (running || activeRun) return; // re-checked: the dialogs are async
+    dashboardRunningAction = "self-uninstall";
+    beginRun(t("dashboard.uninstall"), function () {
+      return App.RunSelfUninstall(removeConfig, removeDocker, backupPath, reposBackupPath, aiBackupPath);
+    }, {
+      buttons: [btnSu2Uninstall],
+      maxSteps: 1,
+      announce: t("uninstall.starting"),
+    });
+  }
+
+  // pick asks for one backup's path when wanted is set; "" means not
+  // wanted, null means the dialog was cancelled.
+  function pick(wanted, picker) {
+    if (!wanted) return Promise.resolve("");
+    return picker().then(function (path) { return path || null; });
+  }
+
+  // Each picker opens only after the previous one got a path; the first
+  // cancelled dialog stops the chain.
+  const wanted = [
+    [su2BackupConfig.checked, App.PickUninstallBackupPath],
+    [su2BackupRepos.checked, App.PickUninstallReposBackupPath],
+    [su2BackupAI.checked, App.PickUninstallAIContextsBackupPath],
+  ];
+  wanted.reduce(function (chain, w) {
+    return chain.then(function (paths) {
+      if (paths.indexOf(null) >= 0) return paths.concat([null]);
+      return pick(w[0], w[1]).then(function (path) { return paths.concat([path]); });
+    });
+  }, Promise.resolve([])).then(function (paths) {
+    if (paths.indexOf(null) >= 0) {
+      openMessage(t("uninstall.cancelledTitle"), t("uninstall.cancelled"), false);
+      return;
+    }
+    startUninstall(paths[0], paths[1], paths[2]);
+  }).catch(function (err) { openError(t("uninstall.pickFailed", { error: err })); });
+});
+
+// Caminho do Workspace — same alert-card pattern as "Contextos de IA ::
+// Configurar Projeto", but unlike that screen (which always starts over with no
 // folder), this card reflects the value already persisted in
 // config.yaml as soon as the screen opens.
 let scWorkspacePath = "";       // persisted value (config.yaml)
@@ -118,13 +122,13 @@ let scPickedWorkspacePath = ""; // picked this session, not saved yet
 
 function renderScWorkspaceAlert() {
   if (scWorkspacePath) {
-    scWorkspaceAlertTitle.textContent = "O workspace está criado";
+    scWorkspaceAlertTitle.textContent = t("settings.workspace.created");
     scWorkspaceAlertDesc.textContent = scWorkspacePath;
     btnScCreateWorkspace.classList.add("hidden");
     return;
   }
-  scWorkspaceAlertTitle.textContent = "O workspace não foi criado";
-  scWorkspaceAlertDesc.textContent = scPickedWorkspacePath || "Selecione uma pasta";
+  scWorkspaceAlertTitle.textContent = t("settings.workspace.missing");
+  scWorkspaceAlertDesc.textContent = scPickedWorkspacePath || t("settings.workspace.pickHint");
   btnScCreateWorkspace.classList.toggle("hidden", !scPickedWorkspacePath);
 }
 
@@ -146,7 +150,7 @@ btnScCreateWorkspace.addEventListener("click", function () {
     renderScWorkspaceAlert();
   }).catch(function (err) {
     btnScCreateWorkspace.disabled = false;
-    openError("Falha ao criar workspace: " + err);
+    openError(t("settings.workspace.createFailed", { error: err }));
   });
 });
 
@@ -159,7 +163,7 @@ scTrayEnabled.addEventListener("change", function () {
   const enabled = scTrayEnabled.checked;
   App.SetTrayEnabled(enabled).catch(function (err) {
     scTrayEnabled.checked = !enabled;
-    openError("Falha ao " + (enabled ? "ligar" : "desligar") + " a bandeja do sistema: " + err);
+    openError(t(enabled ? "settings.trayOnFailed" : "settings.trayOffFailed", { error: err }));
   });
 });
 

@@ -207,7 +207,7 @@ var systemCatalog = []sectionDef{
 // devCatalog is Perci82 Dev's static catalog; devSections adds the Git
 // accounts to the "repositories" section.
 var devCatalog = []sectionDef{
-	overviewSection("Veja o resumo dos contêineres Docker e a versão do Perci82 Dev."),
+	overviewSection("nav.overview.devDesc"),
 	{id: "environment", label: "nav.environment", icon: "code", items: []MenuItem{
 		{
 			// Item table mode (#itemtable-container): one row per item
@@ -360,5 +360,5 @@ var devCatalog = []sectionDef{
 			Tab:      "nav.mcps",
 		},
 	}},
-	settingsSection("Idioma, tema, workspace e bandeja do sistema."),
+	settingsSection("nav.settings.devDesc"),
 }

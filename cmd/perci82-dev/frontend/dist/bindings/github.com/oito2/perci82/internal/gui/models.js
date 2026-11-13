@@ -2129,6 +2129,45 @@ export class RepoFilesView {
 }
 
 /**
+ * RepositorySummary counts the registered Git accounts and the
+ * repositories found in their folders.
+ */
+export class RepositorySummary {
+    /**
+     * Creates a new RepositorySummary instance.
+     * @param {Partial<RepositorySummary>} [$$source = {}] - The source object to create the RepositorySummary.
+     */
+    constructor($$source = {}) {
+        if (!("accounts" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["accounts"] = 0;
+        }
+        if (!("repos" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["repos"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RepositorySummary instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RepositorySummary}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RepositorySummary(/** @type {Partial<RepositorySummary>} */($$parsedSource));
+    }
+}
+
+/**
  * Section is one tab of the window's top tab bar. A section with more
  * than one item shows them in a side list.
  */

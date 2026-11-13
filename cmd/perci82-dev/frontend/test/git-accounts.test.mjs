@@ -617,28 +617,27 @@ test("account screen: pending repositories can be cloned or discarded", async ()
   assert.deepEqual(calls.find((c) => c.name === "CloneGitAccountPending").args, ["oito2"]);
 });
 
+// confirmUninstall opens the uninstall modal of run, checks the options in checked
+// (by element id) and confirms it.
+function confirmUninstall(run, checked) {
+  click(run.element("btn-su2-uninstall"));
+  for (const id of ["su2-backup-config", "su2-backup-repos", "su2-backup-ai", "su2-remove-docker", "su2-remove-config"]) {
+    assert.equal(run.element(id).checked, false, id + " starts unchecked");
+    run.element(id).checked = checked.includes(id);
+  }
+  click(run.element("btn-uninstall-confirm"));
+}
+
 test("Desinstalar: the repositories backup has its own picker, and cancelling it stops the uninstall", async () => {
   const run = load({ PickUninstallBackupPath: "/tmp/b.yaml", PickUninstallReposBackupPath: "/tmp/r.yaml" });
-  run.element("su2-backup-config").checked = true;
-  run.element("su2-backup-repos").checked = true;
-  run.element("su2-backup-ai").checked = false;
-  run.element("su2-remove-docker").checked = false;
-  run.element("su2-remove-config").checked = true;
-  click(run.element("btn-su2-uninstall"));
-  click(run.element("btn-confirm-ok"));
+  confirmUninstall(run, ["su2-backup-config", "su2-backup-repos", "su2-remove-config"]);
   await tick();
   await tick();
   await tick();
   assert.deepEqual(run.calls.find((c) => c.name === "RunSelfUninstall").args, [true, false, "/tmp/b.yaml", "/tmp/r.yaml", ""]);
 
   const cancel = load({ PickUninstallReposBackupPath: "" });
-  cancel.element("su2-backup-config").checked = false;
-  cancel.element("su2-backup-repos").checked = true;
-  cancel.element("su2-backup-ai").checked = true;
-  cancel.element("su2-remove-docker").checked = false;
-  cancel.element("su2-remove-config").checked = false;
-  click(cancel.element("btn-su2-uninstall"));
-  click(cancel.element("btn-confirm-ok"));
+  confirmUninstall(cancel, ["su2-backup-repos", "su2-backup-ai"]);
   await tick();
   await tick();
   await tick();
@@ -650,14 +649,7 @@ test("Desinstalar: the repositories backup has its own picker, and cancelling it
 test("Desinstalar: the AI contexts backup has its own picker, and cancelling it stops the uninstall", async () => {
   const start = (fixtures, config) => {
     const run = load(fixtures);
-    run.element("su2-backup-config").checked = config;
-    run.element("su2-backup-repos").checked = false;
-    run.element("su2-backup-ai").checked = true;
-    run.element("su2-remove-docker").checked = false;
-    run.element("su2-remove-config").checked = false;
-    click(run.element("btn-su2-uninstall"));
-    assert.match(run.element("confirm-modal-message").textContent, /backup dos contextos de IA/);
-    click(run.element("btn-confirm-ok"));
+    confirmUninstall(run, config ? ["su2-backup-config", "su2-backup-ai"] : ["su2-backup-ai"]);
     return run;
   };
   const settle = async () => { for (let i = 0; i < 6; i++) await tick(); };
@@ -671,6 +663,25 @@ test("Desinstalar: the AI contexts backup has its own picker, and cancelling it 
   await settle();
   assert.ok(!cancel.calls.some((c) => c.name === "RunSelfUninstall"));
   assert.match(cancel.element("error-modal-message").textContent, /desinstalação não foi iniciada/);
+});
+
+test("Visão Geral: Docker and repositories summary", async () => {
+  const run = load({
+    GetContainerRows: [{ status: "running" }, { status: "exited" }],
+    GetRepositorySummary: { accounts: 2, repos: 7 },
+  });
+  run.ctx.renderAppDashboardStats();
+  await tick();
+  await tick();
+  assert.equal(run.element("dashboard-docker-summary").textContent, "1 de 2 rodando");
+  assert.equal(run.element("dashboard-repos-summary").textContent, "Contas: 2 · Repositórios: 7");
+
+  const empty = load({ GetContainerRows: [], GetRepositorySummary: { accounts: 0, repos: 0 } });
+  empty.ctx.renderAppDashboardStats();
+  await tick();
+  await tick();
+  assert.equal(empty.element("dashboard-docker-summary").textContent, "Nenhum");
+  assert.equal(empty.element("dashboard-repos-summary").textContent, "Nenhuma conta");
 });
 
 test("Configurar Conta: the form explains the SSH key and the token, and opens the provider's pages", () => {

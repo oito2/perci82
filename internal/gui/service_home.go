@@ -463,34 +463,34 @@ func (h *DevHomeService) SetProjectNotesPath(path string) error {
 }
 
 // PickUninstallBackupPath opens the native "Salvar Como" dialog for the
-// uninstall's "Fazer backup das configurações" checkbox — it differs from
-// PickExportConfigPath only in its title/default filename; both save
-// through the same appstack.ExportConfig underneath.
+// uninstall's Docker settings backup — it differs from PickExportConfigPath
+// only in its title/default filename; both save through the same
+// appstack.ExportConfig underneath.
 func (h *DevHomeService) PickUninstallBackupPath() (string, error) {
 	return approvePath(h.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
-		Title:    "Salvar backup das configurações",
+		Title:    i18n.Tr("devuninstall.pickDocker", nil),
 		Filename: "perci-backup-" + time.Now().Format("2006-01-02-150405") + ".yaml",
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
 	}).PromptForSingleSelection())
 }
 
 // PickUninstallReposBackupPath opens the native "Salvar Como" dialog for
-// the uninstall's "Fazer backup dos repositórios" checkbox — the file
-// "Repositórios :: Gerenciar Repositórios" imports.
+// the uninstall's repositories backup — the file "Repositórios ::
+// Gerenciar Repositórios" imports.
 func (h *DevHomeService) PickUninstallReposBackupPath() (string, error) {
 	return approvePath(h.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
-		Title:    "Salvar backup dos repositórios",
+		Title:    i18n.Tr("devuninstall.pickRepos", nil),
 		Filename: "perci-repositorios-" + time.Now().Format("2006-01-02-150405") + ".yaml",
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
 	}).PromptForSingleSelection())
 }
 
 // PickUninstallAIContextsBackupPath opens the native "Salvar Como" dialog
-// for the uninstall's "Fazer backup dos contextos de IA" checkbox — the
-// file "Dev Tools :: IA: Contextos" imports.
+// for the uninstall's AI contexts backup — the file "Contextos de IA ::
+// Exportar/Importar" imports.
 func (h *DevHomeService) PickUninstallAIContextsBackupPath() (string, error) {
 	return approvePath(h.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
-		Title:    "Salvar backup dos contextos de IA",
+		Title:    i18n.Tr("devuninstall.pickAI", nil),
 		Filename: "perci-contextos-ia-" + time.Now().Format("2006-01-02-150405") + ".yaml",
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
 	}).PromptForSingleSelection())
@@ -563,31 +563,31 @@ func (h *DevHomeService) selfUninstall(w io.Writer, removeConfig, removeDocker b
 	if backupPath != "" {
 		if err := appstack.ExportConfig(backupPath); err != nil {
 			if !errors.Is(err, appstack.ErrNothingToExport) {
-				return fmt.Errorf("o backup das configurações falhou, nada foi removido: %w", err)
+				return fmt.Errorf("%s: %w", i18n.Tr("devuninstall.backupFailed.docker", nil), err)
 			}
-			ui.Warning(w, "Nada para exportar no backup: "+err.Error())
+			ui.Warning(w, i18n.Tr("devuninstall.nothing.docker", i18n.Args{"error": err.Error()}))
 		} else {
-			ui.Success(w, "Backup salvo em "+backupPath+".")
+			ui.Success(w, i18n.Tr("devuninstall.saved.docker", i18n.Args{"path": backupPath}))
 		}
 	}
 	if reposBackupPath != "" {
 		if err := backupRepositories(ctx, h.exe, reposBackupPath); err != nil {
 			if !errors.Is(err, gitaccount.ErrNothingToExport) {
-				return fmt.Errorf("o backup dos repositórios falhou, nada foi removido: %w", err)
+				return fmt.Errorf("%s: %w", i18n.Tr("devuninstall.backupFailed.repos", nil), err)
 			}
-			ui.Warning(w, "Nada para exportar no backup dos repositórios: "+err.Error())
+			ui.Warning(w, i18n.Tr("devuninstall.nothing.repos", i18n.Args{"error": err.Error()}))
 		} else {
-			ui.Success(w, "Backup dos repositórios salvo em "+reposBackupPath+".")
+			ui.Success(w, i18n.Tr("devuninstall.saved.repos", i18n.Args{"path": reposBackupPath}))
 		}
 	}
 	if aiBackupPath != "" {
 		if err := backupAIContexts(aiBackupPath); err != nil {
 			if !errors.Is(err, managerai.ErrNothingToExport) {
-				return fmt.Errorf("o backup dos contextos de IA falhou, nada foi removido: %w", err)
+				return fmt.Errorf("%s: %w", i18n.Tr("devuninstall.backupFailed.ai", nil), err)
 			}
-			ui.Warning(w, "Nada para exportar no backup dos contextos de IA: "+err.Error())
+			ui.Warning(w, i18n.Tr("devuninstall.nothing.ai", i18n.Args{"error": err.Error()}))
 		} else {
-			ui.Success(w, "Backup dos contextos de IA salvo em "+aiBackupPath+".")
+			ui.Success(w, i18n.Tr("devuninstall.saved.ai", i18n.Args{"path": aiBackupPath}))
 		}
 	}
 
@@ -595,17 +595,17 @@ func (h *DevHomeService) selfUninstall(w io.Writer, removeConfig, removeDocker b
 		if cfg, err := config.Load(); err == nil {
 			for _, app := range cfg.Docker.Apps {
 				if delErr := appstack.DeleteApp(ctx, h.exe, w, app.Folder); delErr != nil {
-					ui.Warning(w, "Falha ao remover contêiner "+app.Folder+": "+delErr.Error())
+					ui.Warning(w, i18n.Tr("devuninstall.containerFailed", i18n.Args{"name": app.Folder, "error": delErr.Error()}))
 				}
 			}
 			if delErr := appstack.DeleteMariaDB(ctx, h.exe, w); delErr != nil {
-				ui.Warning(w, "Falha ao remover contêiner MariaDB: "+delErr.Error())
+				ui.Warning(w, i18n.Tr("devuninstall.containerFailed", i18n.Args{"name": "MariaDB", "error": delErr.Error()}))
 			}
 			if delErr := appstack.DeleteNginx(ctx, h.exe, w); delErr != nil {
-				ui.Warning(w, "Falha ao remover contêiner Nginx: "+delErr.Error())
+				ui.Warning(w, i18n.Tr("devuninstall.containerFailed", i18n.Args{"name": "Nginx", "error": delErr.Error()}))
 			}
 		} else {
-			ui.Warning(w, "Falha ao carregar configuração para remover contêineres Docker: "+err.Error())
+			ui.Warning(w, i18n.Tr("devuninstall.dockerConfigFailed", i18n.Args{"error": err.Error()}))
 		}
 	}
 
@@ -615,24 +615,48 @@ func (h *DevHomeService) selfUninstall(w io.Writer, removeConfig, removeDocker b
 		if cfg, err := config.Load(); err == nil {
 			accounts = cfg.GitAccounts
 		} else {
-			ui.Warning(w, "Falha ao carregar as contas Git: "+err.Error())
+			ui.Warning(w, i18n.Tr("devuninstall.accountsFailed", i18n.Args{"error": err.Error()}))
 		}
 	}
 
 	err := uninstallApp(ctx, h.exe, w, packaging.AppDev, selfupdate.UninstallOptions{RemoveConfig: removeConfig, DataDirs: devDataDirs})
 	if errors.Is(err, selfupdate.ErrUninstalled) {
 		if fErr := gitaccount.Forget(ctx, h.exe, w, accounts); fErr != nil {
-			ui.Warning(w, "Falha ao remover as regras das contas Git: "+fErr.Error())
+			ui.Warning(w, i18n.Tr("devuninstall.forgetFailed", i18n.Args{"error": fErr.Error()}))
 		}
 		// Tray autostart (~/.config/autostart/io.github.oito2.perci82.dev.desktop) — removed regardless
 		// of TrayEnabled: with the binary gone, it would be a "ghost" autostart
 		// entry (same class of problem as the app-menu .desktop entry, handled
 		// inside selfupdate.Uninstall).
 		if rmErr := removeAutostartDesktopFile(); rmErr != nil {
-			ui.Warning(w, "Falha ao remover autostart da bandeja: "+rmErr.Error())
+			ui.Warning(w, i18n.Tr("devuninstall.autostartFailed", i18n.Args{"error": rmErr.Error()}))
 		}
 	}
 	return err
+}
+
+// RepositorySummary counts the registered Git accounts and the
+// repositories found in their folders.
+type RepositorySummary struct {
+	Accounts int `json:"accounts"`
+	Repos    int `json:"repos"`
+}
+
+// GetRepositorySummary counts the Git accounts and the repositories under
+// their folders, without running git or reaching the network. A folder
+// that cannot be read counts no repository.
+func (h *DevHomeService) GetRepositorySummary(ctx context.Context) (RepositorySummary, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return RepositorySummary{}, err
+	}
+	sum := RepositorySummary{Accounts: len(cfg.GitAccounts)}
+	for _, acc := range cfg.GitAccounts {
+		if dirs, err := gitaccount.Discover(ctx, acc.Folder); err == nil {
+			sum.Repos += len(dirs)
+		}
+	}
+	return sum, nil
 }
 
 // backupRepositories writes every Git account and its repositories to
@@ -650,7 +674,7 @@ func backupRepositories(ctx context.Context, exe *executor.Executor, path string
 }
 
 // backupAIContexts writes every registered AI context folder to path, in
-// the format of "Dev Tools :: IA: Contextos" (folders inside the
+// the format of "Contextos de IA :: Exportar/Importar" (folders inside the
 // workspace with a path relative to it).
 func backupAIContexts(path string) error {
 	cfg, err := config.Load()

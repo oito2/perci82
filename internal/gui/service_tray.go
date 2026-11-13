@@ -337,7 +337,7 @@ const hiddenFlag = "--hidden"
 // doubled (field codes).
 func desktopExecQuote(arg string) (string, error) {
 	if strings.ContainsAny(arg, "\n\r") {
-		return "", fmt.Errorf("caminho inválido para um arquivo .desktop: %q", arg)
+		return "", fmt.Errorf("invalid path for a .desktop file: %q", arg)
 	}
 	var b strings.Builder
 	b.WriteByte('"')
