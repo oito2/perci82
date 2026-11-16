@@ -6,8 +6,7 @@
 
 Creates and manages a local development stack in Docker: one Nginx reverse proxy that serves every app over HTTPS at `https://<app>.localhost`, one shared MariaDB database, and one container per app. The side list has four screens: **Create Container**, **Manage Containers**, **Development Folders** and **Export/Import**.
 
-![Docker](../../img/dev-docker.png)
-<!-- TODO: capture a screenshot of Docker → Manage Containers -->
+![Docker → Create Container](../../img/dev-docker.png)
 
 ## The stack
 

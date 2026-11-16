@@ -6,8 +6,7 @@
 
 Contas Git e os seus repositórios. Cada conta tem uma pasta: todo repositório dentro dela, em qualquer subpasta, usa o nome, o e-mail e a chave SSH da conta nos commits — também no terminal. A lista lateral tem **Configurar Conta**, **Exportar/Importar** e, em **Contas**, um item por conta cadastrada.
 
-![Repositórios](../../img/dev-repositories.png)
-<!-- TODO: capture a screenshot of an account in Repositories -->
+![Repositórios → Configurar Conta](../../img/dev-repositories.png)
 
 ## Como uma conta funciona
 

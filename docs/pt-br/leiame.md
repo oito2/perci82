@@ -11,7 +11,7 @@ Dois aplicativos desktop para Linux: o **Perci82 System** administra o sistema o
 
 🌐 **Idioma:** [English](../../README.md) · Português
 
-> **Situação:** o Perci82 System já tem releases (tags `system-vX.Y.Z`). O Perci82 Dev está em desenvolvimento e só pode ser compilado a partir do código-fonte.
+> **Situação:** o Perci82 System e o Perci82 Dev já têm releases (tags `system-vX.Y.Z` e `dev-vX.Y.Z`).
 
 ## Sumário
 
@@ -114,7 +114,7 @@ Perci82 Dev:
 curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-dev.sh | bash
 ```
 
-Os instaladores precisam de `curl`, `jq`, `sha256sum`, `tar` e `sudo`. Eles conferem o SHA-256 do binário (e, quando o GitHub CLI está logado, a attestation do `checksums.txt` pelo workflow de release), instalam em `/usr/local/bin/perci82-system` ou `/usr/local/bin/perci82-dev` e criam a entrada no menu de aplicativos. Quando o Perci antigo (`prci`) está instalado, perguntam se devem removê-lo; as configurações em `~/.perci` são mantidas, porque os dois aplicativos as usam. O `install-dev.sh` só encontra uma release a partir da primeira release do Perci82 Dev.
+Os instaladores precisam de `curl`, `jq`, `sha256sum`, `tar` e `sudo`. Eles conferem o SHA-256 do binário (e, quando o GitHub CLI está logado, a attestation do `checksums.txt` pelo workflow de release), instalam em `/usr/local/bin/perci82-system` ou `/usr/local/bin/perci82-dev` e criam a entrada no menu de aplicativos. Quando o Perci antigo (`prci`) está instalado, perguntam se devem removê-lo; as configurações em `~/.perci` são mantidas, porque os dois aplicativos as usam.
 
 ## Atualização e manutenção
 

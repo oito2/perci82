@@ -6,8 +6,7 @@
 
 Git accounts and their repositories. Each account owns a folder: every repository inside it, in any subfolder, uses the account's commit name, e-mail and SSH key — in the terminal too. The side list has **Set Up Account**, **Export/Import** and, under **Accounts**, one item per registered account.
 
-![Repositories](../../img/dev-repositories.png)
-<!-- TODO: capture a screenshot of an account in Repositories -->
+![Repositories → Set Up Account](../../img/dev-repositories.png)
 
 ## How an account works
 

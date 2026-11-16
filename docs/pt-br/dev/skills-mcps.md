@@ -6,8 +6,7 @@
 
 Atalhos para dar aos agentes de programação skills e servidores MCP de terceiros. A lista lateral tem duas telas: **SKILLs** e **MCPs**.
 
-![Skills & MCPs](../../img/dev-skills-mcps.png)
-<!-- TODO: capture a screenshot of Skills & MCPs → MCPs -->
+![Skills & MCPs → SKILLs](../../img/dev-skills-mcps.png)
 
 ## Tipo de Instalação
 

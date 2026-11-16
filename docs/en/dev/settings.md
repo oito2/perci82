@@ -7,7 +7,6 @@
 Perci82 Dev's own preferences. Every change is saved and applied at once; there is no Save button.
 
 ![Settings](../../img/dev-settings.png)
-<!-- TODO: capture a screenshot of Perci82 Dev's Settings -->
 
 ## General
 

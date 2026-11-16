@@ -7,7 +7,6 @@
 The first screen of Perci82 Dev: a summary of the Docker containers and repositories, its version, its updates and its uninstall.
 
 ![Overview](../../img/dev-overview.png)
-<!-- TODO: capture a screenshot of Perci82 Dev's Overview -->
 
 ## The window
 

@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [Dev 1.0.0] - 2026-11-13
+## [Dev 1.0.0] - 2026-11-16
 
 First release of Perci82 Dev.
 
@@ -97,7 +97,7 @@ First release of Perci82 Dev.
 - The nvm installer is run only after its SHA-256 matches.
 - A folder chosen in a file dialog is accepted only for the setting it was chosen for: the workspace, the notes folder and the Filesystem MCP folder each need their own choice, and the notes folder must be a folder.
 
-## [System 1.0.0] - 2026-11-12
+## [System 1.0.0] - 2026-11-16
 
 First release of Perci82 System, split from Perci 1.9.0.
 
@@ -144,6 +144,6 @@ First release of Perci82 System, split from Perci 1.9.0.
 
 - `install-system.sh` checks, when the GitHub CLI is logged in, that `checksums.txt` was attested by the release workflow (covering the binary and the menu entry archive), and extracts only menu entries and icons from the archive.
 
-[Unreleased]: https://github.com/oito2/perci82/commits/main
+[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.0.0...HEAD
 [Dev 1.0.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.0
 [System 1.0.0]: https://github.com/oito2/perci82/releases/tag/system-v1.0.0

@@ -6,8 +6,7 @@
 
 Installs, updates and removes the development tools: prerequisites, languages, AI apps, terminals and editors.
 
-![Environment](../../img/dev-environment.png)
-<!-- TODO: capture a screenshot of Environment -->
+![Environment → Prerequisites](../../img/dev-environment.png)
 
 Each screen of the side list has an **Items** tab, where you choose what to do, and a **Run** tab, which shows the output of the running action. Only one action runs at a time.
 

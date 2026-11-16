@@ -6,8 +6,7 @@
 
 Um contexto de IA é o conjunto de arquivos de regras que o Perci82 Dev grava na pasta de um projeto para os agentes de programação: as regras comuns no `AGENTS.md`, um padrão por tecnologia em `.instructions/` e os arquivos próprios de cada agente. A lista lateral tem três telas: **Aplicar Contexto**, **Gerenciar Contextos** e **Exportar/Importar**.
 
-![Contextos de IA](../../img/dev-ai-contexts.png)
-<!-- TODO: capture a screenshot of AI Contexts → Apply Context -->
+![Contextos de IA → Aplicar Contexto](../../img/dev-ai-contexts.png)
 
 ## O que um contexto grava
 

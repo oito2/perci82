@@ -6,8 +6,7 @@
 
 Cria e gerencia um ambiente de desenvolvimento local no Docker: um proxy reverso Nginx que serve cada aplicativo por HTTPS em `https://<app>.localhost`, um banco MariaDB compartilhado e um contêiner por aplicativo. A lista lateral tem quatro telas: **Criar Contêiner**, **Gerenciar Contêineres**, **Pastas de Desenvolvimento** e **Exportar/Importar**.
 
-![Docker](../../img/dev-docker.png)
-<!-- TODO: capture a screenshot of Docker → Manage Containers -->
+![Docker → Criar Contêiner](../../img/dev-docker.png)
 
 ## O ambiente
 

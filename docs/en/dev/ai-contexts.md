@@ -6,8 +6,7 @@
 
 An AI context is the set of rule files Perci82 Dev writes into a project folder for coding agents: the shared rules in `AGENTS.md`, one standard per technology under `.instructions/`, and each agent's own files. The side list has three screens: **Apply Context**, **Manage Contexts** and **Export/Import**.
 
-![AI Contexts](../../img/dev-ai-contexts.png)
-<!-- TODO: capture a screenshot of AI Contexts → Apply Context -->
+![AI Contexts → Apply Context](../../img/dev-ai-contexts.png)
 
 ## What a context writes
 

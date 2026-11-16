@@ -6,8 +6,7 @@
 
 Instala, atualiza e remove as ferramentas de desenvolvimento: pré-requisitos, linguagens, aplicativos de IA, terminais e editores.
 
-![Environment](../../img/dev-environment.png)
-<!-- TODO: capture a screenshot of Environment -->
+![Ambiente → Pré-requisitos](../../img/dev-environment.png)
 
 Cada tela da lista lateral tem uma aba **Itens**, onde você escolhe o que fazer, e uma aba **Execução**, que mostra a saída da ação em andamento. Só uma ação roda por vez.
 

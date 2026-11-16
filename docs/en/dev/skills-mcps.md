@@ -6,8 +6,7 @@
 
 Shortcuts to give coding agents third-party skills and MCP servers. The side list has two screens: **SKILLs** and **MCPs**.
 
-![Skills & MCPs](../../img/dev-skills-mcps.png)
-<!-- TODO: capture a screenshot of Skills & MCPs → MCPs -->
+![Skills & MCPs → SKILLs](../../img/dev-skills-mcps.png)
 
 ## Installation type
 

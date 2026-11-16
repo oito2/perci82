@@ -7,7 +7,6 @@
 A primeira tela do Perci82 Dev: um resumo dos contêineres Docker e dos repositórios, a versão, as atualizações e a desinstalação.
 
 ![Visão Geral](../../img/dev-overview.png)
-<!-- TODO: capture a screenshot of Perci82 Dev's Overview -->
 
 ## A janela
 
