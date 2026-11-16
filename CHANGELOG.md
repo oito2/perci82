@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [System 1.0.1] - 2026-11-16
+
 ### Fixed
 
 - Perci82 System: the symbolic app icon is drawn with filled shapes, so desktops that recolor symbolic icons show the gear instead of a solid shape.
@@ -155,7 +157,8 @@ First release of Perci82 System, split from Perci 1.9.0.
 
 - `install-system.sh` checks, when the GitHub CLI is logged in, that `checksums.txt` was attested by the release workflow (covering the binary and the menu entry archive), and extracts only menu entries and icons from the archive.
 
-[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.0.1...HEAD
+[Unreleased]: https://github.com/oito2/perci82/compare/system-v1.0.1...HEAD
+[System 1.0.1]: https://github.com/oito2/perci82/releases/tag/system-v1.0.1
 [Dev 1.0.1]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.1
 [Dev 1.0.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.0
 [System 1.0.0]: https://github.com/oito2/perci82/releases/tag/system-v1.0.0
