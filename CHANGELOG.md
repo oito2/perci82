@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Perci82 System: the symbolic app icon is drawn with filled shapes, so desktops that recolor symbolic icons show the gear instead of a solid shape.
+
 ## [Dev 1.0.1] - 2026-11-16
 
 ### Fixed
