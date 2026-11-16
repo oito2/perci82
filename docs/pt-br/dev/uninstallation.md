@@ -24,7 +24,7 @@
    - **Remover também** — **As configurações do Perci82 Dev**: as chaves dele no `~/.perci/config.yaml`, a pasta `~/.perci/git` e, só quando os contêineres Docker também são removidos (eles ainda a usam), `~/.perci/appstack` — menos `~/.perci/appstack/backups`, os backups do MariaDB, que são sempre mantidos —, as regras `includeIf` das contas Git no `~/.gitconfig` e os tokens das contas no chaveiro.
 3. Clique em **Desinstalar** e digite a sua senha quando for pedida. A aba **Execução** mostra o andamento, e a janela fecha quando termina.
 
-O binário, a entrada no menu, os ícones e a abertura no login são removidos. A pasta `~/.perci` em si só é removida quando nem o Perci82 System nem o Perci antigo estão instalados e não sobrou mais nada nela. Chaves SSH, repositórios e as configurações do Perci82 System são sempre mantidos.
+O binário, a entrada no menu, os ícones e a abertura no login são removidos. A pasta `~/.perci` em si só é removida quando nem o Perci82 System nem o Perci antigo estão instalados e não sobrou mais nada nela. Chaves SSH, repositórios, os contextos de IA personalizados (`~/.perci/user-contexts`) e as configurações do Perci82 System são sempre mantidos.
 
 ## Manualmente
 

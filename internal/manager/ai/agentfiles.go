@@ -38,8 +38,12 @@ import (
 var claudeRulesDir = filepath.Join(".claude", "rules", "perci")
 
 // claudeRule is the rule file of model: its paths as YAML frontmatter,
-// then the standard itself (content, already rendered).
+// then the standard itself (content, already rendered). A custom context
+// has no frontmatter, so Claude Code loads it in every session.
 func claudeRule(model Model, content string) string {
+	if model.Custom {
+		return content
+	}
 	var b strings.Builder
 	b.WriteString("---\npaths:\n")
 	for _, p := range model.Paths {
@@ -59,7 +63,7 @@ func syncClaudeRules(dir string, active []Model, rendered map[string]string, ove
 	rulesDir := filepath.Join(dir, claudeRulesDir)
 	keep := map[string]bool{}
 	for _, m := range active {
-		if len(m.Paths) == 0 {
+		if !hasClaudeRule(m) {
 			continue
 		}
 		name := filepath.Base(m.Instruction)
@@ -71,9 +75,9 @@ func syncClaudeRules(dir string, active []Model, rendered map[string]string, ove
 			return err
 		}
 	}
-	for _, m := range models {
+	for _, m := range catalog() {
 		name := filepath.Base(m.Instruction)
-		if keep[name] || len(m.Paths) == 0 {
+		if keep[name] || !hasClaudeRule(m) {
 			continue
 		}
 		path := filepath.Join(rulesDir, name)
@@ -85,14 +89,21 @@ func syncClaudeRules(dir string, active []Model, rendered map[string]string, ove
 			continue
 		}
 		var generated []string
-		if m.Name == phpPerciName {
+		switch {
+		case m.Custom:
+			// Any earlier text of the context is Perci's while its
+			// signature still matches.
+			if customSignedUnedited(string(data)) {
+				generated = append(generated, string(data))
+			}
+		case m.Name == phpPerciName:
 			// The guide depends on a Docker app that may be gone (or, in a
 			// preview, never holds the copy): a rule whose guide still
 			// matches its signature is Perci's.
 			if body, ok := claudeRuleBody(data); ok && signedUnedited(string(body)) && claudeRule(m, string(body)) == string(data) {
 				generated = append(generated, string(data))
 			}
-		} else {
+		default:
 			content, err := renderInstruction(dir, m)
 			if err != nil {
 				return err
@@ -107,6 +118,12 @@ func syncClaudeRules(dir string, active []Model, rendered map[string]string, ove
 	// Leaves the folder only when nothing else lives in it.
 	_ = os.Remove(rulesDir)
 	return nil
+}
+
+// hasClaudeRule reports whether model gets a Claude Code rule: a standard
+// that covers file types, or a custom context.
+func hasClaudeRule(model Model) bool {
+	return model.Custom || len(model.Paths) > 0
 }
 
 // earlierRule reports whether data is model's rule as an earlier Perci

@@ -132,3 +132,12 @@
 /* An option label whose text wraps to the available width instead of
    staying on one line (daisyUI's .label sets nowrap). */
 .label.o2-wrap { white-space: normal; }
+
+/* Focused text fields and selects: no outer outline ring; the field's own
+   border takes the primary color instead. */
+.input:focus, .input:focus-within,
+.textarea:focus, .textarea:focus-within,
+.select:focus, .select:focus-within, .select:open {
+  --input-color: var(--color-primary);
+  outline: none;
+}

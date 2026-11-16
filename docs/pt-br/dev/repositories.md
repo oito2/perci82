@@ -4,7 +4,7 @@
 
 # Repositórios
 
-Contas Git e os seus repositórios. Cada conta tem uma pasta: todo repositório dentro dela, em qualquer subpasta, usa o nome, o e-mail e a chave SSH da conta nos commits — também no terminal. A lista lateral tem **Configurar Conta**, **Gerenciar Repositórios** e, em **Contas**, um item por conta cadastrada.
+Contas Git e os seus repositórios. Cada conta tem uma pasta: todo repositório dentro dela, em qualquer subpasta, usa o nome, o e-mail e a chave SSH da conta nos commits — também no terminal. A lista lateral tem **Configurar Conta**, **Exportar/Importar** e, em **Contas**, um item por conta cadastrada.
 
 ![Repositórios](../../img/dev-repositories.png)
 <!-- TODO: capture a screenshot of an account in Repositories -->
@@ -149,9 +149,9 @@ Cada linha oferece **Criar**, **Atualizar** ou **Remover**, conforme o estado. *
 
 ### Repositórios pendentes
 
-Repositórios importados em **Gerenciar Repositórios** e ainda não clonados aparecem em **Pendentes**. Antes, cadastre a chave pública da conta no servidor e use **Testar conexão**. **Clonar pendentes** testa a conexão e clona os repositórios nas suas pastas; **Descartar** tira um deles da lista sem apagar nada.
+Repositórios importados em **Exportar/Importar** e ainda não clonados aparecem em **Pendentes**. Antes, cadastre a chave pública da conta no servidor e use **Testar conexão**. **Clonar pendentes** testa a conexão e clona os repositórios nas suas pastas; **Descartar** tira um deles da lista sem apagar nada.
 
-## Gerenciar Repositórios
+## Exportar/Importar
 
 Leva contas e repositórios para outra máquina por um arquivo YAML. Esse arquivo é separado da exportação do Docker.
 
@@ -159,7 +159,7 @@ Leva contas e repositórios para outra máquina por um arquivo YAML. Esse arquiv
 
 A aba **Exportar** lista cada conta com os seus repositórios para marcar. O arquivo guarda o nome, o provedor, o host, a porta SSH, o usuário, a identidade dos commits, a pasta e os e-mails de contato de cada conta e, de cada repositório, a pasta e a URL SSH. Chaves SSH, tokens e os arquivos dos repositórios não são exportados. Repositórios sem remote ficam de fora (não há de onde cloná-los); os pendentes entram.
 
-**Exportar…** pergunta onde salvar (nome padrão `perci-repositorios.yaml`); só você pode ler o arquivo. Ele é gravado na versão 2 do formato quando tem algum e-mail de contato; senão, na versão 1.
+**Exportar…** pergunta onde salvar (nome padrão `perci-repositorios.yaml`; `.yaml` é acrescentado quando o nome digitado não termina em `.yaml` nem `.yml`); só você pode ler o arquivo. Ele é gravado na versão 2 do formato quando tem algum e-mail de contato; senão, na versão 1.
 
 ```yaml
 version: 2

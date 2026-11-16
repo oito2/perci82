@@ -153,7 +153,7 @@ The destination must be empty or not exist yet, and paths with spaces, backslash
 
 When a folder above the destination has a `.megaignore` (MEGA sync), a rule excluding the destination (`-dpG:<path>`) is added to it before mounting and removed with the mount; when it can't be written, the mount is refused.
 
-**Create** mounts the folder; it is applied on the container's next restart. The **Mounted folders** tab lists each mount with its status and the actions **Restart container** (restarts the app's container, and Nginx when it serves the app) and **Remove** (unmounts the folder, removes the unit and the destination folder when it is left empty, and restarts the containers). The development folder itself is never changed. Nginx serves the files of every type but Node, so it is restarted for those apps only; containers that aren't running aren't started. When mounts made by an earlier version use units without the check against links, the tab shows a warning with **Update units**, which rewrites them (one password prompt) without unmounting anything.
+**Create** mounts the folder; it is applied on the container's next restart. The **Mounted folders** tab lists each mount with its status and the actions **Restart container** (restarts the app's container, and Nginx when it serves the app) and **Remove** (unmounts the folder, removes the unit and the destination folder when it is left empty, and restarts the containers). The development folder itself is never changed. Nginx serves the files of every type but Node, so it is restarted for those apps only; containers that aren't running aren't started. When mounts made by an earlier version use units without the check against links, the tab shows a warning with **Fix**, which rewrites them (one password prompt) without unmounting anything.
 
 | Status | Meaning |
 |---|---|
@@ -167,7 +167,7 @@ In Moodle, after applying, open Site administration → Notifications to install
 
 ## Export/Import
 
-**Export** lists what can be exported in three groups — **Infrastructure** (Nginx, MariaDB), **Apps** and **Mounted development folders** — with **Check all** in each group. Checking an item also checks what it depends on (Nginx for an app, MariaDB for an app with database access, the app of a mounted folder) and an app's mounted folders. **Export…** saves a YAML file (`perci-export.yaml` by default), readable only by you.
+**Export** lists what can be exported in three groups — **Infrastructure** (Nginx, MariaDB), **Apps** and **Mounted development folders** — with **Check all** in each group. Checking an item also checks what it depends on (Nginx for an app, MariaDB for an app with database access, the app of a mounted folder) and an app's mounted folders. **Export…** saves a YAML file (`perci-export.yaml` by default; `.yaml` is added when the name you type has no `.yaml` or `.yml` extension), readable only by you.
 
 The file holds only definitions: the workspace path, the Nginx and MariaDB containers with MariaDB's credentials **in plain text** (keep it as a secret), the app settings and the mounted folders. It doesn't hold project files nor databases. The format is the same as Perci 1.9's: files exported by Perci 1.9 import here without conversion.
 

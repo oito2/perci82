@@ -463,33 +463,33 @@ func (h *DevHomeService) SetProjectNotesPath(path string) error {
 // only in its title/default filename; both save through the same
 // appstack.ExportConfig underneath.
 func (h *DevHomeService) PickUninstallBackupPath() (string, error) {
-	return approvePath(h.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+	return approvePath(withYAMLExt(h.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
 		Title:    i18n.Tr("devuninstall.pickDocker", nil),
 		Filename: "perci-backup-" + time.Now().Format("2006-01-02-150405") + ".yaml",
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
-	}).PromptForSingleSelection())
+	}).PromptForSingleSelection()))
 }
 
 // PickUninstallReposBackupPath opens the native "Salvar Como" dialog for
 // the uninstall's repositories backup — the file "Repositórios ::
 // Gerenciar Repositórios" imports.
 func (h *DevHomeService) PickUninstallReposBackupPath() (string, error) {
-	return approvePath(h.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+	return approvePath(withYAMLExt(h.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
 		Title:    i18n.Tr("devuninstall.pickRepos", nil),
 		Filename: "perci-repositorios-" + time.Now().Format("2006-01-02-150405") + ".yaml",
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
-	}).PromptForSingleSelection())
+	}).PromptForSingleSelection()))
 }
 
 // PickUninstallAIContextsBackupPath opens the native "Salvar Como" dialog
 // for the uninstall's AI contexts backup — the file "Contextos de IA ::
 // Exportar/Importar" imports.
 func (h *DevHomeService) PickUninstallAIContextsBackupPath() (string, error) {
-	return approvePath(h.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+	return approvePath(withYAMLExt(h.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
 		Title:    i18n.Tr("devuninstall.pickAI", nil),
 		Filename: "perci-contextos-ia-" + time.Now().Format("2006-01-02-150405") + ".yaml",
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
-	}).PromptForSingleSelection())
+	}).PromptForSingleSelection()))
 }
 
 // RunSelfUninstall removes Perci82 Dev — its binary, menu entry and icons

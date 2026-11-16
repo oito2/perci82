@@ -4,10 +4,10 @@
 
 # Contextos de IA
 
-Um contexto de IA é o conjunto de arquivos de regras que o Perci82 Dev grava na pasta de um projeto para os agentes de programação: as regras comuns no `AGENTS.md`, um padrão por tecnologia em `.instructions/` e os arquivos próprios de cada agente. A lista lateral tem três telas: **Configurar Projeto**, **Gerenciar Contextos** e **Exportar/Importar**.
+Um contexto de IA é o conjunto de arquivos de regras que o Perci82 Dev grava na pasta de um projeto para os agentes de programação: as regras comuns no `AGENTS.md`, um padrão por tecnologia em `.instructions/` e os arquivos próprios de cada agente. A lista lateral tem três telas: **Aplicar Contexto**, **Gerenciar Contextos** e **Exportar/Importar**.
 
 ![Contextos de IA](../../img/dev-ai-contexts.png)
-<!-- TODO: capture a screenshot of AI Contexts → Set Up Project -->
+<!-- TODO: capture a screenshot of AI Contexts → Apply Context -->
 
 ## O que um contexto grava
 
@@ -15,9 +15,10 @@ Um contexto de IA é o conjunto de arquivos de regras que o Perci82 Dev grava na
 |---|---|---|
 | `AGENTS.md` | Todos os agentes | As regras comuns, a lista de padrões ativos (cada um com as tarefas que cobre) e um comentário final com os agentes |
 | `.instructions/<PADRÃO>.md` | Todos os agentes | Um arquivo por padrão marcado |
+| `.instructions/CUSTOM-<ID>.md` | Todos os agentes | Um arquivo por [contexto personalizado](#contextos-personalizados-1) marcado |
 | `.instructions/PROJECT.md` | Todos os agentes | As regras do próprio projeto; criado uma vez e nunca reescrito (veja [Anotações de projeto](#anotações-de-projeto)) |
 | `CLAUDE.md` | Claude Code | Importa o `AGENTS.md` e o `.instructions/PROJECT.md` |
-| `.claude/rules/perci/*.md` | Claude Code | Os padrões que cobrem tipos de arquivo, carregados só quando o Claude Code trabalha num arquivo correspondente |
+| `.claude/rules/perci/*.md` | Claude Code | Os padrões que cobrem tipos de arquivo, carregados só quando o Claude Code trabalha num arquivo correspondente, e os contextos personalizados, carregados em toda sessão |
 | `.claude/settings.json` | Claude Code | Regras de leitura que deixam segredos e pastas de dependências fora de alcance, mais os [acessos dos agentes](#acessos-dos-agentes) |
 | `GEMINI.md` | Gemini | Importa o `AGENTS.md` e o `.instructions/PROJECT.md` |
 | `.aiexclude` / `.geminiignore` | Gemini | Arquivos mantidos fora do Gemini Code Assist e do Gemini CLI |
@@ -29,15 +30,17 @@ O Codex e o Antigravity leem o `AGENTS.md` como está. Os arquivos mantidos fora
 
 Um arquivo substituído fica com uma cópia com o sufixo `.perci-bak`, menos os arquivos de configuração dos agentes em que o Perci82 Dev só mescla as chaves dele (`.claude/settings.json`, `.gemini/settings.json`, `opencode.json`): eles podem guardar tokens, então não ganham cópia e mantêm as permissões. Um `CLAUDE.md` ou `GEMINI.md` que é um link para o `AGENTS.md` é mantido. O Perci82 Dev não altera o `opencode.jsonc`; ele informa qual entrada adicionar manualmente.
 
-## Configurar Projeto
+## Aplicar Contexto
+
+A tela tem duas abas: **Aplicar contexto** configura uma pasta, e [Contextos aplicados](#contextos-aplicados) lista as pastas registradas.
 
 1. Clique em **Selecionar pasta** e escolha a pasta do projeto (**Trocar pasta** escolhe outra).
 2. Informe o **Nome**: até 80 caracteres, único entre as pastas registradas (sem diferenciar maiúsculas).
 3. Marque os **Agentes de IA**: ao menos um.
-4. Escolha um **Tipo de projeto** ou marque os padrões um a um.
+4. Escolha um **Tipo de projeto** ou marque os padrões um a um, mais os [contextos personalizados](#contextos-personalizados) que quiser.
 5. Clique em **Aplicar**. Uma confirmação lista cada arquivo que será criado, atualizado ou removido; arquivos substituídos ficam com uma cópia `.perci-bak`.
 
-Aplicar grava os arquivos dos agentes e padrões marcados, remove os que o Perci gravou para os desmarcados (só enquanto não foram editados) e registra a pasta em **Gerenciar Contextos**. Quando nenhum arquivo muda, só o registro é atualizado.
+Aplicar grava os arquivos dos agentes e padrões marcados, remove os que o Perci gravou para os desmarcados (só enquanto não foram editados) e registra a pasta em **Contextos aplicados**. Quando nenhum arquivo muda, só o registro é atualizado.
 
 ### Agentes de IA
 
@@ -51,7 +54,7 @@ Aplicar grava os arquivos dos agentes e padrões marcados, remove os que o Perci
 
 ### Tipos de projeto
 
-Um tipo de projeto marca um conjunto de padrões de uma vez; as caixas continuam editáveis, e mudar uma delas volta o tipo para **Personalizado**. Para uma pasta ainda sem padrão, o tipo indicado pelos arquivos dela já vem escolhido ("Sugerido pelos arquivos da pasta.").
+Um tipo de projeto marca um conjunto de padrões de uma vez; as caixas continuam editáveis, e mudar uma delas volta o tipo para **Customizado**. Para uma pasta ainda sem padrão, o tipo indicado pelos arquivos dela já vem escolhido ("Sugerido pelos arquivos da pasta.").
 
 | Tipo de projeto | Padrões marcados | Sugerido quando |
 |---|---|---|
@@ -111,11 +114,15 @@ Cada padrão que já está na pasta mostra um selo:
 | **desatualizado** | Gerado por uma versão anterior do Perci: Aplicar atualiza |
 | **editado** | Editado à mão: Aplicar substitui, guardando um `.perci-bak` |
 
+### Contextos personalizados
+
+Quando há [contextos personalizados](#contextos-personalizados-1), uma seção **Contextos Personalizados** os lista abaixo dos padrões. Eles são marcados como qualquer padrão; um tipo de projeto não os altera.
+
 ### Registrar um contexto existente
 
-Uma pasta cujos arquivos já têm um contexto gerado pelo Perci, mas que não está em **Gerenciar Contextos**, mostra **Contexto não registrado** com os padrões e agentes encontrados. Informe o nome e clique em **Registrar**: a pasta entra na lista e nenhum arquivo é alterado.
+Uma pasta cujos arquivos já têm um contexto gerado pelo Perci, mas que não está em **Contextos aplicados**, mostra **Contexto não registrado** com os padrões e agentes encontrados. Informe o nome e clique em **Registrar**: a pasta entra na lista e nenhum arquivo é alterado.
 
-## Gerenciar Contextos
+### Contextos aplicados
 
 A tabela lista as pastas registradas com **Nome**, **Pasta**, **Padrões**, **Agentes** e **Estado**.
 
@@ -132,25 +139,51 @@ Um selo **seleção diferente** indica que os arquivos da pasta têm outros padr
 |---|---|
 | **Atualizar** | Regera os padrões e agentes registrados, depois de uma confirmação com as mudanças; arquivos editados são substituídos, guardando um `.perci-bak` |
 | **Atualizar todos** | O mesmo para todas as pastas desatualizadas ou editadas; uma pasta que não existe é pulada |
-| **Alterar** | Abre a pasta em **Configurar Projeto** com o nome, os agentes e os padrões registrados |
+| **Alterar** | Abre a pasta na aba **Aplicar contexto** com o nome, os agentes e os padrões registrados |
 | **Remover** | Remove os arquivos do Perci ainda não editados e tira a pasta da lista; arquivos editados e o `.instructions/PROJECT.md` ficam. Uma pasta que não existe só sai da lista |
 
 **Atualizar** e **Alterar** ficam desligados para uma pasta pendente.
 
+## Gerenciar Contextos
+
+### Contextos do Perci82
+
+Lista os padrões que o Perci82 Dev traz, com o que cada um cobre. **Visualizar** abre o texto do padrão como o Perci82 Dev o grava (marcadores como a versão do Moodle só são preenchidos ao aplicar). Esses contextos não podem ser editados.
+
+### Contextos personalizados
+
+Contextos com as suas próprias regras. **Adicionar novo contexto** abre um formulário com:
+
+| Campo | O que é |
+|---|---|
+| **Nome** | Até 80 caracteres, único entre os seus contextos personalizados (sem diferenciar maiúsculas) |
+| **Quando usar** | Opcional, até 300 caracteres: a frase com que o `AGENTS.md` lista o contexto, para os agentes saberem antes de quais tarefas lê-lo. Sem ela, a linha diz `Custom context "<nome>"` |
+| **Conteúdo** | As regras, em Markdown, até 256 KiB |
+
+Cada contexto personalizado tem **Visualizar**, **Editar** e **Apagar**. Eles ficam em `~/.perci/user-contexts/`, um arquivo `<id>.md` cada (o ID vem do primeiro nome e nunca muda, então renomear um contexto o mantém nos projetos que o usam). Desinstalar o Perci82 Dev mantém essa pasta.
+
+Num projeto, o contexto personalizado é gravado em `.instructions/CUSTOM-<ID>.md`. Para o Claude Code ele também vira uma regra em `.claude/rules/perci/` sem filtro de arquivos, então é carregado em toda sessão. A primeira linha do arquivo traz uma assinatura SHA-256 do restante:
+
+- Depois de **Editar** um contexto, os projetos que o usam aparecem como **desatualizado**; **Atualizar** em **Contextos aplicados** grava o novo texto.
+- Uma cópia alterada à mão no projeto não confere com a assinatura e aparece como **editado**.
+- **Apagar** é recusado enquanto uma pasta registrada usa o contexto; a mensagem cita essas pastas. Desmarque o contexto nelas, ou remova-as de **Contextos aplicados**, antes.
+
 ## Exportar/Importar
 
-**Exportar** grava as pastas marcadas, com nomes, padrões e agentes, num arquivo YAML (`perci-contextos-ia.yaml` por padrão) legível só por você. Uma pasta dentro do workspace (`workspace_path`, ou `~/workspace` quando não definido) é gravada com o caminho relativo a ele; as demais mantêm o caminho absoluto.
+A tela tem duas abas, **Exportar** e **Importar**.
+
+**Exportar** grava as pastas marcadas, com nomes, padrões e agentes, num arquivo YAML (`perci-contextos-ia.yaml` por padrão) legível só por você; `.yaml` é acrescentado quando o nome digitado não termina em `.yaml` nem `.yml`. O arquivo também leva o texto dos contextos personalizados que essas pastas usam. Uma pasta dentro do workspace (`workspace_path`, ou `~/workspace` quando não definido) é gravada com o caminho relativo a ele; as demais mantêm o caminho absoluto.
 
 **Importar** lê esse arquivo (**Selecionar arquivo**) e lista cada pasta:
 
 | Rótulo | Significado |
 |---|---|
 | **recebe o contexto** | A pasta existe aqui: o contexto é gerado e ela é registrada |
-| **pendente: a pasta não existe** | Ela é registrada como pendente em **Gerenciar Contextos** |
+| **pendente: a pasta não existe** | Ela é registrada como pendente em **Contextos aplicados** |
 | **já registrada aqui** | Mantida como está |
 | **indisponível** | Não pode ser importada; o motivo é mostrado |
 
-Caminhos relativos vão para o workspace desta máquina. Cada pasta recebe um nome nesta máquina (**Nome nesta máquina**), único aqui e na importação, e **Trocar pasta** escolhe outra pasta para ela. Padrões e agentes que esta versão não conhece ficam de fora e são listados. Uma pasta do arquivo que é a sua pasta pessoal, uma pasta acima dela ou uma pasta oculta dela (como `~/.claude`), ou uma pasta relativa que sai do workspace por um link, fica indisponível até você escolhê-la com **Trocar pasta**.
+Caminhos relativos vão para o workspace desta máquina. Cada pasta recebe um nome nesta máquina (**Nome nesta máquina**), único aqui e na importação, e **Trocar pasta** escolhe outra pasta para ela. Padrões e agentes que esta versão não conhece ficam de fora e são listados. Os contextos personalizados que o arquivo traz são criados aqui quando as pastas importadas os usam; um que já existe aqui (mesmo ID) é mantido como está, com um aviso quando o texto difere do arquivo. Uma pasta do arquivo que é a sua pasta pessoal, uma pasta acima dela ou uma pasta oculta dela (como `~/.claude`), ou uma pasta relativa que sai do workspace por um link, fica indisponível até você escolhê-la com **Trocar pasta**.
 
 ## Anotações de projeto
 
@@ -169,7 +202,7 @@ A pasta é criada ao **Aplicar** ou **Atualizar**. O `AGENTS.md` ganha uma seç�
 - As regras do `.instructions/PROJECT.md` entram no `PROJECT.md` das anotações (sob um título "Moved from …" quando ele já existe), e o arquivo antigo é renomeado para `.instructions/PROJECT.md.perci-bak`; um modelo intocado é apagado.
 - Regras escritas à mão no `AGENTS.md` também passam para lá.
 
-Sem a configuração, nada muda: cada projeto mantém as regras no `.instructions/PROJECT.md`, e regras escritas à mão no `AGENTS.md` passam para ele. Depois de mudar a pasta de anotações, use **Atualizar** em **Gerenciar Contextos**.
+Sem a configuração, nada muda: cada projeto mantém as regras no `.instructions/PROJECT.md`, e regras escritas à mão no `AGENTS.md` passam para ele. Depois de mudar a pasta de anotações, use **Atualizar** em **Contextos aplicados**.
 
 ## Acessos dos agentes
 

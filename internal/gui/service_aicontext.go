@@ -45,24 +45,26 @@ func (t *DevToolsService) PickAIContextFolder() (string, error) {
 }
 
 // AIContextItem is one standard of "Dev Tools :: IA: Contextos": Base is
-// the standard it complements ("" for a base), Status its state in the
-// folder ("", "applied", "outdated" or "edited", see managerai.GuideStatus).
+// the standard it complements ("" for a base), Custom marks a context the
+// user wrote, Status its state in the folder ("", "applied", "outdated" or
+// "edited", see managerai.GuideStatus).
 type AIContextItem struct {
 	ID          string `json:"id"`
 	Label       string `json:"label"`
 	Description string `json:"description"`
 	Base        string `json:"base"`
+	Custom      bool   `json:"custom"`
 	Status      string `json:"status"`
 }
 
-// GetAIContextItems lists every standard of the catalog, in catalog order,
-// with its state in folder.
+// GetAIContextItems lists every standard of the catalog, then the custom
+// contexts, with its state in folder.
 func (t *DevToolsService) GetAIContextItems(folder string) []AIContextItem {
 	known := requireKnownFolder(folder) == nil
-	all := managerai.Models()
+	all := managerai.Catalog()
 	items := make([]AIContextItem, len(all))
 	for i, m := range all {
-		items[i] = AIContextItem{ID: m.Name, Label: managerai.ModelLabel(m.Name), Description: m.DescriptionText(), Base: m.Requires}
+		items[i] = AIContextItem{ID: m.Name, Label: managerai.ModelLabel(m.Name), Description: m.DescriptionText(), Base: m.Requires, Custom: m.Custom}
 		if known {
 			items[i].Status = managerai.GuideStatus(folder, m)
 		}
@@ -106,7 +108,7 @@ func (t *DevToolsService) PreviewAIContext(folder string, selectedNames, agentID
 // selectedModels returns the catalog models named by names, in catalog
 // order.
 func selectedModels(names []string) []managerai.Model {
-	all := managerai.Models()
+	all := managerai.Catalog()
 	active := make([]managerai.Model, 0, len(all))
 	for _, m := range all {
 		if slices.Contains(names, m.Name) {
@@ -432,11 +434,11 @@ func (t *DevToolsService) RemoveAIContext(path string) error {
 // PickAIContextExportPath opens the native "Salvar Como" dialog for the
 // AI contexts export file.
 func (t *DevToolsService) PickAIContextExportPath() (string, error) {
-	return approvePath(t.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+	return approvePath(withYAMLExt(t.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
 		Title:    i18n.Tr("aic.dialog.exportFile", nil),
 		Filename: i18n.Tr("aic.dialog.exportName", nil),
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
-	}).PromptForSingleSelection())
+	}).PromptForSingleSelection()))
 }
 
 // aicWorkspace is the workspace folder relative paths of the export file
@@ -501,11 +503,13 @@ func pickPaths(picks []managerai.ImportPick) []string {
 }
 
 // AIContextImportPreview is the Importar checklist: each folder of the
-// file checked against this machine, and the names registered here (a
-// picked name must not be one of them).
+// file checked against this machine, the names registered here (a picked
+// name must not be one of them) and the label of each custom context the
+// file carries, by its standard name.
 type AIContextImportPreview struct {
-	Items []managerai.ImportContext `json:"items"`
-	Taken []string                  `json:"taken"`
+	Items  []managerai.ImportContext `json:"items"`
+	Taken  []string                  `json:"taken"`
+	Labels map[string]string         `json:"labels"`
 }
 
 // PreviewAIContextImport reads the export file at path and checks each of
@@ -533,7 +537,11 @@ func (t *DevToolsService) PreviewAIContextImport(path string, paths map[string]s
 	for i, c := range cfg.AIContexts {
 		taken[i] = c.Name
 	}
-	return AIContextImportPreview{Items: managerai.PlanImport(file, cfg.AIContexts, ws, paths), Taken: taken}, nil
+	labels := map[string]string{}
+	for _, c := range file.Custom {
+		labels[managerai.CustomModelName(c.ID)] = c.Name
+	}
+	return AIContextImportPreview{Items: managerai.PlanImport(file, cfg.AIContexts, ws, paths), Taken: taken, Labels: labels}, nil
 }
 
 // PreviewAIContextImportChanges tells, for each pick of the export file
@@ -586,4 +594,34 @@ func (t *DevToolsService) ImportAIContexts(path string, picks []managerai.Import
 	return t.runAction(func(stdout io.Writer) error {
 		return managerai.Import(stdout, file, picks, ws)
 	})
+}
+
+// GetAIContextStandardText returns the text of the Perci82 standard name,
+// as its template holds it, for the read-only view of "Gerenciar
+// Contextos".
+func (t *DevToolsService) GetAIContextStandardText(name string) (string, error) {
+	return managerai.StandardText(name)
+}
+
+// GetCustomContexts lists the user's custom contexts, ordered by name.
+func (t *DevToolsService) GetCustomContexts() ([]managerai.CustomContext, error) {
+	return managerai.CustomContexts()
+}
+
+// SaveCustomContext creates (empty ID) or replaces a custom context and
+// returns it as saved.
+func (t *DevToolsService) SaveCustomContext(c managerai.CustomContext) (managerai.CustomContext, error) {
+	var saved managerai.CustomContext
+	err := runExclusive(func() error {
+		var err error
+		saved, err = managerai.SaveCustomContext(c)
+		return err
+	})
+	return saved, err
+}
+
+// DeleteCustomContext removes a custom context no registered context
+// uses.
+func (t *DevToolsService) DeleteCustomContext(id string) error {
+	return runExclusive(func() error { return managerai.DeleteCustomContext(id) })
 }

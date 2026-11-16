@@ -48,7 +48,7 @@ function buildPostinstallRow(act, applied, labels) {
   }
 
   const btn = document.createElement("button");
-  btn.className = "btn btn-sm btn-primary shrink-0";
+  btn.className = "btn btn-sm btn-primary shrink-0 mr-4";
   btn.id = "pi-apply-" + act.id;
   const blocked = !!act.dependsOn && !applied[act.dependsOn];
   if (applied[act.id]) {

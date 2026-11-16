@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/oito2/perci82/internal/fsutil"
@@ -56,6 +57,21 @@ type Model struct {
 	// it as a rule that loads only when it works on a matching file. Empty
 	// for a standard tied to a kind of task rather than to file types.
 	Paths []string
+	// Custom marks a context the user wrote (CustomContext); content holds
+	// its text, without the signed first line Perci adds when writing it.
+	Custom  bool
+	label   string
+	content string
+}
+
+// source is the standard's text as Perci writes it, before any
+// placeholder is filled: the embedded template, or the signed text of a
+// custom context.
+func (m Model) source() (string, error) {
+	if m.Custom {
+		return signCustom(m.content), nil
+	}
+	return readTpl(m.Instruction)
 }
 
 // docsBase is the base documentation standard every "Documentação: *"
@@ -192,12 +208,23 @@ func ModelLabel(name string) string {
 	if key, ok := modelLabelKeys[name]; ok {
 		return i18n.Tr(key, nil)
 	}
+	if IsCustom(name) {
+		for _, m := range customModels() {
+			if m.Name == name {
+				return m.label
+			}
+		}
+		return strings.TrimPrefix(name, customPrefix)
+	}
 	return name
 }
 
 // DescriptionText returns what the standard covers, in the current
 // language.
 func (m Model) DescriptionText() string {
+	if m.Custom {
+		return m.Description
+	}
 	return i18n.Tr(m.Description, nil)
 }
 
@@ -253,7 +280,7 @@ func withRequired(active []Model) (resolved []Model, added []string) {
 	if len(added) == 0 {
 		return active, nil
 	}
-	for _, m := range models {
+	for _, m := range catalog() {
 		if selected[m.Name] {
 			resolved = append(resolved, m)
 		}
@@ -266,14 +293,27 @@ func Models() []Model {
 	return models
 }
 
+// catalog is Models followed by the user's custom contexts
+// (customModels), in that order.
+func catalog() []Model {
+	return append(slices.Clone(models), customModels()...)
+}
+
+// Catalog returns every standard a context can use: Models followed by
+// the user's custom contexts.
+func Catalog() []Model {
+	return catalog()
+}
+
 // DetectActiveModels checks the .instructions/ directory under dir and
 // returns which models already have their instruction file present. dir
 // is the folder the user picked (empty means the process's current
 // directory — same convention as internal/manager/repo and
 // internal/manager/gitignore).
 func DetectActiveModels(dir string) map[string]bool {
-	present := make(map[string]bool, len(models))
-	for _, m := range models {
+	all := catalog()
+	present := make(map[string]bool, len(all))
+	for _, m := range all {
 		for _, name := range append([]string{filepath.Base(m.Instruction)}, m.Legacy...) {
 			if _, err := os.Stat(filepath.Join(dir, ".instructions", name)); err == nil {
 				present[m.Name] = true
@@ -458,7 +498,7 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 		if err := WriteInstruction(dir, m, overwrite, stdout, vars); err != nil {
 			return err
 		}
-		content, err := readTpl(m.Instruction)
+		content, err := m.source()
 		if err != nil {
 			return err
 		}
@@ -487,7 +527,7 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 	for _, m := range active {
 		activeNow[m.Name] = true
 	}
-	for _, m := range models {
+	for _, m := range catalog() {
 		if !detected[m.Name] || activeNow[m.Name] {
 			continue
 		}
@@ -684,7 +724,7 @@ func WriteInstruction(dir string, model Model, overwrite bool, stdout io.Writer,
 		return err
 	}
 	dest := filepath.Join(instrDir, filepath.Base(model.Instruction))
-	content, err := readTpl(model.Instruction)
+	content, err := model.source()
 	if err != nil {
 		return err
 	}
@@ -730,12 +770,15 @@ func isPristine(dir string, model Model) bool {
 	if err != nil {
 		return false
 	}
-	tpl, err := readTpl(model.Instruction)
+	tpl, err := model.source()
 	if err != nil {
 		return false
 	}
 	if string(got) == tpl {
 		return true
+	}
+	if model.Custom {
+		return customSignedUnedited(string(got))
 	}
 	if model.Name == "Moodle" {
 		vars, _ := moodleVarsFor(dir)
@@ -768,7 +811,7 @@ func substitute(content string, vars map[string]string) string {
 // renderInstruction is model's standard as Perci writes it for dir: for
 // MOODLE.md, with the placeholders filled (moodleVarsFor).
 func renderInstruction(dir string, model Model) (string, error) {
-	content, err := readTpl(model.Instruction)
+	content, err := model.source()
 	if err != nil {
 		return "", err
 	}

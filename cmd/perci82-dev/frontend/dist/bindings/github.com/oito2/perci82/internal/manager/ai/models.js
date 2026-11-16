@@ -7,6 +7,60 @@
 import { Create as $Create } from "/wails/runtime.js";
 
 /**
+ * CustomContext is a context the user wrote: ID names its file and never
+ * changes, Name is how the screens show it, AppliesTo the optional
+ * sentence AGENTS.md lists it with, Content its text.
+ */
+export class CustomContext {
+    /**
+     * Creates a new CustomContext instance.
+     * @param {Partial<CustomContext>} [$$source = {}] - The source object to create the CustomContext.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("appliesTo" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["appliesTo"] = "";
+        }
+        if (!("content" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["content"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CustomContext instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CustomContext}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CustomContext(/** @type {Partial<CustomContext>} */($$parsedSource));
+    }
+}
+
+/**
  * ImportContext is one folder of an export file checked against this
  * machine: Path is its folder here, Models and Agents the ones this
  * version knows, Unknown the standards and agents it does not (left out),

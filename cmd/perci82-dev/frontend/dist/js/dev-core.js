@@ -95,7 +95,6 @@ const asScopeAlertDesc = document.getElementById("as-scope-alert-desc");
 const btnAsPickFolder = document.getElementById("btn-as-pick-folder");
 const asRows = document.getElementById("as-rows");
 const asSkillsShLink = document.getElementById("as-skills-sh-link");
-const aicontextContainer = document.getElementById("aicontext-container");
 const aicAlertTitle = document.getElementById("aic-alert-title");
 const aicAlertDesc = document.getElementById("aic-alert-desc");
 const btnAicPickFolder = document.getElementById("btn-aic-pick-folder");

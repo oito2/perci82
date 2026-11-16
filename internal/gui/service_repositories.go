@@ -735,11 +735,11 @@ func (s *RepositoriesService) GetGitRepoExportItems(ctx context.Context) (RepoEx
 // PickGitRepoExportPath opens the native "Salvar Como" dialog for the
 // repositories export file.
 func (s *RepositoriesService) PickGitRepoExportPath() (string, error) {
-	return approvePath(s.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+	return approvePath(withYAMLExt(s.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
 		Title:    i18n.Tr("git.dialog.export", nil),
 		Filename: "perci-repositorios.yaml",
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
-	}).PromptForSingleSelection())
+	}).PromptForSingleSelection()))
 }
 
 // ExportGitRepos writes the picked accounts and repositories to path (only

@@ -75,3 +75,33 @@ func TestSaveTextFile_OnlyApprovedPathsAndMode0600(t *testing.T) {
 		t.Errorf("mode = %o, want 600 even over an existing 0644 file", got)
 	}
 }
+
+func TestWithYAMLExt(t *testing.T) {
+	boom := errors.New("boom")
+	tests := []struct {
+		name string
+		path string
+		err  error
+		want string
+	}{
+		{"no extension", "/tmp/export", nil, "/tmp/export.yaml"},
+		{"yaml kept", "/tmp/export.yaml", nil, "/tmp/export.yaml"},
+		{"yml kept", "/tmp/export.yml", nil, "/tmp/export.yml"},
+		{"upper case kept", "/tmp/export.YAML", nil, "/tmp/export.YAML"},
+		{"other extension", "/tmp/export.txt", nil, "/tmp/export.txt.yaml"},
+		{"dotted name", "/tmp/my.backup", nil, "/tmp/my.backup.yaml"},
+		{"cancelled", "", nil, ""},
+		{"dialog error", "/tmp/export", boom, "/tmp/export"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := withYAMLExt(tc.path, tc.err)
+			if !errors.Is(err, tc.err) {
+				t.Fatalf("err = %v, want %v", err, tc.err)
+			}
+			if got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

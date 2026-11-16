@@ -36,7 +36,7 @@ A pasta que guarda os arquivos dos apps do [Docker](docker.md) (`<workspace>/loc
 
 Uma pasta fora dos repositórios com uma subpasta por projeto que tem contexto de IA: `PROJECT.md` (as regras do projeto), `notes/`, `plans/` e `references/`. Os agentes de programação recebem acesso a ela quando um contexto é aplicado ou atualizado. Veja [Contextos de IA](ai-contexts.md).
 
-**Selecionar pasta** salva a pasta na hora (só uma pasta escolhida nessa janela, não uma escolhida para outra configuração); **Desativar** a remove, e cada projeto volta a guardar as regras no próprio `.instructions/PROJECT.md`. Depois de mudar esta pasta, use **Atualizar** em **Contextos de IA → Gerenciar Contextos**.
+**Selecionar pasta** salva a pasta na hora (só uma pasta escolhida nessa janela, não uma escolhida para outra configuração); **Desativar** a remove, e cada projeto volta a guardar as regras no próprio `.instructions/PROJECT.md`. Depois de mudar esta pasta, use **Atualizar** em **Contextos de IA → Aplicar Contexto → Contextos aplicados**.
 
 ## Bandeja do sistema
 

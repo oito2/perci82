@@ -54,6 +54,12 @@ func GuideStatus(dir string, model Model) string {
 	if model.Name == phpPerciName && signedUnedited(string(data)) {
 		return StatusOutdated
 	}
+	if model.Custom {
+		if customSignedUnedited(string(data)) {
+			return StatusOutdated
+		}
+		return StatusEdited
+	}
 	sum := sha256.Sum256(data)
 	if slices.Contains(templateHistory[filepath.Base(model.Instruction)], hex.EncodeToString(sum[:])) {
 		return StatusOutdated

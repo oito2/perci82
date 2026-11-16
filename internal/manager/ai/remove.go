@@ -66,7 +66,7 @@ func removeContext(dir, gitDir string, stdout io.Writer) error {
 		}
 	}
 
-	for _, m := range models {
+	for _, m := range catalog() {
 		switch GuideStatus(dir, m) {
 		case StatusApplied, StatusOutdated:
 			RemoveInstruction(dir, m, stdout)

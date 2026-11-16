@@ -615,11 +615,11 @@ func (s *DockerService) GetExportItems() (TransferItems, error) {
 // PickExportConfigPath opens the native "Salvar Como" dialog for
 // "Exportar" — folder AND filename in a single window.
 func (s *DockerService) PickExportConfigPath() (string, error) {
-	return approvePath(s.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
+	return approvePath(withYAMLExt(s.wailsApp.Dialog.SaveFileWithOptions(&application.SaveFileDialogOptions{
 		Title:    i18n.Tr("docker.dialog.exportConfig", nil),
 		Filename: "perci-export.yaml",
 		Filters:  []application.FileFilter{{DisplayName: "YAML (*.yaml)", Pattern: "*.yaml;*.yml"}},
-	}).PromptForSingleSelection())
+	}).PromptForSingleSelection()))
 }
 
 // ExportDockerConfig writes the selected items to path (only a path chosen

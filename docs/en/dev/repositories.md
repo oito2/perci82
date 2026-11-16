@@ -4,7 +4,7 @@
 
 # Repositories
 
-Git accounts and their repositories. Each account owns a folder: every repository inside it, in any subfolder, uses the account's commit name, e-mail and SSH key — in the terminal too. The side list has **Set Up Account**, **Manage Repositories** and, under **Accounts**, one item per registered account.
+Git accounts and their repositories. Each account owns a folder: every repository inside it, in any subfolder, uses the account's commit name, e-mail and SSH key — in the terminal too. The side list has **Set Up Account**, **Export/Import** and, under **Accounts**, one item per registered account.
 
 ![Repositories](../../img/dev-repositories.png)
 <!-- TODO: capture a screenshot of an account in Repositories -->
@@ -149,9 +149,9 @@ Each row offers **Create**, **Update** or **Remove** by its state. **Update** re
 
 ### Pending repositories
 
-Repositories imported in **Manage Repositories** and not cloned yet show under **Pending**. Add the account's public key on the server and use **Test connection** first. **Clone pending** tests the connection and clones them into their folders; **Discard** takes one off the list without deleting anything.
+Repositories imported in **Export/Import** and not cloned yet show under **Pending**. Add the account's public key on the server and use **Test connection** first. **Clone pending** tests the connection and clones them into their folders; **Discard** takes one off the list without deleting anything.
 
-## Manage Repositories
+## Export/Import
 
 Moves accounts and repositories to another machine through a YAML file. This file is separate from Docker's export.
 
@@ -159,7 +159,7 @@ Moves accounts and repositories to another machine through a YAML file. This fil
 
 The **Export** tab lists each account with its repositories to check. The file keeps each account's name, provider, host, SSH port, user, commit identity, folder and contact e-mails, and for each repository its folder and SSH URL. SSH keys, tokens and the repositories' files are not exported. Repositories without a remote are left out (there is nowhere to clone them from); pending repositories are included.
 
-**Export…** asks where to save (default name `perci-repositorios.yaml`); the file is readable only by you. It is written as format version 2 when it holds a contact e-mail, otherwise as version 1.
+**Export…** asks where to save (default name `perci-repositorios.yaml`; `.yaml` is added when the name you type has no `.yaml` or `.yml` extension); the file is readable only by you. It is written as format version 2 when it holds a contact e-mail, otherwise as version 1.
 
 ```yaml
 version: 2

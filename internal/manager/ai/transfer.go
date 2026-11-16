@@ -42,11 +42,12 @@ const (
 )
 
 // TransferFile is the AI contexts export file: the registered folders
-// with their standards and agents.
+// with their standards and agents, and the custom contexts they use.
 type TransferFile struct {
 	Kind     string            `yaml:"kind" json:"kind"`
 	Version  int               `yaml:"version" json:"version"`
 	Contexts []TransferContext `yaml:"contexts" json:"contexts"`
+	Custom   []CustomContext   `yaml:"custom_contexts,omitempty" json:"custom"`
 }
 
 // TransferContext is one folder of a TransferFile. With Relative, Path is
@@ -77,7 +78,21 @@ func Exportable(contexts []config.AIContext, workspace string) TransferFile {
 		}
 		f.Contexts = append(f.Contexts, t)
 	}
+	f.Custom = usedCustom(f.Contexts)
 	return f
+}
+
+// usedCustom returns the custom contexts of this machine that contexts
+// use, ordered by name.
+func usedCustom(contexts []TransferContext) []CustomContext {
+	list, _ := CustomContexts()
+	var out []CustomContext
+	for _, c := range list {
+		if slices.ContainsFunc(contexts, func(t TransferContext) bool { return slices.Contains(t.Models, CustomModelName(c.ID)) }) {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // WriteTransfer writes f to path as YAML, atomically, readable only by the
@@ -146,7 +161,43 @@ func (f TransferFile) Validate() error {
 		}
 		seen = append(seen, config.AIContext{Name: name, Path: t.Path})
 	}
+	var ids []string
+	for _, c := range f.Custom {
+		if !validCustomID(c.ID) || slices.Contains(ids, c.ID) {
+			return fmt.Errorf("custom context %q: invalid or repeated id %q", c.Name, c.ID)
+		}
+		if n := c.normalize(); n != c {
+			return fmt.Errorf("custom context %q: not in normal form", c.Name)
+		}
+		if err := c.check(); err != nil {
+			return fmt.Errorf("custom context %q: %w", c.Name, err)
+		}
+		ids = append(ids, c.ID)
+	}
 	return nil
+}
+
+// fileModels is the catalog plus the custom contexts of f this machine
+// does not have yet: the standards an import of f can use.
+func (f TransferFile) fileModels() []Model {
+	all := catalog()
+	for _, c := range f.Custom {
+		if !slices.ContainsFunc(all, func(m Model) bool { return m.Name == CustomModelName(c.ID) }) {
+			all = append(all, c.model())
+		}
+	}
+	return all
+}
+
+// modelsIn returns the standards of all named by names, in all's order.
+func modelsIn(all []Model, names []string) []Model {
+	var out []Model
+	for _, m := range all {
+		if slices.Contains(names, m.Name) {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // checkTransferPath requires a clean path: relative, below the workspace
@@ -204,11 +255,11 @@ type ImportPick struct {
 }
 
 // knownSelection splits t's standards and agents into the ones this
-// version knows and the ones it does not.
-func knownSelection(t TransferContext) (ms, ids, unknown []string) {
+// version knows (all) and the ones it does not.
+func knownSelection(t TransferContext, all []Model) (ms, ids, unknown []string) {
 	ms, unknown = []string{}, []string{}
 	for _, name := range t.Models {
-		if slices.ContainsFunc(models, func(m Model) bool { return m.Name == name }) {
+		if slices.ContainsFunc(all, func(m Model) bool { return m.Name == name }) {
 			ms = append(ms, name)
 		} else {
 			unknown = append(unknown, name)
@@ -226,9 +277,9 @@ func knownSelection(t TransferContext) (ms, ids, unknown []string) {
 }
 
 // planOne checks t, to be placed at path, against the registered
-// contexts.
-func planOne(t TransferContext, path string, contexts []config.AIContext) ImportContext {
-	ms, ids, unknown := knownSelection(t)
+// contexts; all holds the standards the import can use.
+func planOne(t TransferContext, path string, contexts []config.AIContext, all []Model) ImportContext {
+	ms, ids, unknown := knownSelection(t, all)
 	ic := ImportContext{Name: t.Name, Path: path, Models: ms, Agents: ids, Unknown: unknown}
 	switch {
 	case len(ids) == 0:
@@ -310,13 +361,14 @@ func resolveExisting(path string) string {
 // and relative paths placed under workspace — without applying anything.
 func PlanImport(f TransferFile, contexts []config.AIContext, workspace string, paths map[string]string) []ImportContext {
 	out := make([]ImportContext, len(f.Contexts))
+	all := f.fileModels()
 	for i, t := range f.Contexts {
 		path := t.resolvePath(workspace)
 		picked := false
 		if p := paths[t.Name]; p != "" {
 			path, picked = filepath.Clean(p), true
 		}
-		out[i] = planOne(t, path, contexts)
+		out[i] = planOne(t, path, contexts, all)
 		if !picked {
 			checkFileFolder(&out[i], t, workspace)
 		}
@@ -339,6 +391,7 @@ func planPicks(f TransferFile, picks []ImportPick, contexts []config.AIContext, 
 		return nil, i18n.NewError("aic.noneSelected")
 	}
 	taken := slices.Clone(contexts)
+	all := f.fileModels()
 	var steps []importStep
 	for _, p := range picks {
 		i := slices.IndexFunc(f.Contexts, func(t TransferContext) bool { return t.Name == p.Source })
@@ -356,7 +409,7 @@ func planPicks(f TransferFile, picks []ImportPick, contexts []config.AIContext, 
 			}
 			path = filepath.Clean(p.Path)
 		}
-		plan := planOne(t, path, contexts)
+		plan := planOne(t, path, contexts, all)
 		if p.Path == "" {
 			checkFileFolder(&plan, t, workspace)
 		}
@@ -397,7 +450,7 @@ func PreviewImport(f TransferFile, picks []ImportPick, contexts []config.AIConte
 		plans[i].Name = s.name
 		changes[i] = []Change{}
 		if s.plan.State == ImportApply {
-			if changes[i], err = Preview(s.plan.Path, ModelsNamed(s.plan.Models), s.plan.Agents); err != nil {
+			if changes[i], err = Preview(s.plan.Path, modelsIn(f.fileModels(), s.plan.Models), s.plan.Agents); err != nil {
 				return nil, nil, fmt.Errorf("%s: %w", s.name, err)
 			}
 		}
@@ -418,6 +471,9 @@ func Import(stdout io.Writer, f TransferFile, picks []ImportPick, workspace stri
 	}
 	steps, err := planPicks(f, picks, cfg.AIContexts, workspace)
 	if err != nil {
+		return err
+	}
+	if err := importCustom(stdout, f, steps); err != nil {
 		return err
 	}
 	failed := false
@@ -442,6 +498,37 @@ func Import(stdout io.Writer, f TransferFile, picks []ImportPick, workspace stri
 	}
 	if failed {
 		return executor.ErrCompletedWithWarnings
+	}
+	return nil
+}
+
+// importCustom creates the custom contexts of f that the picked folders
+// use and this machine does not have; one it already has (same ID) is
+// kept as it is, with a warning when its text differs from the file's.
+func importCustom(stdout io.Writer, f TransferFile, steps []importStep) error {
+	local, err := CustomContexts()
+	if err != nil {
+		return err
+	}
+	for _, c := range f.Custom {
+		if !slices.ContainsFunc(steps, func(s importStep) bool { return slices.Contains(s.plan.Models, CustomModelName(c.ID)) }) {
+			continue
+		}
+		i := slices.IndexFunc(local, func(o CustomContext) bool { return o.ID == c.ID })
+		if i >= 0 {
+			if local[i] != c {
+				ui.Warning(stdout, i18n.Tr("aic.run.customKept", i18n.Args{"name": local[i].Name}))
+			}
+			continue
+		}
+		if slices.ContainsFunc(local, func(o CustomContext) bool { return strings.EqualFold(o.Name, c.Name) }) {
+			c.Name += " (" + c.ID + ")"
+		}
+		if err := writeCustom(c); err != nil {
+			return err
+		}
+		local = append(local, c)
+		ui.Info(stdout, i18n.Tr("aic.run.customCreated", i18n.Args{"name": c.Name}))
 	}
 	return nil
 }

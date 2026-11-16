@@ -20,13 +20,34 @@
 "use strict";
 
 // ===========================================================================
-// "Contextos de IA": Gerenciar Contextos (the registered folders,
-// #aicontext-container), Configurar Projeto (#aicdefine-container) and
-// Exportar/Importar (#aictransfer-container).
+// "Contextos de IA": Aplicar Contexto (#aicdefine-container, plus the
+// "Contextos aplicados" tab with the registered folders), Gerenciar
+// Contextos (#aiclibrary-container, plus the "Contextos personalizados"
+// tab) and Exportar/Importar (#aictransfer-container, plus the "Importar"
+// tab).
 // ===========================================================================
 
 const aicdefineContainer = document.getElementById("aicdefine-container");
+const aiclibraryContainer = document.getElementById("aiclibrary-container");
 const aictransferContainer = document.getElementById("aictransfer-container");
+const tabLabelAicApplied = document.getElementById("tab-label-aic-applied");
+const tabLabelAicCustom = document.getElementById("tab-label-aic-custom");
+const tabLabelAicImport = document.getElementById("tab-label-aic-import");
+const aicCustomSection = document.getElementById("aic-custom-section");
+const aicCustomItems = document.getElementById("aic-custom-items");
+const aicLibRows = document.getElementById("aic-lib-rows");
+const aicCustomRows = document.getElementById("aic-custom-rows");
+const aicCustomEmpty = document.getElementById("aic-custom-empty");
+const btnAicCustomAdd = document.getElementById("btn-aic-custom-add");
+const aicViewModal = document.getElementById("aic-view-modal");
+const aicViewTitle = document.getElementById("aic-view-title");
+const aicViewContent = document.getElementById("aic-view-content");
+const aicCustomModal = document.getElementById("aic-custom-modal");
+const aicCustomTitle = document.getElementById("aic-custom-title");
+const aicCustomName = document.getElementById("aic-custom-name");
+const aicCustomApplies = document.getElementById("aic-custom-applies");
+const aicCustomContent = document.getElementById("aic-custom-content");
+const btnAicCustomSave = document.getElementById("btn-aic-custom-save");
 const aicRowsEl = document.getElementById("aic-rows");
 const aicEmpty = document.getElementById("aic-empty");
 const btnAicUpdateAll = document.getElementById("btn-aic-update-all");
@@ -114,7 +135,7 @@ function aicFolderChangesText(previews, edited, pendingText) {
 }
 
 // ===========================================================================
-// "Contextos" tab.
+// "Contextos aplicados" tab.
 // ===========================================================================
 
 // AIC_ROW_STATE describes each folder state (managerai.ContextState).
@@ -152,11 +173,11 @@ function aicUpdate(paths) {
   }).catch(function (err) { openError(t("aic.previewFailed", { error: err })); });
 }
 
-// aicKeepFolder makes the next Configurar Projeto render keep aicFolder
+// aicKeepFolder makes the next Aplicar Contexto render keep aicFolder
 // (set by Alterar) instead of starting without a folder.
 let aicKeepFolder = false;
 
-// aicEdit opens row's folder on Configurar Projeto.
+// aicEdit opens row's folder on the "Aplicar contexto" tab.
 function aicEdit(row) {
   aicFolder = row.path;
   aicKeepFolder = true;
@@ -235,7 +256,7 @@ function buildAicRow(row) {
   return tr;
 }
 
-// renderAicRows fills the "Contextos" table and the Exportar checklist
+// renderAicRows fills the "Contextos aplicados" table and the Exportar checklist
 // with rows (AIContextRow).
 function renderAicRows(rows) {
   aicContexts = rows || [];
@@ -258,7 +279,7 @@ btnAicUpdateAll.addEventListener("click", function () {
 });
 
 // ===========================================================================
-// "Definir Contexto" tab.
+// "Aplicar contexto" tab.
 // ===========================================================================
 
 function renderAicAlert() {
@@ -292,7 +313,7 @@ function setAicPresetHint(preset) {
   aicPresetHint.classList.toggle("hidden", !hint);
 }
 
-// renderAicPresetOptions fills the project type select: "Personalizado"
+// renderAicPresetOptions fills the project type select: "Customizado"
 // plus one option per preset.
 function renderAicPresetOptions() {
   aicPreset.innerHTML = "";
@@ -310,8 +331,8 @@ function renderAicPresetOptions() {
   setAicPresetHint(null);
 }
 
-App.GetAIContextPresets().then(function (presets) {
-  aicPresets = presets || [];
+Promise.all([App.GetAIContextPresets(), i18nReady]).then(function (res) {
+  aicPresets = res[0] || [];
   renderAicPresetOptions();
 }).catch(function () {
   aicPresets = [];
@@ -384,9 +405,11 @@ function aicSameSet(a, b) {
   return a.length === b.length && a.every(function (x) { return b.indexOf(x) >= 0; });
 }
 
-// resetAicDefine empties the "Definir Contexto" form.
+// resetAicDefine empties the "Aplicar contexto" form.
 function resetAicDefine() {
   aicItems.innerHTML = "";
+  aicCustomItems.innerHTML = "";
+  aicCustomSection.classList.add("hidden");
   aicAgents.innerHTML = "";
   btnAicApply.disabled = true;
   btnAicApply.onclick = null;
@@ -414,9 +437,10 @@ function renderAicItems() {
     .catch(function (err) { openError(t("aic.readFailed", { error: err })); });
 }
 
-// renderAicDefine fills the "Definir Contexto" form for folder: rec is its
+// renderAicDefine fills the "Aplicar contexto" form for folder: rec is its
 // record (a registered folder starts on its recorded name, agents and
-// standards), agents and items the agents and standards of the screen.
+// standards), agents and items the agents and standards of the screen;
+// custom contexts go to their own section, shown only when there is one.
 function renderAicDefine(folder, rec, agents, items) {
   aicName.disabled = false;
   aicName.value = rec.registered ? rec.name : "";
@@ -438,11 +462,13 @@ function renderAicDefine(folder, rec, agents, items) {
       // A complement needs its base.
       if (built.checkbox.checked && it.base && checkboxes[it.base]) checkboxes[it.base].checked = true;
       // A manual change no longer matches the chosen project type.
+      if (it.custom) return;
       aicPreset.value = "";
       setAicPresetHint(null);
     });
-    aicItems.appendChild(built.li);
+    (it.custom ? aicCustomItems : aicItems).appendChild(built.li);
   });
+  aicCustomSection.classList.toggle("hidden", !items.some(function (it) { return it.custom; }));
 
   aicPreset.disabled = aicPresets.length === 0;
   aicPreset.onchange = function () {
@@ -450,13 +476,13 @@ function renderAicDefine(folder, rec, agents, items) {
     setAicPresetHint(preset);
     if (!preset) return;
     items.forEach(function (it) {
-      checkboxes[it.id].checked = preset.models.indexOf(it.id) >= 0;
+      if (!it.custom) checkboxes[it.id].checked = preset.models.indexOf(it.id) >= 0;
     });
   };
 
   // A folder with no standard yet starts on the project type its files
   // point to.
-  if (!rec.registered && !items.some(function (it) { return it.status; })) {
+  if (!rec.registered && !items.some(function (it) { return it.status && !it.custom; })) {
     App.GetAIContextSuggestedPreset(folder).then(latestOnly("aicontext-suggest", function (name) {
       const preset = aicPresets.find(function (p) { return p.name === name; });
       if (!preset || folder !== aicFolder) return;
@@ -722,6 +748,10 @@ function resetAicImport() {
 function loadAicImport(path) {
   App.PreviewAIContextImport(path, aicImportPaths).then(latestOnly("aic-import", function (preview) {
     aicImportPreview = preview || { items: [], taken: [] };
+    // Custom contexts carried by the file and not on this machine yet.
+    Object.keys(aicImportPreview.labels || {}).forEach(function (id) {
+      if (!aicModelLabels[id]) aicModelLabels[id] = aicImportPreview.labels[id];
+    });
     aicImportFile = path;
     aicImportPathEl.textContent = path;
     aicImportPathEl.classList.remove("opacity-60");
@@ -759,18 +789,15 @@ btnAicImport.addEventListener("click", function () {
 
 // ===========================================================================
 
-// renderAIContextScreen shows Gerenciar Contextos.
-function renderAIContextScreen() {
-  loadAicRows();
-}
-
-// renderAicDefineScreen shows Configurar Projeto: without a folder, unless
-// Alterar just chose one.
+// renderAicDefineScreen shows Aplicar Contexto: the form without a
+// folder, unless Alterar just chose one, and the registered folders.
 function renderAicDefineScreen() {
   if (!aicKeepFolder) aicFolder = "";
   aicKeepFolder = false;
+  renderAicPresetOptions();
   renderAicAlert();
   renderAicItems();
+  loadAicRows();
 }
 
 // renderAicTransferScreen shows Exportar/Importar.
@@ -779,10 +806,162 @@ function renderAicTransferScreen() {
   resetAicImport();
 }
 
-// refreshAIContextScreen re-reads the list, the folder open on "Definir
-// Contexto" and the file shown on Importar after a run.
+// refreshAIContextScreen re-reads the list, the folder open on "Aplicar
+// contexto" and the file shown on Importar after a run.
 function refreshAIContextScreen() {
   loadAicRows();
   if (aicFolder) renderAicItems();
   if (aicImportFile) loadAicImport(aicImportFile);
+}
+
+// ===========================================================================
+// "Gerenciar Contextos": the Perci82 contexts (read only) and the
+// "Contextos personalizados" tab.
+// ===========================================================================
+
+// aicTextButton builds a small text button.
+function aicTextButton(label, cls) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn btn-xs" + (cls ? " " + cls : "");
+  btn.textContent = label;
+  return btn;
+}
+
+// aicShowText opens the read-only view of a context's text.
+function aicShowText(title, text) {
+  aicViewTitle.textContent = title;
+  aicViewContent.textContent = text;
+  aicViewModal.showModal();
+}
+
+// aicLibraryRow builds the row of one Perci82 context (AIContextItem).
+function aicLibraryRow(it) {
+  const tr = document.createElement("tr");
+  const name = document.createElement("td");
+  name.className = "font-medium" + (it.base ? " pl-8" : "");
+  name.textContent = it.label;
+  tr.appendChild(name);
+  const desc = document.createElement("td");
+  desc.className = "text-sm opacity-80";
+  desc.textContent = it.description;
+  tr.appendChild(desc);
+  const actions = document.createElement("td");
+  const view = aicTextButton(t("aic.lib.view"));
+  view.addEventListener("click", function () {
+    App.GetAIContextStandardText(it.id).then(function (text) {
+      aicShowText(it.label, text);
+    }).catch(function (err) { openError(t("aic.lib.readFailed", { error: err })); });
+  });
+  actions.appendChild(view);
+  tr.appendChild(actions);
+  return tr;
+}
+
+// aicCustomList is the custom contexts last loaded (CustomContext).
+let aicCustomList = [];
+
+// aicCustomRow builds the row of one custom context, with Visualizar,
+// Editar and Apagar.
+function aicCustomRow(c) {
+  const tr = document.createElement("tr");
+  const name = document.createElement("td");
+  name.className = "font-medium";
+  name.textContent = c.name;
+  tr.appendChild(name);
+  const applies = document.createElement("td");
+  applies.className = "text-sm opacity-80";
+  applies.textContent = c.appliesTo || "—";
+  tr.appendChild(applies);
+  const actions = document.createElement("td");
+  const wrap = document.createElement("div");
+  wrap.className = "flex gap-1";
+  const view = aicTextButton(t("aic.lib.view"));
+  view.addEventListener("click", function () { aicShowText(c.name, c.content); });
+  wrap.appendChild(view);
+  const edit = aicTextButton(t("aic.lib.edit"));
+  edit.addEventListener("click", function () { aicOpenCustom(c); });
+  wrap.appendChild(edit);
+  const del = aicTextButton(t("aic.lib.delete"), "btn-error btn-outline");
+  del.addEventListener("click", function () { aicDeleteCustom(c); });
+  wrap.appendChild(del);
+  actions.appendChild(wrap);
+  tr.appendChild(actions);
+  return tr;
+}
+
+function loadAicLibrary() {
+  App.GetAIContextItems("").then(latestOnly("aic-lib", function (items) {
+    aicLibRows.innerHTML = "";
+    (items || []).filter(function (it) { return !it.custom; }).forEach(function (it) {
+      aicLibRows.appendChild(aicLibraryRow(it));
+    });
+  })).catch(function (err) { openError(t("aic.lib.listFailed", { error: err })); });
+}
+
+function loadAicCustom() {
+  App.GetCustomContexts().then(latestOnly("aic-custom", function (list) {
+    aicCustomList = list || [];
+    aicCustomRows.innerHTML = "";
+    aicCustomList.forEach(function (c) { aicCustomRows.appendChild(aicCustomRow(c)); });
+    aicCustomEmpty.classList.toggle("hidden", aicCustomList.length > 0);
+  })).catch(function (err) { openError(t("aic.lib.listFailed", { error: err })); });
+}
+
+// aicCustomEditing is the ID of the custom context the modal edits, ""
+// for a new one.
+let aicCustomEditing = "";
+
+// aicOpenCustom opens the custom context modal on c, or empty for a new
+// context when c is null.
+function aicOpenCustom(c) {
+  aicCustomEditing = c ? c.id : "";
+  aicCustomTitle.textContent = c ? t("aic.lib.editTitle", { name: c.name }) : t("aic.lib.addTitle");
+  aicCustomName.value = c ? c.name : "";
+  aicCustomApplies.value = c ? c.appliesTo : "";
+  aicCustomContent.value = c ? c.content : "";
+  btnAicCustomSave.disabled = false;
+  aicCustomModal.showModal();
+  aicCustomName.focus();
+}
+
+btnAicCustomAdd.addEventListener("click", function () { aicOpenCustom(null); });
+
+btnAicCustomSave.addEventListener("click", function () {
+  const editing = aicCustomEditing;
+  const name = aicCustomName.value.trim();
+  if (!name) {
+    openError(t("aic.err.noName"));
+    return;
+  }
+  if (!aicCustomContent.value.trim()) {
+    openError(t("aic.lib.noContent"));
+    return;
+  }
+  btnAicCustomSave.disabled = true;
+  App.SaveCustomContext({ id: editing, name: name, appliesTo: aicCustomApplies.value, content: aicCustomContent.value })
+    .then(function () {
+      aicCustomModal.close();
+      loadAicCustom();
+      aicLoadModelLabels();
+      if (editing) openMessage(t("aic.lib.saved"), t("aic.lib.savedEdit"), false);
+    })
+    .catch(function (err) { openError(t("aic.lib.saveFailed", { error: err })); })
+    .finally(function () { btnAicCustomSave.disabled = false; });
+});
+
+// aicDeleteCustom asks for confirmation and deletes c; the backend
+// refuses a context a registered folder uses.
+function aicDeleteCustom(c) {
+  openConfirm(t("aic.lib.deleteTitle"), t("aic.lib.deleteConfirm", { name: c.name }), function () {
+    App.DeleteCustomContext(c.id).then(function () {
+      loadAicCustom();
+    }).catch(function (err) { openError(t("aic.lib.deleteFailed", { error: err })); });
+  });
+}
+
+// renderAicLibraryScreen shows Gerenciar Contextos.
+function renderAicLibraryScreen() {
+  loadAicLibrary();
+  loadAicCustom();
 }

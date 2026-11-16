@@ -162,8 +162,9 @@ export class AIContextFolderChanges {
 
 /**
  * AIContextImportPreview is the Importar checklist: each folder of the
- * file checked against this machine, and the names registered here (a
- * picked name must not be one of them).
+ * file checked against this machine, the names registered here (a picked
+ * name must not be one of them) and the label of each custom context the
+ * file carries, by its standard name.
  */
 export class AIContextImportPreview {
     /**
@@ -185,6 +186,13 @@ export class AIContextImportPreview {
              */
             this["taken"] = [];
         }
+        if (!("labels" in $$source)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: string }}
+             */
+            this["labels"] = {};
+        }
 
         Object.assign(this, $$source);
     }
@@ -197,6 +205,7 @@ export class AIContextImportPreview {
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType3;
         const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("items" in $$parsedSource) {
             $$parsedSource["items"] = $$createField0_0($$parsedSource["items"]);
@@ -204,14 +213,18 @@ export class AIContextImportPreview {
         if ("taken" in $$parsedSource) {
             $$parsedSource["taken"] = $$createField1_0($$parsedSource["taken"]);
         }
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField2_0($$parsedSource["labels"]);
+        }
         return new AIContextImportPreview(/** @type {Partial<AIContextImportPreview>} */($$parsedSource));
     }
 }
 
 /**
  * AIContextItem is one standard of "Dev Tools :: IA: Contextos": Base is
- * the standard it complements ("" for a base), Status its state in the
- * folder ("", "applied", "outdated" or "edited", see managerai.GuideStatus).
+ * the standard it complements ("" for a base), Custom marks a context the
+ * user wrote, Status its state in the folder ("", "applied", "outdated" or
+ * "edited", see managerai.GuideStatus).
  */
 export class AIContextItem {
     /**
@@ -246,6 +259,13 @@ export class AIContextItem {
              * @type {string}
              */
             this["base"] = "";
+        }
+        if (!("custom" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["custom"] = false;
         }
         if (!("status" in $$source)) {
             /**
@@ -1048,8 +1068,8 @@ export class DevFoldersScreen {
      * @returns {DevFoldersScreen}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType6;
-        const $$createField1_0 = $$createType8;
+        const $$createField0_0 = $$createType7;
+        const $$createField1_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("apps" in $$parsedSource) {
             $$parsedSource["apps"] = $$createField0_0($$parsedSource["apps"]);
@@ -1147,7 +1167,7 @@ export class DockerCreateCatalog {
         const $$createField4_0 = $$createType4;
         const $$createField5_0 = $$createType4;
         const $$createField6_0 = $$createType4;
-        const $$createField7_0 = $$createType9;
+        const $$createField7_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("phpVersions" in $$parsedSource) {
             $$parsedSource["phpVersions"] = $$createField4_0($$parsedSource["phpVersions"]);
@@ -1932,7 +1952,7 @@ export class RemoteRepoList {
      * @returns {RemoteRepoList}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType11;
+        const $$createField0_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("repos" in $$parsedSource) {
             $$parsedSource["repos"] = $$createField0_0($$parsedSource["repos"]);
@@ -1976,7 +1996,7 @@ export class RepoExportItems {
      * @returns {RepoExportItems}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType13;
+        const $$createField0_0 = $$createType14;
         const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("accounts" in $$parsedSource) {
@@ -2124,8 +2144,8 @@ export class RepoFilesView {
      * @returns {RepoFilesView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType15;
-        const $$createField1_0 = $$createType17;
+        const $$createField0_0 = $$createType16;
+        const $$createField1_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField0_0($$parsedSource["rows"]);
@@ -2227,7 +2247,7 @@ export class Section {
      * @returns {Section}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType19;
+        const $$createField3_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("items" in $$parsedSource) {
             $$parsedSource["items"] = $$createField3_0($$parsedSource["items"]);
@@ -2527,8 +2547,8 @@ export class TransferItems {
      * @returns {TransferItems}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType21;
-        const $$createField4_0 = $$createType23;
+        const $$createField3_0 = $$createType22;
+        const $$createField4_0 = $$createType24;
         const $$createField7_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("apps" in $$parsedSource) {
@@ -2680,22 +2700,23 @@ const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = ai$0.ImportContext.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = DevFolderApp.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = DevFolderRow.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $Create.Map($Create.Any, $$createType4);
-const $$createType10 = gitaccount$0.RemoteRepo.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = gitaccount$0.TransferAccount.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = repofiles$0.Row.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = repofiles$0.License.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = MenuItem.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = TransferApp.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = TransferPlugin.createFrom;
-const $$createType23 = $Create.Array($$createType22);
+const $$createType5 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = DevFolderApp.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = DevFolderRow.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $Create.Map($Create.Any, $$createType4);
+const $$createType11 = gitaccount$0.RemoteRepo.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = gitaccount$0.TransferAccount.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = repofiles$0.Row.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = repofiles$0.License.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = MenuItem.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = TransferApp.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = TransferPlugin.createFrom;
+const $$createType24 = $Create.Array($$createType23);

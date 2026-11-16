@@ -309,9 +309,9 @@ var devCatalog = []sectionDef{
 			Tab:      "nav.tab.accounts",
 		},
 		{
-			// "gerenciar repositórios" mode (#gittransfer-container): the
+			// "exportar/importar" mode (#gittransfer-container): the
 			// Exportar checklist, plus the "Importar" inner tab.
-			Title:    "nav.gitTransfer",
+			Title:    "nav.exportImport",
 			Desc:     "nav.gitTransfer.desc",
 			ActionID: "git-transfer",
 			Tab:      "nav.tab.export",
@@ -320,26 +320,28 @@ var devCatalog = []sectionDef{
 	{id: "ai-contexts", label: "nav.aiContexts", icon: "brain", items: []MenuItem{
 		{
 			// #aicdefine-container: the folder, agents and standards of one
-			// context.
-			Title:    "nav.aicDefine",
-			Desc:     "nav.aicDefine.desc",
+			// context, plus the "Contextos aplicados" inner tab (the
+			// registered folders).
+			Title:    "nav.aicApply",
+			Desc:     "nav.aicApply.desc",
 			ActionID: "aicontext-define",
-			Tab:      "nav.aicDefine",
+			Tab:      "nav.tab.aicApply",
 		},
 		{
-			// #aicontext-container: the registered folders.
-			Title:    "nav.aicManage",
-			Desc:     "nav.aicManage.desc",
-			ActionID: "aicontext",
-			Tab:      "nav.tab.contexts",
+			// #aiclibrary-container: the Perci82 standards (read only),
+			// plus the "Contextos personalizados" inner tab.
+			Title:    "nav.aicLibrary",
+			Desc:     "nav.aicLibrary.desc",
+			ActionID: "aicontext-library",
+			Tab:      "nav.tab.aicPerci",
 		},
 		{
-			// #aictransfer-container: export and import the registered
-			// folders.
+			// #aictransfer-container: export the registered folders, plus
+			// the "Importar" inner tab.
 			Title:    "nav.exportImport",
 			Desc:     "nav.aicTransfer.desc",
 			ActionID: "aicontext-transfer",
-			Tab:      "nav.exportImport",
+			Tab:      "nav.tab.export",
 		},
 	}},
 	{id: "skills-mcps", label: "nav.skillsMCPs", icon: "plug", items: []MenuItem{

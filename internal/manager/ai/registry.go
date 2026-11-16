@@ -41,7 +41,7 @@ const maxContextNameLen = 80
 // unknown names are left out.
 func ModelsNamed(names []string) []Model {
 	var out []Model
-	for _, m := range models {
+	for _, m := range catalog() {
 		if slices.Contains(names, m.Name) {
 			out = append(out, m)
 		}
@@ -74,7 +74,7 @@ func agentIDsIn(set map[string]bool) []string {
 // from its files (DetectActiveModels, DetectAgents), in catalog order.
 func Detected(dir string) (modelNamesOut, agentIDs []string) {
 	present := DetectActiveModels(dir)
-	for _, m := range models {
+	for _, m := range catalog() {
 		if present[m.Name] {
 			modelNamesOut = append(modelNamesOut, m.Name)
 		}

@@ -153,7 +153,7 @@ O destino precisa estar vazio ou não existir, e caminhos com espaço, barra inv
 
 Quando uma pasta acima do destino tem um `.megaignore` (sincronização do MEGA), uma regra que exclui o destino (`-dpG:<caminho>`) é adicionada a ele antes de montar e removida junto com a montagem; quando ela não pode ser gravada, a montagem é recusada.
 
-**Criar** monta a pasta; ela é aplicada no próximo reinício do contêiner. A aba **Pastas montadas** lista cada montagem com o status e as ações **Reiniciar contêiner** (reinicia o contêiner do aplicativo, e o Nginx quando ele serve o aplicativo) e **Remover** (desmonta a pasta, remove a unidade e a pasta de destino quando ela fica vazia, e reinicia os contêineres). A pasta de desenvolvimento em si nunca é alterada. O Nginx serve os arquivos de todos os tipos menos Node, então só é reiniciado para esses aplicativos; contêineres parados não são iniciados. Quando montagens feitas por uma versão anterior usam unidades sem a verificação contra links, a aba mostra um aviso com **Atualizar unidades**, que as regrava (a senha é pedida uma vez) sem desmontar nada.
+**Criar** monta a pasta; ela é aplicada no próximo reinício do contêiner. A aba **Pastas montadas** lista cada montagem com o status e as ações **Reiniciar contêiner** (reinicia o contêiner do aplicativo, e o Nginx quando ele serve o aplicativo) e **Remover** (desmonta a pasta, remove a unidade e a pasta de destino quando ela fica vazia, e reinicia os contêineres). A pasta de desenvolvimento em si nunca é alterada. O Nginx serve os arquivos de todos os tipos menos Node, então só é reiniciado para esses aplicativos; contêineres parados não são iniciados. Quando montagens feitas por uma versão anterior usam unidades sem a verificação contra links, a aba mostra um aviso com **Corrigir**, que as regrava (a senha é pedida uma vez) sem desmontar nada.
 
 | Status | Significado |
 |---|---|
@@ -167,7 +167,7 @@ No Moodle, depois de aplicar, abra Administração do site → Notificações pa
 
 ## Exportar/Importar
 
-**Exportar** lista o que pode ser exportado em três grupos — **Infraestrutura** (Nginx, MariaDB), **Aplicativos** e **Pastas de desenvolvimento montadas** —, com **Marcar todos** em cada grupo. Marcar um item também marca aquilo de que ele depende (o Nginx para um aplicativo, o MariaDB para um aplicativo com acesso ao banco, o aplicativo de uma pasta montada) e as pastas montadas de um aplicativo. **Exportar…** salva um arquivo YAML (`perci-export.yaml` por padrão), legível só por você.
+**Exportar** lista o que pode ser exportado em três grupos — **Infraestrutura** (Nginx, MariaDB), **Aplicativos** e **Pastas de desenvolvimento montadas** —, com **Marcar todos** em cada grupo. Marcar um item também marca aquilo de que ele depende (o Nginx para um aplicativo, o MariaDB para um aplicativo com acesso ao banco, o aplicativo de uma pasta montada) e as pastas montadas de um aplicativo. **Exportar…** salva um arquivo YAML (`perci-export.yaml` por padrão; `.yaml` é acrescentado quando o nome digitado não termina em `.yaml` nem `.yml`), legível só por você.
 
 O arquivo guarda só as definições: o caminho do workspace, os contêineres Nginx e MariaDB com as credenciais do MariaDB **em texto puro** (guarde-o como um segredo), as configurações dos aplicativos e as pastas montadas. Ele não guarda os arquivos dos projetos nem os bancos. O formato é o mesmo do Perci 1.9: arquivos exportados pelo Perci 1.9 são importados aqui sem conversão.
 

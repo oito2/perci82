@@ -40,7 +40,7 @@ async function screen(fixtures = {}) {
     fixtures: { GetAIContextAgents: AGENTS, GetAIContextItems: ITEMS, GetAIContexts: ROWS, ...fixtures },
   });
   await tick();
-  loaded.ctx.renderAIContextScreen();
+  loaded.ctx.loadAicRows();
   await settle();
   const rows = () => loaded.element("aic-rows").children;
   const actions = (tr) => tr.children[5].children[0].children; // [Atualizar, Alterar, Remover]
@@ -236,16 +236,16 @@ test("IA: Contextos: Importar lists the file, edits names and folders, and impor
   assert.deepEqual(JSON.parse(JSON.stringify(called("ImportAIContexts")[0].args)), ["/tmp/in.yaml", picks]);
 });
 
-test("IA: Contextos: Alterar keeps the folder when the menu item renders Configurar Projeto", async () => {
+test("IA: Contextos: Alterar keeps the folder when the menu item renders Aplicar Contexto", async () => {
   const sections = [{ id: "ai", label: "AI", items: [
-    { title: "Configurar Projeto", actionId: "aicontext-define" },
-    { title: "Gerenciar Contextos", actionId: "aicontext" },
+    { title: "Aplicar Contexto", actionId: "aicontext-define" },
+    { title: "Gerenciar Contextos", actionId: "aicontext-library" },
   ] }];
   const record = { registered: true, hasContext: true, name: "Perci", models: ["Go"], agents: ["claude"] };
   const { rows, actions, click, ctx } = await screen({ GetSections: sections, GetAIContextRecord: record });
   evalIn(ctx, "loadMenu()");
   await settle();
-  evalIn(ctx, "renderAIContextScreen()");
+  evalIn(ctx, "loadAicRows()");
   await settle();
   click(actions(rows()[0])[1]);
   await settle();

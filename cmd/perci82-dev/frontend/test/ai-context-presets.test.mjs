@@ -55,7 +55,7 @@ test("IA: Contextos: a project type checks exactly its models and shows its hint
   const { element, checked } = await render();
   const select = element("aic-preset");
   assert.equal(select.disabled, false);
-  assert.deepEqual(select.children.map((o) => o.textContent), ["Personalizado", "Plugin Moodle", "Aplicativo Rust + Tauri v2"]);
+  assert.deepEqual(select.children.map((o) => o.textContent), ["Customizado", "Plugin Moodle", "Aplicativo Rust + Tauri v2"]);
 
   select.value = "Plugin Moodle";
   select.onchange();
@@ -67,7 +67,7 @@ test("IA: Contextos: a project type checks exactly its models and shows its hint
   assert.match(element("aic-preset-hint").textContent, /complemento do frontend/);
 });
 
-test("IA: Contextos: changing a checkbox by hand returns to Personalizado", async () => {
+test("IA: Contextos: changing a checkbox by hand returns to Customizado", async () => {
   const { element } = await render();
   const select = element("aic-preset");
   select.value = "Plugin Moodle";

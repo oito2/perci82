@@ -43,7 +43,7 @@ Perci82 Dev's main features:
 - **Environment** — prerequisites, languages and SDKs, AI apps, terminals, IDEs, Android Studio and Antigravity IDE, installed, updated and removed item by item.
 - **Docker** — an Nginx and MariaDB stack with HTTPS at `https://<app>.localhost`, Moodle, PHP, Node and PHP + Node app containers, each with its own command in `~/.local/bin`, and development folders mounted into the apps.
 - **Repositories** — Git accounts with their own SSH key, identity and API token; each account's repositories, with clone, pull and export/import.
-- **AI Contexts** — rules for Claude Code, Gemini, Codex, OpenCode and Antigravity in each project, with project notes kept outside the repository.
+- **AI Contexts** — rules for Claude Code, Gemini, Codex, OpenCode and Antigravity in each project, from Perci82's standards and your own custom contexts, with project notes kept outside the repository.
 - **Skills & MCPs** — skills from skills.sh and MCP servers, Build82 and Sync82 included, registered with the coding agents.
 - **System tray** with a compact Containers window; self-update and uninstall from the Overview screen; Portuguese and English interface; oito2 themes.
 

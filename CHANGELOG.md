@@ -24,6 +24,7 @@ First release of Perci82 Dev.
 - The "PHP Perci82" standard (in the Moodle plugin and PHP + Slim presets) writes `.instructions/PHP-PERCI82.md` from the settings of the Docker app that holds the project, as its project root or a mounted development folder: its command and tools, versions, URL, folders, database (without the password), mounts and logs. It is rewritten when the app changes and skipped when no app holds the project. It also lets the agents run the app's command without asking (`.claude/settings.json`, `.gemini/settings.json`, `.codex/rules/perci.rules`, `opencode.json`).
 - Skills & MCPs → MCPs offers Build82 (Moodle context) and Sync82 (project memory): installing one downloads the binary of its latest release from GitHub (`oito2/mcp-build82`, `oito2/mcp-sync82`), checks it against the release's `checksums.txt` (SHA-256), installs it as `~/.local/bin/build82` or `~/.local/bin/sync82` and registers it with Claude Code, Codex and Antigravity. Atualizar installs a newer release when there is one; Remover deletes the binary once no scope registers it. The installed release is shown in the list and saved under `mcp_binaries`. A binary or a registration with the same name that Perci did not create is kept, never replaced. Build82's Moodle folder is set afterwards through its `init_moodle_context` tool.
 - The "Open in <terminal>" entries that Terminais adds to the Nautilus, Nemo and Dolphin context menus follow the chosen language.
+- Contextos de IA → Gerenciar Contextos: the "Contextos do Perci82" tab lists the standards Perci82 Dev ships, each with Visualizar (read only), and the "Contextos personalizados" tab creates, views, edits and deletes your own contexts (name, an optional "Quando usar" sentence and the content), saved in `~/.perci/user-contexts/`. They show in Aplicar Contexto under "Contextos Personalizados" and are written as `.instructions/CUSTOM-<ID>.md`, listed in `AGENTS.md` and loaded by Claude Code in every session. Editing one marks the projects that use it as outdated; deleting one is refused while a registered folder uses it. The AI contexts export file carries the custom contexts its folders use, and importing it creates the missing ones.
 
 ### Changed
 
@@ -34,11 +35,16 @@ First release of Perci82 Dev.
 - Perci82 Dev shares `~/.perci/config.yaml` safely with Perci82 System: each app writes only its own settings and leaves the others, including settings it doesn't know, exactly as they were. Settings saved by Perci 1.9 and its export files keep working.
 - Actions that need administrator rights never run in both apps at once: while one app runs such an action, the other refuses with a message naming that app.
 - Building from source requires Go 1.27.4 or later.
-- New window layout: sections as tabs at the top (Visão Geral, Ambiente, Docker, Repositórios, Contextos de IA, Skills & MCPs, Configurações), a side list for the screens of a section (the Git accounts are grouped under "Contas" in Repositórios; Contextos de IA has Configurar Projeto, Gerenciar Contextos and Exportar/Importar), and the screen's own tabs below its title. The window is at least 1180 × 640 px.
+- New window layout: sections as tabs at the top (Visão Geral, Ambiente, Docker, Repositórios, Contextos de IA, Skills & MCPs, Configurações), a side list for the screens of a section (the Git accounts are grouped under "Contas" in Repositórios; Contextos de IA has Aplicar Contexto, Gerenciar Contextos and Exportar/Importar), and the screen's own tabs below its title. The window is at least 1180 × 640 px.
 - The Svelte MCP entry is named "Svelte MCP"; its description says it is the official one.
 - The Moodle and PHP + Slim standards no longer describe the `php-<app>` wrappers or the Docker setup; that is in PHP Perci82.
 - AI contexts no longer keep `vendor/` out of the agents' reach (`.claude/settings.json`, `.aiexclude`, `.geminiignore`): applying or updating a context removes that rule from projects that have it.
 - Themes come from the oito2 design system: Configurações → Tema offers "Definido pelo sistema", which follows the desktop's light or dark preference, accent color and high contrast (and changes with them while the app is open), and the 13 oito2 presets (Everforest, Rosé Pine, Nord, Dracula/Alucard, Catppuccin). A daisyUI theme saved by Perci 1.9 shows as "Definido pelo sistema" until another theme is chosen.
+- Contextos de IA → Aplicar Contexto (formerly Configurar Projeto) holds the registered folders in its "Contextos aplicados" tab (formerly Gerenciar Contextos), with more space between the form's fields; Exportar/Importar has an Exportar and an Importar tab; the project type that matches no preset reads "Customizado".
+- Repositórios → Gerenciar Repositórios is now Repositórios → Exportar/Importar, as in Docker.
+- Docker → Pastas de Desenvolvimento → Pastas montadas: the button that rewrites outdated mount units reads "Corrigir".
+- The export files of Docker, Repositórios and Contextos de IA, and the uninstall backups, get the `.yaml` extension when the name typed in the save window has no `.yaml` or `.yml` extension.
+- Focused text fields and selects no longer show a thick outline around them; their border takes the theme's accent color instead.
 - Ambiente installs and updates prerequisites and Flutter's packages only on Ubuntu 24.04, Debian 13, Linux Mint 22, LMDE 7, Zorin OS 18, Pop!_OS 24.04 or later: older releases lack packages such as `libfuse2t64` and `openjdk-21-jdk`, and get a message naming the release needed.
 
 ### Removed
@@ -52,7 +58,8 @@ First release of Perci82 Dev.
 - The PHP images pick the PHPUnit release by the image's full PHP version: 9.6 for PHP 7.4 and 8.0 (they got 12.5 and 10.5, which don't run there), 10.5 for 8.1, 11.5 for 8.2 and 8.3, and 12.5 for 8.4.
 - Ambiente → Docker Engine installs on Debian, where Compose v2 is the `docker-compose` package (`docker-compose-v2` exists only on Ubuntu and its derivatives).
 - Contextos de IA no longer fails to preview, update or remove a project whose Claude Code rule for PHP Perci82 is still there after the standard was unchecked or its Docker app was removed.
-- Gerenciar Contextos → Alterar opens Configurar Projeto on the row's folder (it opened without a folder).
+- Contextos aplicados → Alterar opens the Aplicar contexto tab on the row's folder (it opened without a folder).
+- The "Tipo de projeto" select no longer shows its first option as the raw key `aic.custom` when the screen loads before the translations.
 - "Também remover configurações" removes `~/.perci/appstack` only together with the Docker containers, which still use it, and always keeps the MariaDB backups in `~/.perci/appstack/backups`.
 - Two projects in different places with the same folder name no longer share a notes folder: the second gets `<name>-2` (`-3`…), saved in its context's record as `notes`, so it never moves.
 - Ambiente finds the tools whose installers only change the shell startup files when Perci82 Dev was opened from the desktop menu: Go (`/usr/local/go/bin`, `~/go/bin`), Rust (`~/.cargo/bin`) and OpenCode (`~/.opencode/bin`). The Wails3 CLI no longer reads "Requires Go" after Go is installed, and OpenCode shows as installed and can be removed.
@@ -68,7 +75,7 @@ First release of Perci82 Dev.
 - Self-update has no fixed 5-minute limit: a slow download is never cut (it stops only when no data arrives for a minute), and the password dialog of the final step is never interrupted.
 - The Execução tab shows only its own action: a window no longer takes the output or the result of an action another window (the tray's) started.
 - Docker → Gerenciar: Iniciar, Parar and Reiniciar run one at a time, so a second click no longer shows an error.
-- Gerenciar Contextos → Exportar's save dialog and file name follow the language; the Node.js-missing message of npm installs, the keyring label of the account tokens and the repository files' result message are translated.
+- Contextos de IA → Exportar/Importar's save dialog and file name follow the language; the Node.js-missing message of npm installs, the keyring label of the account tokens and the repository files' result message are translated.
 - Uninstalling VS Code or VSCodium also removes the repository and key their install added, in the same password prompt; uninstalling Android Studio or Antigravity IDE asks first, like every other uninstall.
 - Testing an account's connection names a private key others can read as the cause (`chmod 600`), instead of telling to register the key on the provider.
 - The account's repository list says when it shows only the first 1000.
@@ -113,6 +120,8 @@ First release of Perci82 System, split from Perci 1.9.0.
 - New window layout: sections as tabs at the top (Visão Geral, Pós-instalação, Atualizar, Fontes, Templates, Flatpaks, Configurações) and the screen's own tabs (Itens, Execução) below its title. Section, screen and tab names follow the chosen language. The window is at least 1180 × 640 px.
 - Flatpak scope options read "Sistema (todos os usuários)" and "Usuário (só você)".
 - Themes come from the oito2 design system: Configurações → Tema offers "Definido pelo sistema", which follows the desktop's light or dark preference, accent color and high contrast (and changes with them while the app is open), and the 13 oito2 presets (Everforest, Rosé Pine, Nord, Dracula/Alucard, Catppuccin).
+- Focused text fields and selects no longer show a thick outline around them; their border takes the theme's accent color instead.
+- Pós-instalação's Aplicar buttons sit further from the window's right edge, so the scrollbar no longer covers them.
 - Pós-instalação offers the Linux Mint profiles from Linux Mint 22 and the Zorin OS profiles from Zorin OS 18 on; older releases (and LMDE) are shown as not supported, since they lack packages the profiles install, such as `libfuse2t64`.
 
 ### Removed

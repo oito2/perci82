@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -81,6 +82,20 @@ const (
 	purposeNotes     pathPurpose = "notes"
 	purposeMCPParam  pathPurpose = "mcp-param"
 )
+
+// withYAMLExt appends ".yaml" to a save dialog's result whose name ends in
+// neither ".yaml" nor ".yml" (case-insensitive); an empty path (cancelled)
+// or an error passes through unchanged.
+func withYAMLExt(path string, err error) (string, error) {
+	if err != nil || path == "" {
+		return path, err
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".yaml", ".yml":
+		return path, nil
+	}
+	return path + ".yaml", nil
+}
 
 // approvePath records a dialog's result (empty = cancelled) and passes it
 // through unchanged.
