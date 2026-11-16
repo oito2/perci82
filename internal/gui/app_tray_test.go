@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -245,7 +247,7 @@ func TestMainCloseDecision(t *testing.T) {
 }
 
 // Turning the tray off persists the setting and removes the autostart
-// entry (the tray icon itself is a Wails object, absent here).
+// entry (no tray icon exists here).
 func TestSetTrayEnabled_Off(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	if err := config.Update(func(c *config.Config) error { c.TrayEnabled = true; return nil }); err != nil {
@@ -267,10 +269,36 @@ func TestSetTrayEnabled_Off(t *testing.T) {
 	}
 }
 
-func TestTrayIconsAreTheOnesRunSet(t *testing.T) {
-	tray := &TrayService{windowIcon: []byte("window"), trayIcon: []byte("tray")}
-	if w, tr := tray.icons(); string(w) != "window" || string(tr) != "tray" {
-		t.Errorf("icons() = %q, %q, want the icons Run set", w, tr)
+// testPNG returns a size×size PNG.
+func testPNG(t *testing.T, size int) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, image.NewNRGBA(image.Rect(0, 0, size, size))); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// The fallback pixmap follows the desktop's color scheme: the dark-desktop
+// pictogram only when the scheme is "dark".
+func TestTrayFallbackPixmapFollowsColorScheme(t *testing.T) {
+	tray := &TrayService{trayPixmapLight: testPNG(t, 1), trayPixmapDark: testPNG(t, 2)}
+	for _, tc := range []struct {
+		scheme string
+		width  int32
+	}{
+		{"", 1},
+		{"dark", 2},
+		{"light", 1},
+	} {
+		tray.setColorScheme(tc.scheme)
+		p, ok := tray.fallbackPixmap()
+		if !ok || p.Width != tc.width {
+			t.Errorf("scheme %q: pixmap width %d (ok=%v), want %d", tc.scheme, p.Width, ok, tc.width)
+		}
+	}
+	if _, ok := (&TrayService{}).fallbackPixmap(); ok {
+		t.Error("got a pixmap without PNG data")
 	}
 }
 

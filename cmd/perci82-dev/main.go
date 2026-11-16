@@ -55,8 +55,11 @@ func run() int {
 		Name:       "Perci82 Dev",
 		ID:         packaging.IconName(packaging.AppDev),
 		WindowIcon: packaging.MustIcon(packaging.AppDev, 512),
-		// The white pictogram, for the dark panels most desktops use.
-		TrayIcon: packaging.MustTrayIcon("claro", 64),
+		// The symbolic app icon, painted by the panel in its own color; the
+		// pictograms are the fallback when the panel doesn't find it.
+		TrayIconName:    packaging.IconName(packaging.AppDev) + "-symbolic",
+		TrayPixmapDark:  packaging.MustTrayIcon("claro", 64),
+		TrayPixmapLight: packaging.MustTrayIcon("escuro", 64),
 	}, dist, os.Args, os.Stdout, os.Stderr,
 		gui.Bind(home, application.NewService(home)),
 		gui.Bind(devSetup, application.NewService(devSetup)),

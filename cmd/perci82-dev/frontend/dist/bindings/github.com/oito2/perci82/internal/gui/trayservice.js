@@ -7,11 +7,11 @@
  * is captured on the main window's creation; tray is non-nil only while
  * TrayEnabled is on; compactWindow is the single compact window the
  * "Contêineres" tray menu item opens/focuses (one reused window).
- * windowIcon and trayIcon are the PNG icons Run sets before the app starts.
- * windowMu protects tray and compactWindow — each bound method the
- * frontend calls runs on its own goroutine, so concurrent SetTrayEnabled
- * calls (e.g. a quick double-click on the tray toggle) can't leave `tray`
- * inconsistent.
+ * windowIcon, trayIconName and the tray pixmaps are set by Run before the
+ * app starts. windowMu protects tray, trayDark and compactWindow — each
+ * bound method the frontend calls runs on its own goroutine, so concurrent
+ * SetTrayEnabled calls (e.g. a quick double-click on the tray toggle) can't
+ * leave `tray` inconsistent.
  * @module
  */
 
@@ -41,8 +41,8 @@ export function GetTrayEnabled() {
 
 /**
  * SetTrayEnabled turns the system tray icon on/off (Home ::
- * Configurações) — applies instantly, no restart needed: SystemTray has
- * real New()/Destroy() calls at runtime. Always reloads the config
+ * Configurações) — applies instantly, no restart needed: the icon is
+ * created and removed at runtime. Always reloads the config
  * before writing — don't overwrite fields another process changed while
  * the GUI was open.
  * @param {boolean} enabled

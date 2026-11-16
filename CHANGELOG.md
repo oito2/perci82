@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [Dev 1.0.1] - 2026-11-16
+
+### Fixed
+
+- Perci82 Dev: the system tray icon did nothing when clicked, and turning the tray on with the app already open showed an icon without a menu; turning it off now removes the icon at once. The tray now uses its own StatusNotifierItem implementation.
+- Perci82 Dev: the tray icon was always white, invisible on light panels. It is now the symbolic app icon, drawn by the panel in its own text color, with the white or graphite pictogram as fallback following the desktop's color scheme. The symbolic app icon is drawn with filled shapes, so desktops can recolor it.
+
 ## [Dev 1.0.0] - 2026-11-16
 
 First release of Perci82 Dev.
@@ -144,6 +151,7 @@ First release of Perci82 System, split from Perci 1.9.0.
 
 - `install-system.sh` checks, when the GitHub CLI is logged in, that `checksums.txt` was attested by the release workflow (covering the binary and the menu entry archive), and extracts only menu entries and icons from the archive.
 
-[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.0.0...HEAD
+[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.0.1...HEAD
+[Dev 1.0.1]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.1
 [Dev 1.0.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.0
 [System 1.0.0]: https://github.com/oito2/perci82/releases/tag/system-v1.0.0

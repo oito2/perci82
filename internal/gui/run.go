@@ -26,6 +26,7 @@ import (
 	"os"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -50,8 +51,13 @@ type Profile struct {
 	ID string
 	// WindowIcon is the PNG window icon.
 	WindowIcon []byte
-	// TrayIcon is the PNG tray icon, used only when a TrayService is bound.
-	TrayIcon []byte
+	// TrayIconName is the themed tray icon, painted by the panel in its own
+	// color; used only when a TrayService is bound.
+	TrayIconName string
+	// TrayPixmapDark and TrayPixmapLight are the PNG tray icons for dark and
+	// light desktops, shown when the panel doesn't find TrayIconName.
+	TrayPixmapDark  []byte
+	TrayPixmapLight []byte
 	// App is the application config.Update writes keys for and the holder
 	// written into the shared action lock.
 	App config.App
@@ -113,6 +119,9 @@ func actionRunning() bool {
 // watchSystemSettings reports the desktop's appearance changes — a
 // variable so tests never watch the machine's session bus.
 var watchSystemSettings = theme.WatchSystem
+
+// schemeReadTimeout bounds the startup read of the desktop's color scheme.
+const schemeReadTimeout = 2 * time.Second
 
 // Run starts the application described by p, serving assets (the
 // application's own frontend, over the shared web.FS files) and binding
@@ -260,7 +269,9 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 	if tray != nil {
 		tray.mainWindow = mainWindow
 		tray.windowIcon = p.WindowIcon
-		tray.trayIcon = p.TrayIcon
+		tray.trayIconName = p.TrayIconName
+		tray.trayPixmapDark = p.TrayPixmapDark
+		tray.trayPixmapLight = p.TrayPixmapLight
 	}
 
 	// Closing (X): with a TrayService bound, it hides into the tray while
@@ -283,8 +294,17 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 		}
 	})
 
+	// The tray's fallback pixmap starts matching the desktop's color scheme,
+	// also for a tray turned on later.
+	if tray != nil {
+		schemeCtx, cancelScheme := context.WithTimeout(context.Background(), schemeReadTimeout)
+		tray.setColorScheme(readSystemSettings(schemeCtx).ColorScheme)
+		cancelScheme()
+	}
 	if trayOn {
-		tray.ensureTray()
+		if err := tray.ensureTray(); err != nil {
+			fmt.Fprintln(stderr, "warning:", err)
+		}
 		// Rewritten on every start while the tray is on, so an entry with an
 		// outdated format or pointing at a moved binary is brought up to date.
 		if err := writeAutostartDesktopFile(); err != nil {
@@ -301,6 +321,9 @@ func Run(p Profile, assets fs.FS, args []string, stdout, stderr io.Writer, servi
 	watchers.Go(func() {
 		_ = watchSystemSettings(watchCtx, func(s theme.SystemSettings) {
 			wailsApp.Event.Emit("system-scheme-changed", s.Resolve())
+			if tray != nil {
+				tray.setColorScheme(s.ColorScheme)
+			}
 		})
 	})
 

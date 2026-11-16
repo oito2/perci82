@@ -38,7 +38,7 @@ Uma compilação a partir do código-fonte informa a versão `dev` e não se atu
 
 ## Bandeja do sistema
 
-Com **Mostrar o Perci82 Dev na bandeja do sistema** ligado ([Configurações](settings.md#bandeja-do-sistema)), o Perci82 Dev coloca um ícone na bandeja do sistema. O menu dele tem:
+Com **Mostrar o Perci82 Dev na bandeja do sistema** ligado ([Configurações](settings.md#bandeja-do-sistema)), o Perci82 Dev coloca um ícone na bandeja do sistema, desenhado na cor do texto do próprio painel. Um clique com o botão direito abre o menu (no GNOME, também um clique simples com o esquerdo); um clique com o botão esquerdo mostra a janela principal (no GNOME, um clique duplo). O menu tem:
 
 - **Abrir Aplicativo** — mostra a janela principal.
 - **Contêineres** — abre uma janela compacta só com **Docker → Gerenciar Contêineres** e um botão **Abrir Aplicativo**.

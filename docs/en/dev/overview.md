@@ -38,7 +38,7 @@ A build from source reports the version `dev` and can't update itself.
 
 ## System tray
 
-With **Show Perci82 Dev in the system tray** on ([Settings](settings.md#system-tray)), Perci82 Dev puts an icon in the system tray. Its menu has:
+With **Show Perci82 Dev in the system tray** on ([Settings](settings.md#system-tray)), Perci82 Dev puts an icon in the system tray, drawn in the panel's own text color. A right click opens its menu (on GNOME, a single left click too); a left click shows the main window (on GNOME, a double click). The menu has:
 
 - **Open Application** — shows the main window.
 - **Containers** — opens a compact window with **Docker → Manage Containers** only, and an **Open Application** button.

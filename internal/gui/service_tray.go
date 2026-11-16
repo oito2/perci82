@@ -28,26 +28,34 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/i18n"
+	"github.com/oito2/perci82/internal/statusnotifier"
 )
 
 // TrayService binds the system tray / compact window domain. mainWindow
 // is captured on the main window's creation; tray is non-nil only while
 // TrayEnabled is on; compactWindow is the single compact window the
 // "Contêineres" tray menu item opens/focuses (one reused window).
-// windowIcon and trayIcon are the PNG icons Run sets before the app starts.
-// windowMu protects tray and compactWindow — each bound method the
-// frontend calls runs on its own goroutine, so concurrent SetTrayEnabled
-// calls (e.g. a quick double-click on the tray toggle) can't leave `tray`
-// inconsistent.
+// windowIcon, trayIconName and the tray pixmaps are set by Run before the
+// app starts. windowMu protects tray, trayDark and compactWindow — each
+// bound method the frontend calls runs on its own goroutine, so concurrent
+// SetTrayEnabled calls (e.g. a quick double-click on the tray toggle) can't
+// leave `tray` inconsistent.
 type TrayService struct {
 	serviceBase
 
 	mainWindow    *application.WebviewWindow
 	windowMu      sync.Mutex
-	tray          *application.SystemTray
+	tray          *statusnotifier.Item
 	compactWindow *application.WebviewWindow
 	windowIcon    []byte
-	trayIcon      []byte
+	// trayIconName is the themed icon the panel paints in its own color.
+	trayIconName string
+	// trayPixmapDark and trayPixmapLight are the PNG fallbacks for dark and
+	// light desktops, shown when the panel doesn't find trayIconName.
+	trayPixmapDark  []byte
+	trayPixmapLight []byte
+	// trayDark reports whether the desktop prefers a dark color scheme.
+	trayDark bool
 }
 
 // compactTabs is the fixed set of tabs the single compact window's tab
@@ -70,8 +78,8 @@ func (t *TrayService) GetTrayEnabled() bool {
 }
 
 // SetTrayEnabled turns the system tray icon on/off (Home ::
-// Configurações) — applies instantly, no restart needed: SystemTray has
-// real New()/Destroy() calls at runtime. Always reloads the config
+// Configurações) — applies instantly, no restart needed: the icon is
+// created and removed at runtime. Always reloads the config
 // before writing — don't overwrite fields another process changed while
 // the GUI was open.
 func (t *TrayService) SetTrayEnabled(enabled bool) error {
@@ -83,7 +91,9 @@ func (t *TrayService) SetTrayEnabled(enabled bool) error {
 	}
 
 	if enabled {
-		t.ensureTray()
+		if err := t.ensureTray(); err != nil {
+			return err
+		}
 		return writeAutostartDesktopFile()
 	}
 
@@ -93,31 +103,69 @@ func (t *TrayService) SetTrayEnabled(enabled bool) error {
 
 // ensureTray creates the tray icon if it doesn't exist yet — idempotent
 // (called both at boot, when TrayEnabled is already on, and from
-// SetTrayEnabled(true)).
-//
-// No AttachWindow: that method ties a left click to an automatic
-// Show()/Hide() of the main window. Linux distros differ on whether a
-// physical click becomes the Activate or SecondaryActivate DBus signal,
-// so both handlers (OnClick/OnRightClick) open the same menu —
-// deterministic on any distro/DE.
-func (t *TrayService) ensureTray() {
+// SetTrayEnabled(true)). Panels open the menu themselves (right click; a
+// single left click on GNOME's); activating the icon (left click; a double
+// click on GNOME's) shows the main window.
+func (t *TrayService) ensureTray() error {
 	t.windowMu.Lock()
 	defer t.windowMu.Unlock()
 
-	if t.tray == nil {
-		tray := t.wailsApp.SystemTray.New()
-		// The click handlers capture this tray itself, never read t.tray:
-		// they run outside windowMu, and a click delivered after the toggle
-		// was turned off (t.tray already nil) would otherwise race on the
-		// field or dereference nil.
-		tray.OnClick(tray.OpenMenu)
-		tray.OnRightClick(tray.OpenMenu)
-		t.tray = tray
+	if t.tray != nil {
+		return nil
 	}
-	_, trayIcon := t.icons()
-	t.tray.SetIcon(trayIcon)
-	t.tray.SetTooltip("Perci82 Dev")
-	t.tray.SetMenu(t.buildTrayMenu(trayLocale()))
+	opts := statusnotifier.Options{
+		ID:         "perci82-dev",
+		Title:      "Perci82 Dev",
+		IconName:   t.trayIconName,
+		OnActivate: func() { application.InvokeAsync(t.FocusMainWindow) },
+		Menu:       t.trayMenu(trayLocale()),
+	}
+	if p, ok := t.fallbackPixmap(); ok {
+		opts.Pixmap = &p
+	}
+	item, err := statusnotifier.Start(opts)
+	if err != nil {
+		return fmt.Errorf("show the tray icon: %w", err)
+	}
+	t.tray = item
+	return nil
+}
+
+// fallbackPixmap returns the tray pixmap matching the desktop's color
+// scheme: the white pictogram on dark desktops, the graphite one on light
+// ones. The caller holds windowMu.
+func (t *TrayService) fallbackPixmap() (statusnotifier.Pixmap, bool) {
+	data := t.trayPixmapLight
+	if t.trayDark {
+		data = t.trayPixmapDark
+	}
+	if len(data) == 0 {
+		return statusnotifier.Pixmap{}, false
+	}
+	p, err := statusnotifier.PixmapFromPNG(data)
+	if err != nil {
+		return statusnotifier.Pixmap{}, false
+	}
+	return p, true
+}
+
+// setColorScheme records the desktop's color scheme ("dark", "light" or
+// "" for no preference) and swaps the tray's fallback pixmap to match.
+func (t *TrayService) setColorScheme(scheme string) {
+	t.windowMu.Lock()
+	defer t.windowMu.Unlock()
+
+	dark := scheme == "dark"
+	if dark == t.trayDark {
+		return
+	}
+	t.trayDark = dark
+	if t.tray == nil {
+		return
+	}
+	if p, ok := t.fallbackPixmap(); ok {
+		t.tray.SetPixmap(p)
+	}
 }
 
 // trayLocale returns the locale of Perci82 Dev's language choice (field
@@ -139,7 +187,7 @@ func (t *TrayService) setLanguage(locale string) {
 	if t.tray == nil {
 		return
 	}
-	t.tray.SetMenu(t.buildTrayMenu(locale))
+	t.tray.SetMenu(t.trayMenu(locale))
 }
 
 // destroyTray undoes ensureTray when the toggle is turned off.
@@ -150,32 +198,35 @@ func (t *TrayService) destroyTray() {
 	if t.tray == nil {
 		return
 	}
-	t.tray.Destroy()
+	_ = t.tray.Close()
 	t.tray = nil
 }
 
-// buildTrayMenu builds the tray menu, labeled in locale — Abrir
-// Aplicativo (shows/focuses the main window, same as the compact window's
-// header button) + Contêineres (opens/focuses the single compact window,
-// already on its tab) + Sair (the only way to quit Perci82 Dev while the
-// tray is enabled, since closing the main window only hides it).
-func (t *TrayService) buildTrayMenu(locale string) *application.Menu {
-	menu := t.wailsApp.NewMenu()
-	menu.Add(i18n.T(locale, "tray.open", nil)).OnClick(func(_ *application.Context) {
-		t.FocusMainWindow()
-	})
-	menu.AddSeparator()
-	menu.Add(i18n.T(locale, "tray.containers", nil)).OnClick(func(_ *application.Context) {
-		t.openCompactWindow("docker-manage")
-	})
-	menu.AddSeparator()
-	menu.Add(i18n.T(locale, "tray.quit", nil)).OnClick(func(_ *application.Context) {
-		if t.quitBlocked() {
-			return
-		}
-		t.wailsApp.Quit()
-	})
-	return menu
+// trayMenu returns the tray menu, labeled in locale — Abrir Aplicativo
+// (shows/focuses the main window, same as the compact window's header
+// button) + Contêineres (opens/focuses the single compact window, already
+// on its tab) + Sair (the only way to quit Perci82 Dev while the tray is
+// enabled, since closing the main window only hides it). The clicks arrive
+// on the D-Bus goroutine and run on the UI thread.
+func (t *TrayService) trayMenu(locale string) []statusnotifier.MenuItem {
+	return []statusnotifier.MenuItem{
+		{Label: i18n.T(locale, "tray.open", nil), OnClick: func() {
+			application.InvokeAsync(t.FocusMainWindow)
+		}},
+		{Separator: true},
+		{Label: i18n.T(locale, "tray.containers", nil), OnClick: func() {
+			application.InvokeAsync(func() { t.openCompactWindow("docker-manage") })
+		}},
+		{Separator: true},
+		{Label: i18n.T(locale, "tray.quit", nil), OnClick: func() {
+			application.InvokeAsync(func() {
+				if t.quitBlocked() {
+					return
+				}
+				t.wailsApp.Quit()
+			})
+		}},
+	}
 }
 
 // quitAllowed is set once Perci is quitting on purpose (a finished
@@ -246,7 +297,6 @@ func (t *TrayService) openCompactWindow(tab string) {
 		return
 	}
 
-	windowIcon, _ := t.icons()
 	win := t.wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "Perci82 Dev",
 		Width:     735,
@@ -255,7 +305,7 @@ func (t *TrayService) openCompactWindow(tab string) {
 		MinHeight: 560,
 		URL:       "/?compact=" + tab,
 		Linux: application.LinuxWindow{
-			Icon:             windowIcon,
+			Icon:             t.windowIcon,
 			WebviewGpuPolicy: application.WebviewGpuPolicyNever,
 		},
 	})
@@ -266,11 +316,6 @@ func (t *TrayService) openCompactWindow(tab string) {
 		t.compactWindow = nil
 		t.windowMu.Unlock()
 	})
-}
-
-// icons returns the window and tray icons Run set.
-func (t *TrayService) icons() (window, tray []byte) {
-	return t.windowIcon, t.trayIcon
 }
 
 // autostartDesktopPath is where writeAutostartDesktopFile/
