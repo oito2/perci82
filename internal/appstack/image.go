@@ -167,10 +167,14 @@ RUN . /etc/os-release; if [ "$VERSION_CODENAME" = bullseye ]; then \
     fi
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
+    curl locales \
     libzip-dev libpng-dev libicu-dev libxml2-dev libonig-dev \
     libjpeg-dev libfreetype6-dev libpq-dev libcurl4-openssl-dev libxslt-dev \
  && rm -rf /var/lib/apt/lists/*
+
+# Generates the en_AU.UTF-8 locale that Moodle's PHPUnit requires and the
+# pt_BR.UTF-8 locale of Moodle's pt_br language pack.
+RUN printf 'en_AU.UTF-8 UTF-8\npt_BR.UTF-8 UTF-8\n' >> /etc/locale.gen && locale-gen
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg
 

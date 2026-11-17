@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Perci82 Dev: the PHP images lacked the `en_AU.UTF-8` locale, so Moodle's PHPUnit refused to initialize ("Required locale 'en_AU.UTF-8' is not installed"). The images now generate `en_AU.UTF-8` and `pt_BR.UTF-8`; existing containers get them with Docker → Gerenciar Contêineres → Recriar, which rebuilds the image.
+
 ## [System 1.0.1] - 2026-11-16
 
 ### Fixed

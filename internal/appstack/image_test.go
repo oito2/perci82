@@ -238,3 +238,13 @@ func TestPHPUnitSelect_RunsOnEverySupportedPHP(t *testing.T) {
 		}
 	}
 }
+
+func TestPHPImage_GeneratesMoodleLocales(t *testing.T) {
+	for name, df := range map[string]string{"php": phpImageDockerfile, "combo": comboDockerfile} {
+		for _, want := range []string{" locales ", "en_AU.UTF-8 UTF-8", "pt_BR.UTF-8 UTF-8", "locale-gen"} {
+			if !strings.Contains(df, want) {
+				t.Errorf("%s Dockerfile lacks %q", name, want)
+			}
+		}
+	}
+}

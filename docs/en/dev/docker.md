@@ -30,7 +30,7 @@ The HTTPS certificate is made with mkcert when the Nginx container is created. I
 | Node | `perci-node<version>` | `/app` | Proxies every request to the dev server's port (WebSockets included, for hot reload) |
 | PHP + Node | `perci-php<version>-node<version>` | `api/` at `/var/www/html`, `app/` at `/app` | `/api/` goes to PHP; everything else is proxied to the dev server |
 
-The PHP images are built on the first use of each PHP version and include Composer, PHPUnit, PHP_CodeSniffer, Xdebug, Redis and the Moodle coding standard (moodle-cs 3.7.0, with PHPCSExtra 1.5.1 and PHPCSUtils 1.2.3). PHP runs as `www-data` with your user's UID, and Node runs as the image's `node` user with your UID, so files they write in the project stay yours. In a PHP + Node container, supervisord runs php-fpm, the dev server (in `app/`) and the optional worker (in `api/`).
+The PHP images are built on the first use of each PHP version and include Composer, PHPUnit, PHP_CodeSniffer, Xdebug, Redis and the Moodle coding standard (moodle-cs 3.7.0, with PHPCSExtra 1.5.1 and PHPCSUtils 1.2.3), plus the `en_AU.UTF-8` locale that Moodle's PHPUnit requires and the `pt_BR.UTF-8` locale. PHP runs as `www-data` with your user's UID, and Node runs as the image's `node` user with your UID, so files they write in the project stay yours. In a PHP + Node container, supervisord runs php-fpm, the dev server (in `app/`) and the optional worker (in `api/`).
 
 With **Enable database access** on, the app container gets the variables `DB_HOST=mariadb`, `DB_PORT=3306`, `DB_USER`, `DB_PASS` (the MariaDB credentials) and `DB_NAME=dev_db`. No app configuration file is written from them.
 
