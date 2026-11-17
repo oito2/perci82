@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [Dev 1.0.2] - 2026-11-17
+
 ### Fixed
 
 - Perci82 Dev: the PHP images lacked the `en_AU.UTF-8` locale, so Moodle's PHPUnit refused to initialize ("Required locale 'en_AU.UTF-8' is not installed"). The images now generate `en_AU.UTF-8` and `pt_BR.UTF-8`; existing containers get them with Docker → Gerenciar Contêineres → Recriar, which rebuilds the image.
@@ -161,7 +163,8 @@ First release of Perci82 System, split from Perci 1.9.0.
 
 - `install-system.sh` checks, when the GitHub CLI is logged in, that `checksums.txt` was attested by the release workflow (covering the binary and the menu entry archive), and extracts only menu entries and icons from the archive.
 
-[Unreleased]: https://github.com/oito2/perci82/compare/system-v1.0.1...HEAD
+[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.0.2...HEAD
+[Dev 1.0.2]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.2
 [System 1.0.1]: https://github.com/oito2/perci82/releases/tag/system-v1.0.1
 [Dev 1.0.1]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.1
 [Dev 1.0.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.0
