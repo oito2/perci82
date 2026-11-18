@@ -109,12 +109,13 @@ function transferNotes(items, sel, mode) {
 // transferSelection reads the checked boxes of a checklist into a
 // TransferSelection.
 function transferSelection(list) {
-  const sel = { nginx: false, mariadb: false, apps: [], plugins: [] };
+  const sel = { nginx: false, mariadb: false, selenium: false, apps: [], plugins: [] };
   list.querySelectorAll("input[data-key]").forEach(function (box) {
     if (!box.checked) return;
     const key = box.dataset.key;
     if (key === "nginx") sel.nginx = true;
     else if (key === "mariadb") sel.mariadb = true;
+    else if (key === "selenium") sel.selenium = true;
     else if (key.indexOf("app:") === 0) sel.apps.push(key.slice(4));
     else if (key.indexOf("plugin:") === 0) sel.plugins.push(key.slice(7));
   });
@@ -123,7 +124,7 @@ function transferSelection(list) {
 
 // selectionCount is the number of items a selection names.
 function selectionCount(sel) {
-  return (sel.nginx ? 1 : 0) + (sel.mariadb ? 1 : 0) + sel.apps.length + sel.plugins.length;
+  return (sel.nginx ? 1 : 0) + (sel.mariadb ? 1 : 0) + (sel.selenium ? 1 : 0) + sel.apps.length + sel.plugins.length;
 }
 
 // transferRow builds one checklist row: a checkbox for key with a title, a
@@ -213,6 +214,10 @@ function renderTransferList(list, items, mode, onChange) {
     infra.push(transferRow("mariadb", "MariaDB", t("transfer.mariadbDesc"),
       importing && items.localMariaDb ? t("transfer.existsRecreated") : "", false));
   }
+  if (items.selenium) {
+    infra.push(transferRow("selenium", "Selenium", t("transfer.seleniumDesc"),
+      importing && items.localSelenium ? t("transfer.existsRecreated") : "", false));
+  }
   const apps = (items.apps || []).map(function (a) {
     const type = CONTAINER_TYPE_LABELS[a.type] || a.type;
     return transferRow(appKey(a.folder), a.name || a.folder, type + " · " + a.url + (a.dbAccess ? " · " + t("transfer.usesDB") : ""),
@@ -262,7 +267,7 @@ function loadTransferExport() {
   btnTransferExport.disabled = true;
   App.GetExportItems().then(latestOnly("transfer-export", function (items) {
     transferExportItems = items;
-    const empty = !items.nginx && !items.mariadb && !(items.apps || []).length && !(items.plugins || []).length;
+    const empty = !items.nginx && !items.mariadb && !items.selenium && !(items.apps || []).length && !(items.plugins || []).length;
     transferExportEmpty.classList.toggle("hidden", !empty);
     renderTransferList(transferExportList, items, "export", updateTransferExport);
   })).catch(function (err) { openError(t("transfer.listFailed", { error: err })); });
@@ -334,6 +339,7 @@ function importConfirmMessage(items, sel) {
   const parts = [];
   if (sel.nginx) parts.push("Nginx");
   if (sel.mariadb) parts.push("MariaDB");
+  if (sel.selenium) parts.push("Selenium");
   if (sel.apps.length) parts.push(t("transfer.countApps", { count: sel.apps.length }));
   if (sel.plugins.length) parts.push(t("transfer.countMounts", { count: sel.plugins.length }));
   let msg = t("transfer.importWhat", { items: parts.join(", ") }) + "\n\n";

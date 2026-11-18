@@ -14,6 +14,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as appstack$0 from "../appstack/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -61,6 +65,19 @@ export function GenMariaDBPassword() {
 }
 
 /**
+ * GetBehatSetup returns what the registered Moodle app folder needs in its
+ * config.php and on the command line to run Behat (appstack.BehatSetupFor).
+ * An app without a Behat test site is an error.
+ * @param {string} folder
+ * @returns {$CancellablePromise<appstack$0.BehatSetup>}
+ */
+export function GetBehatSetup(folder) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DockerService.GetBehatSetup", folder).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType0($result);
+    }));
+}
+
+/**
  * GetContainerForEdit returns the current field values for the "Editar"
  * modal, pre-filling it. kind must be "mariadb" or "app" (Nginx has no
  * Editar).
@@ -70,7 +87,7 @@ export function GenMariaDBPassword() {
  */
 export function GetContainerForEdit(kind, folder) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DockerService.GetContainerForEdit", kind, folder).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType0($result);
+        return $$createType1($result);
     }));
 }
 
@@ -96,7 +113,7 @@ export function GetContainerLogsSnapshot(folder) {
  */
 export function GetContainerRows() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DockerService.GetContainerRows").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
+        return $$createType3($result);
     }));
 }
 
@@ -105,7 +122,7 @@ export function GetContainerRows() {
  */
 export function GetDockerCreateCatalog() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DockerService.GetDockerCreateCatalog").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
+        return $$createType4($result);
     }));
 }
 
@@ -116,7 +133,7 @@ export function GetDockerCreateCatalog() {
  */
 export function GetExportItems() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DockerService.GetExportItems").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType4($result);
+        return $$createType5($result);
     }));
 }
 
@@ -130,7 +147,7 @@ export function GetExportItems() {
  */
 export function GetPHPVersionsForMoodleVersion(moodleVersion) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DockerService.GetPHPVersionsForMoodleVersion", moodleVersion).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType6($result);
     }));
 }
 
@@ -213,13 +230,13 @@ export function PickRestorePath() {
  */
 export function PreviewImportConfig(path) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DockerService.PreviewImportConfig", path).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType4($result);
+        return $$createType5($result);
     }));
 }
 
 /**
  * RecreateDockerContainer dispatches to RecreateNginx/RecreateMariaDB/
- * RecreateApp — shows the Execução tab, called only after the frontend's
+ * RecreateSelenium/RecreateApp — shows the Execução tab, called only after the frontend's
  * confirmation modal.
  * @param {string} kind
  * @param {string} folder
@@ -312,7 +329,7 @@ export function UpdateDockerContainer(req) {
 
 /**
  * UpdateDockerContainerImage updates the image of one container: Nginx,
- * MariaDB, or an app together with every app sharing its Perci image (see
+ * MariaDB, Selenium, or an app together with every app sharing its Perci image (see
  * updateImages).
  * @param {string} kind
  * @param {string} folder
@@ -323,9 +340,10 @@ export function UpdateDockerContainerImage(kind, folder) {
 }
 
 // Private type creation functions
-const $$createType0 = $models.ContainerFormRequest.createFrom;
-const $$createType1 = $models.ContainerRow.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.DockerCreateCatalog.createFrom;
-const $$createType4 = $models.TransferItems.createFrom;
-const $$createType5 = $Create.Array($Create.Any);
+const $$createType0 = appstack$0.BehatSetup.createFrom;
+const $$createType1 = $models.ContainerFormRequest.createFrom;
+const $$createType2 = $models.ContainerRow.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.DockerCreateCatalog.createFrom;
+const $$createType5 = $models.TransferItems.createFrom;
+const $$createType6 = $Create.Array($Create.Any);

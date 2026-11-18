@@ -282,9 +282,12 @@ const (
 // DockerConfig holds settings for the per-project "Container Aplicativo"
 // Docker stack (internal/appstack).
 type DockerConfig struct {
-	NginxCreated bool           `yaml:"nginx_created,omitempty"`
-	MariaDB      MariaDBConfig  `yaml:"mariadb,omitempty"`
-	Apps         []AppContainer `yaml:"apps,omitempty"`
+	NginxCreated bool `yaml:"nginx_created,omitempty"`
+	// SeleniumCreated records that the shared Selenium container was created
+	// through Perci82 Dev.
+	SeleniumCreated bool           `yaml:"selenium_created,omitempty"`
+	MariaDB         MariaDBConfig  `yaml:"mariadb,omitempty"`
+	Apps            []AppContainer `yaml:"apps,omitempty"`
 }
 
 // MariaDBConfig holds the shared MariaDB container's credentials for the
@@ -351,6 +354,12 @@ type AppContainer struct {
 	// checklist; every other tool the app's type offers is on, so an app
 	// saved before the checklist existed has them all.
 	DisabledTools []string `yaml:"disabled_tools,omitempty"`
+
+	// Behat turns on the app's Behat test site: an HTTP-only Nginx server
+	// for "<folder>-behat.test" with the app's own root, reachable from the
+	// stack's containers through a network alias of the Nginx container.
+	// Used only by AppTypeMoodle; false for every other type.
+	Behat bool `yaml:"behat,omitempty"`
 }
 
 // Load reads ~/.perci/config.yaml and returns its content — an empty

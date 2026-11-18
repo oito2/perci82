@@ -20,7 +20,7 @@
 1. Abra a **Visão Geral** e clique em **Desinstalar Perci82 Dev** na seção **Desinstalar**.
 2. Na janela de confirmação, marque o que quiser (todas as opções começam desmarcadas):
    - **Backups antes de remover** — **Docker (contêineres e pastas de desenvolvimento)**, **Repositórios (contas Git)** e **Contextos de IA (pastas registradas)**. Cada backup é salvo num arquivo separado, no formato que a tela de Exportar/Importar correspondente lê. As janelas de salvar abrem uma depois da outra depois que você confirma; se você cancelar uma delas, nada é removido. Um backup que falha também interrompe a desinstalação antes de remover qualquer coisa.
-   - **Remover também** — **Os contêineres Docker (Nginx, MariaDB e apps)**: os contêineres e o comando de cada app em `~/.local/bin` são removidos; os dados em disco, dentro do workspace, são mantidos.
+   - **Remover também** — **Os contêineres Docker (Nginx, MariaDB, Selenium e apps)**: os contêineres e o comando de cada app em `~/.local/bin` são removidos; os dados em disco, dentro do workspace, são mantidos.
    - **Remover também** — **As configurações do Perci82 Dev**: as chaves dele no `~/.perci/config.yaml`, a pasta `~/.perci/git` e, só quando os contêineres Docker também são removidos (eles ainda a usam), `~/.perci/appstack` — menos `~/.perci/appstack/backups`, os backups do MariaDB, que são sempre mantidos —, as regras `includeIf` das contas Git no `~/.gitconfig` e os tokens das contas no chaveiro.
 3. Clique em **Desinstalar** e digite a sua senha quando for pedida. A aba **Execução** mostra o andamento, e a janela fecha quando termina.
 

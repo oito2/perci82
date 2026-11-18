@@ -3,7 +3,7 @@
 Standards and conventions for developing Moodle plugins in this project.
 Covers file structure, API usage, security, architecture patterns, testing and common mistakes.
 
-Last verified: 2026-11-04
+Last verified: 2026-11-18
 
 ---
 
@@ -574,5 +574,8 @@ php vendor/bin/behat --config <behat dataroot>/behatrun/behat/behat.yml --tags=@
 npx grunt amd
 ```
 
+- Behat runs against `$CFG->behat_wwwroot`, a URL different from `$CFG->wwwroot` that serves the same Moodle folder. Never give it a `*.localhost` name when Behat or the browser runs inside a container: libcurl and Chrome resolve every `*.localhost` name to the loopback address without asking DNS.
+- The web server of the Behat site must not block paths under `/behat/` or `/fixtures/` (common in production hardening): the Behat initialization fetches `admin/tool/behat/tests/behat/fixtures/environment.php` to check that the site answers.
+- `@javascript` scenarios need a WebDriver browser (e.g. Selenium with Chrome) set in `$CFG->behat_profiles` (`'wd_host' => 'http://<host>:4444/wd/hub'`). Without one, leave them out: `--tags='@local_example&&~@javascript'`.
 - Zero coding-standard errors in changed files; PHPUnit and Behat green for the plugin before reporting a task as done.
 - After a `version.php` bump, run `admin/cli/upgrade.php --non-interactive` and purge caches before testing.

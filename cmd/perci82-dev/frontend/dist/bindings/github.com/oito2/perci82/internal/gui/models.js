@@ -573,7 +573,7 @@ export class AgentSkillRow {
  * ContainerFormRequest carries every field any of the 7 container kinds'
  * create/edit form might send — unused fields for a given Kind are simply
  * left zero/empty, mirroring config.AppContainer's own "one struct, unused
- * fields stay empty per type" shape. Kind is "nginx"/"mariadb", or one of
+ * fields stay empty per type" shape. Kind is "nginx"/"mariadb"/"selenium", or one of
  * config.AppType* ("moodle"/"php"/"generic"/"node"/"php_node") for the 5
  * Container Aplicativo variants.
  */
@@ -693,6 +693,15 @@ export class ContainerFormRequest {
              */
             this["disabledTools"] = [];
         }
+        if (!("behat" in $$source)) {
+            /**
+             * Behat turns on the Behat test site of a Moodle app
+             * (config.AppContainer.Behat); ignored for every other kind.
+             * @member
+             * @type {boolean}
+             */
+            this["behat"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -735,7 +744,7 @@ export class ContainerRow {
         }
         if (!("type" in $$source)) {
             /**
-             * "nginx" | "mariadb" | config.AppType* — for the table's label/icon
+             * "nginx" | "mariadb" | "selenium" | config.AppType* — for the table's label/icon
              * @member
              * @type {string}
              */
@@ -743,7 +752,7 @@ export class ContainerRow {
         }
         if (!("name" in $$source)) {
             /**
-             * display label ("Nginx", "MariaDB", or AppContainer.Name)
+             * display label ("Nginx", "MariaDB", "Selenium", or AppContainer.Name)
              * @member
              * @type {string}
              */
@@ -797,6 +806,15 @@ export class ContainerRow {
              * @type {boolean}
              */
             this["legacyCommands"] = false;
+        }
+        if (!("behat" in $$source)) {
+            /**
+             * Behat is true for a Moodle app with its Behat test site on — enables
+             * the "Configuração do Behat" action.
+             * @member
+             * @type {boolean}
+             */
+            this["behat"] = false;
         }
 
         Object.assign(this, $$source);
@@ -1108,6 +1126,13 @@ export class DockerCreateCatalog {
              */
             this["mariadbExists"] = false;
         }
+        if (!("seleniumExists" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["seleniumExists"] = false;
+        }
         if (!("mariadbReady" in $$source)) {
             /**
              * controls the "Habilitar acesso ao banco" checkbox
@@ -1164,22 +1189,22 @@ export class DockerCreateCatalog {
      * @returns {DockerCreateCatalog}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType4;
         const $$createField5_0 = $$createType4;
         const $$createField6_0 = $$createType4;
-        const $$createField7_0 = $$createType10;
+        const $$createField7_0 = $$createType4;
+        const $$createField8_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("phpVersions" in $$parsedSource) {
-            $$parsedSource["phpVersions"] = $$createField4_0($$parsedSource["phpVersions"]);
+            $$parsedSource["phpVersions"] = $$createField5_0($$parsedSource["phpVersions"]);
         }
         if ("nodeVersions" in $$parsedSource) {
-            $$parsedSource["nodeVersions"] = $$createField5_0($$parsedSource["nodeVersions"]);
+            $$parsedSource["nodeVersions"] = $$createField6_0($$parsedSource["nodeVersions"]);
         }
         if ("moodleVersions" in $$parsedSource) {
-            $$parsedSource["moodleVersions"] = $$createField6_0($$parsedSource["moodleVersions"]);
+            $$parsedSource["moodleVersions"] = $$createField7_0($$parsedSource["moodleVersions"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField7_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField8_0($$parsedSource["tools"]);
         }
         return new DockerCreateCatalog(/** @type {Partial<DockerCreateCatalog>} */($$parsedSource));
     }
@@ -2469,8 +2494,9 @@ export class TransferApp {
 
 /**
  * TransferItems lists the items of the local config (Exportar) or of an
- * export file (Importar). Nginx and MariaDB tell whether each is present;
- * LocalNginx, LocalMariaDB and Commands are filled for an import only:
+ * export file (Importar). Nginx, MariaDB and Selenium tell whether each is
+ * present; LocalNginx, LocalMariaDB, LocalSelenium and Commands are filled
+ * for an import only:
  * what already exists here, and one "<pasta>: <comando>" entry per start
  * command and "<pasta> (worker): <comando>" per worker command the
  * file's apps run.
@@ -2502,6 +2528,13 @@ export class TransferItems {
              */
             this["mariadb"] = false;
         }
+        if (!("selenium" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["selenium"] = false;
+        }
         if (!("apps" in $$source)) {
             /**
              * @member
@@ -2530,6 +2563,13 @@ export class TransferItems {
              */
             this["localMariaDb"] = false;
         }
+        if (!("localSelenium" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["localSelenium"] = false;
+        }
         if (!("commands" in $$source)) {
             /**
              * @member
@@ -2547,18 +2587,18 @@ export class TransferItems {
      * @returns {TransferItems}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType22;
-        const $$createField4_0 = $$createType24;
-        const $$createField7_0 = $$createType4;
+        const $$createField4_0 = $$createType22;
+        const $$createField5_0 = $$createType24;
+        const $$createField9_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("apps" in $$parsedSource) {
-            $$parsedSource["apps"] = $$createField3_0($$parsedSource["apps"]);
+            $$parsedSource["apps"] = $$createField4_0($$parsedSource["apps"]);
         }
         if ("plugins" in $$parsedSource) {
-            $$parsedSource["plugins"] = $$createField4_0($$parsedSource["plugins"]);
+            $$parsedSource["plugins"] = $$createField5_0($$parsedSource["plugins"]);
         }
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField7_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField9_0($$parsedSource["commands"]);
         }
         return new TransferItems(/** @type {Partial<TransferItems>} */($$parsedSource));
     }
@@ -2634,8 +2674,8 @@ export class TransferPlugin {
 
 /**
  * TransferSelection is the frontend's choice of items on Docker →
- * Exportar/Importar: the Nginx and MariaDB containers, apps by folder and
- * plugin mounts by key ("<app>/<rel_path>").
+ * Exportar/Importar: the Nginx, MariaDB and Selenium containers, apps by
+ * folder and plugin mounts by key ("<app>/<rel_path>").
  */
 export class TransferSelection {
     /**
@@ -2656,6 +2696,13 @@ export class TransferSelection {
              * @type {boolean}
              */
             this["mariadb"] = false;
+        }
+        if (!("selenium" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["selenium"] = false;
         }
         if (!("apps" in $$source)) {
             /**
@@ -2681,14 +2728,14 @@ export class TransferSelection {
      * @returns {TransferSelection}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType4;
         const $$createField3_0 = $$createType4;
+        const $$createField4_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("apps" in $$parsedSource) {
-            $$parsedSource["apps"] = $$createField2_0($$parsedSource["apps"]);
+            $$parsedSource["apps"] = $$createField3_0($$parsedSource["apps"]);
         }
         if ("plugins" in $$parsedSource) {
-            $$parsedSource["plugins"] = $$createField3_0($$parsedSource["plugins"]);
+            $$parsedSource["plugins"] = $$createField4_0($$parsedSource["plugins"]);
         }
         return new TransferSelection(/** @type {Partial<TransferSelection>} */($$parsedSource));
     }

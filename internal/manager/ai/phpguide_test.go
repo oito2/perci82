@@ -204,3 +204,78 @@ func TestPHPGuide_RuleRemovedWithoutTheApp(t *testing.T) {
 		t.Errorf("remove after the app was removed: %v", err)
 	}
 }
+
+func TestPHPGuide_MoodleTests(t *testing.T) {
+	project, _ := phpGuideSetup(t)
+	tests := func() string {
+		t.Helper()
+		p, ok := phpAppFor(project)
+		if !ok {
+			t.Fatal("no app for the project")
+		}
+		return p.vars()["MOODLE_TESTS"]
+	}
+	update := func(f func(*config.Config)) {
+		t.Helper()
+		if err := config.Update(func(c *config.Config) error { f(c); return nil }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	has := func(section string, want ...string) {
+		t.Helper()
+		for _, w := range want {
+			if !strings.Contains(section, w) {
+				t.Errorf("section lacks %q:\n%s", w, section)
+			}
+		}
+	}
+
+	off := tests()
+	has(off, "## Moodle Tests", "`mdle public/admin/tool/phpunit/cli/init.php`", "Behat is off for this app", "\n---\n\n")
+	if strings.Contains(off, "behat_wwwroot  =") {
+		t.Errorf("Behat lines with the option off:\n%s", off)
+	}
+
+	update(func(c *config.Config) { c.Docker.Apps[0].Behat = true })
+	on := tests()
+	has(on, "`http://mdle-behat.test`", "$CFG->behat_wwwroot  = 'http://mdle-behat.test';", "`mdle public/admin/tool/behat/cli/init.php`",
+		"--tags='@local_x&&~@javascript'", "No Selenium container is set up")
+
+	update(func(c *config.Config) { c.Docker.SeleniumCreated = true })
+	sel := tests()
+	has(sel, "'wd_host' => 'http://selenium:4444/wd/hub'", "--tags='@local_x'`", "`http://localhost:7900`")
+
+	update(func(c *config.Config) {
+		c.Docker.Apps[0].MoodleVersion = "4.4-4.5"
+		c.Docker.Apps[0].PHPVersion = "8.3"
+	})
+	has(tests(), "`mdle admin/tool/behat/cli/init.php`", "`mdle admin/tool/phpunit/cli/init.php`")
+
+	update(func(c *config.Config) { c.Docker.Apps[0].Type = config.AppTypePHP })
+	if got := tests(); got != "" {
+		t.Errorf("a PHP app got a Moodle Tests section:\n%s", got)
+	}
+}
+
+// The guide follows the Selenium container: creating it makes an applied
+// guide outdated.
+func TestPHPGuide_OutdatedWhenSeleniumChanges(t *testing.T) {
+	project, _ := phpGuideSetup(t)
+	if err := config.Update(func(c *config.Config) error { c.Docker.Apps[0].Behat = true; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := GenerateSharedFiles(project, ModelsNamed([]string{"Moodle", phpPerciName}), AgentIDs(), true, &out); err != nil {
+		t.Fatal(err)
+	}
+	rec := config.AIContext{Name: "M", Path: project, Models: []string{"Moodle", phpPerciName}, Agents: AgentIDs()}
+	if st, _ := ContextState(rec); st.State != StatusApplied {
+		t.Fatalf("state = %q, want applied", st.State)
+	}
+	if err := config.Update(func(c *config.Config) error { c.Docker.SeleniumCreated = true; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := ContextState(rec); st.State != StatusOutdated {
+		t.Errorf("state after Selenium was created = %q, want outdated", st.State)
+	}
+}

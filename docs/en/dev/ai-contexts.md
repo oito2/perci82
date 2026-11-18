@@ -222,7 +222,8 @@ The **PHP Perci82** standard (in the Moodle plugin and PHP + Slim system types) 
 
 - The app: type, versions, URL and the host and container folders.
 - The app's command (for example `loja composer install`) and its enabled tools: Composer, PHPUnit, PHP_CodeSniffer, npm in PHP + Node apps, and the `moodle` standard and CLI scripts in Moodle apps.
+- In Moodle apps, the tests: how to initialize and run PHPUnit and, when the app's [Behat test site](docker.md#behat) is on, the Behat site's address, the `config.php` lines it needs and the commands that initialize it and run the scenarios. Without the Selenium container the commands leave `@javascript` scenarios out; with Behat off, the file tells the agent to ask you to turn it on.
 - The database: host, port, database and user, when the app has database access. The password is never written: the file says it is only in the app's environment (`DB_PASS`).
 - The mounted development folders, logs and restarts.
 
-The file's first line carries a SHA-256 signature of the rest. A signed copy written for earlier app settings shows as **outdated**, and **Update** rewrites it; a copy changed by hand fails the signature and shows as **edited**. When no Docker app holds the folder, the standard is skipped (the confirmation shows "not generated (no Docker app uses this folder)").
+The file's first line carries a SHA-256 signature of the rest. A signed copy written for earlier app settings (including turning the Behat test site on or off and creating or removing the Selenium container) shows as **outdated**, and **Update** rewrites it; a copy changed by hand fails the signature and shows as **edited**. When no Docker app holds the folder, the standard is skipped (the confirmation shows "not generated (no Docker app uses this folder)").

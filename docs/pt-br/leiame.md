@@ -41,7 +41,7 @@ Principais recursos do Perci82 System:
 Principais recursos do Perci82 Dev:
 
 - **Ambiente** — pré-requisitos, linguagens e SDKs, aplicativos de IA, terminais, IDEs, Android Studio e Antigravity IDE, instalados, atualizados e removidos item por item.
-- **Docker** — um stack com Nginx e MariaDB com HTTPS em `https://<app>.localhost`, contêineres de apps Moodle, PHP, Node e PHP + Node, cada um com o seu comando em `~/.local/bin`, e pastas de desenvolvimento montadas nos apps.
+- **Docker** — um stack com Nginx e MariaDB com HTTPS em `https://<app>.localhost`, contêineres de apps Moodle, PHP, Node e PHP + Node, cada um com o seu comando em `~/.local/bin`, pastas de desenvolvimento montadas nos apps e um site de testes do Behat por app Moodle, com um Selenium compartilhado opcional para os cenários `@javascript`.
 - **Repositórios** — contas Git com chave SSH, identidade e token de API próprios; os repositórios de cada conta, com clonar, atualizar (pull) e exportar/importar.
 - **Contextos de IA** — regras para Claude Code, Gemini, Codex, OpenCode e Antigravity em cada projeto, a partir dos padrões do Perci82 e dos seus contextos personalizados, com anotações de projeto guardadas fora do repositório.
 - **Skills & MCPs** — skills do skills.sh e servidores MCP, incluindo o Build82 e o Sync82, registrados nos agentes de programação.

@@ -206,10 +206,10 @@ export function PickWorkspaceFolder() {
  *     "Contextos de IA"; the context files in those folders are never
  *     touched by the uninstall.
  *   - removeDocker: removes every registered container (apps, then
- *     MariaDB, then Nginx — apps first so nothing routes through infra
- *     that's about to disappear) via appstack.DeleteApp/DeleteMariaDB/
- *     DeleteNginx — disk data (workspace/localhost/...) is left
- *     untouched.
+ *     Selenium, MariaDB and Nginx — apps first so nothing routes through
+ *     infra that's about to disappear) via appstack.DeleteApp/
+ *     DeleteSelenium/DeleteMariaDB/DeleteNginx — disk data
+ *     (workspace/localhost/...) is left untouched.
  * 
  * A failed backup aborts the uninstall before anything is removed; only
  * "nothing to export" is a warning.

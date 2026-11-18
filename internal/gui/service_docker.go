@@ -56,6 +56,7 @@ type DockerService struct {
 type DockerCreateCatalog struct {
 	NginxExists    bool     `json:"nginxExists"`
 	MariaDBExists  bool     `json:"mariadbExists"`
+	SeleniumExists bool     `json:"seleniumExists"`
 	MariaDBReady   bool     `json:"mariadbReady"` // controls the "Habilitar acesso ao banco" checkbox
 	MkcertReady    bool     `json:"mkcertReady"`  // false = creating the Nginx container now will call "mkcert -install" for the first time
 	PHPVersions    []string `json:"phpVersions"`
@@ -72,6 +73,7 @@ func (s *DockerService) GetDockerCreateCatalog() DockerCreateCatalog {
 	return DockerCreateCatalog{
 		NginxExists:    appstack.NginxExists(context.Background(), s.exe),
 		MariaDBExists:  appstack.MariaDBExists(context.Background(), s.exe),
+		SeleniumExists: appstack.SeleniumExists(context.Background(), s.exe),
 		MariaDBReady:   mariadbReady,
 		MkcertReady:    appstack.WildcardCertReady(),
 		PHPVersions:    appstack.SupportedPHPVersions,
@@ -110,7 +112,7 @@ func (s *DockerService) GenMariaDBPassword() string {
 // ContainerFormRequest carries every field any of the 7 container kinds'
 // create/edit form might send — unused fields for a given Kind are simply
 // left zero/empty, mirroring config.AppContainer's own "one struct, unused
-// fields stay empty per type" shape. Kind is "nginx"/"mariadb", or one of
+// fields stay empty per type" shape. Kind is "nginx"/"mariadb"/"selenium", or one of
 // config.AppType* ("moodle"/"php"/"generic"/"node"/"php_node") for the 5
 // Container Aplicativo variants.
 type ContainerFormRequest struct {
@@ -136,6 +138,9 @@ type ContainerFormRequest struct {
 	// DisabledTools are the tools of the app's command unchecked in the
 	// form (config.AppContainer.DisabledTools).
 	DisabledTools []string `json:"disabledTools"`
+	// Behat turns on the Behat test site of a Moodle app
+	// (config.AppContainer.Behat); ignored for every other kind.
+	Behat bool `json:"behat"`
 }
 
 func (r ContainerFormRequest) toAppContainer() config.AppContainer {
@@ -153,18 +158,20 @@ func (r ContainerFormRequest) toAppContainer() config.AppContainer {
 		PHPMemoryLimit: r.PHPMemoryLimit,
 		WorkerCommand:  r.WorkerCommand,
 		DisabledTools:  r.DisabledTools,
+		Behat:          r.Behat && r.Kind == config.AppTypeMoodle,
 	}
 }
 
-// kindNginx/kindMariaDB/kindApp are the 3 dispatch-family values used
+// kindNginx/kindMariaDB/kindSelenium/kindApp are the dispatch-family values used
 // throughout this file (ContainerRow.Family, and the "kind"/"family"
 // parameter of every Create/Update/Remove/Recreate/Edit method below) —
 // named instead of repeating the literals, so a typo in a new `case` is a
 // compile error instead of a silently-unmatched string.
 const (
-	kindNginx   = "nginx"
-	kindMariaDB = "mariadb"
-	kindApp     = "app"
+	kindNginx    = "nginx"
+	kindMariaDB  = "mariadb"
+	kindSelenium = "selenium"
+	kindApp      = "app"
 )
 
 // isAppKind reports whether kind is one of the 5 Container Aplicativo
@@ -195,6 +202,11 @@ func (s *DockerService) CreateDockerContainer(req ContainerFormRequest) error {
 				return errors.New(i18n.Tr("docker.exists", i18n.Args{"name": "MariaDB"}))
 			}
 			return appstack.CreateMariaDB(context.Background(), s.exe, stdout, req.DBUser, req.DBPass)
+		case req.Kind == kindSelenium:
+			if appstack.SeleniumExists(context.Background(), s.exe) {
+				return errors.New(i18n.Tr("docker.exists", i18n.Args{"name": "Selenium"}))
+			}
+			return appstack.CreateSelenium(context.Background(), s.exe, stdout)
 		case isAppKind(req.Kind):
 			return appstack.CreateApp(context.Background(), s.exe, stdout, req.toAppContainer())
 		default:
@@ -213,8 +225,8 @@ type ContainerRow struct {
 	// which is a different field with different values despite the two
 	// structs sharing the same "create/edit a container" screens.
 	Family string `json:"family"`
-	Type   string `json:"type"`   // "nginx" | "mariadb" | config.AppType* — for the table's label/icon
-	Name   string `json:"name"`   // display label ("Nginx", "MariaDB", or AppContainer.Name)
+	Type   string `json:"type"`   // "nginx" | "mariadb" | "selenium" | config.AppType* — for the table's label/icon
+	Name   string `json:"name"`   // display label ("Nginx", "MariaDB", "Selenium", or AppContainer.Name)
 	Folder string `json:"folder"` // the real Docker container name
 	Status string `json:"status"` // Docker's raw value: running/exited/created/paused/restarting/dead/"" (not found)
 	// DockerError is set (and Status left "") when the Docker daemon could
@@ -225,6 +237,9 @@ type ContainerRow struct {
 	// LegacyCommands is true for an app that still has the older
 	// <tool>-<app> wrappers instead of its command.
 	LegacyCommands bool `json:"legacyCommands"`
+	// Behat is true for a Moodle app with its Behat test site on — enables
+	// the "Configuração do Behat" action.
+	Behat bool `json:"behat"`
 }
 
 // GetContainerRows lists every container registered in config.yaml (the
@@ -251,10 +266,16 @@ func (s *DockerService) GetContainerRows() []ContainerRow {
 			CanEdit: true, HasDB: true,
 		})
 	}
+	if cfg.Docker.SeleniumCreated {
+		rows = append(rows, ContainerRow{
+			Family: kindSelenium, Type: "selenium", Name: "Selenium", Folder: appstack.SeleniumContainerName,
+		})
+	}
 	for _, app := range cfg.Docker.Apps {
+		_, behat := appstack.BehatHost(app)
 		rows = append(rows, ContainerRow{
 			Family: kindApp, Type: app.Type, Name: app.Name, Folder: app.Folder, CanEdit: true,
-			LegacyCommands: appstack.HasLegacyWrappers(app.Folder),
+			LegacyCommands: appstack.HasLegacyWrappers(app.Folder), Behat: behat,
 		})
 	}
 
@@ -296,7 +317,7 @@ func (s *DockerService) GetContainerForEdit(kind, folder string) (ContainerFormR
 			PHPVersion: app.PHPVersion, DBAccess: app.DBAccess, MoodleVersion: app.MoodleVersion,
 			NodeVersion: app.NodeVersion, DevCommand: app.DevCommand, DevPort: app.DevPort,
 			PHPMemoryLimit: app.PHPMemoryLimit, WorkerCommand: app.WorkerCommand,
-			DisabledTools: app.DisabledTools,
+			DisabledTools: app.DisabledTools, Behat: app.Behat,
 		}, nil
 	}
 	return ContainerFormRequest{}, fmt.Errorf("type without editing: %s", kind)
@@ -369,6 +390,8 @@ func (s *DockerService) RemoveDockerContainer(kind, folder string) error {
 			return appstack.DeleteNginx(ctx, s.exe, io.Discard)
 		case kindMariaDB:
 			return appstack.DeleteMariaDB(ctx, s.exe, io.Discard)
+		case kindSelenium:
+			return appstack.DeleteSelenium(ctx, s.exe, io.Discard)
 		case kindApp:
 			return appstack.DeleteApp(ctx, s.exe, io.Discard, folder)
 		}
@@ -377,7 +400,7 @@ func (s *DockerService) RemoveDockerContainer(kind, folder string) error {
 }
 
 // RecreateDockerContainer dispatches to RecreateNginx/RecreateMariaDB/
-// RecreateApp — shows the Execução tab, called only after the frontend's
+// RecreateSelenium/RecreateApp — shows the Execução tab, called only after the frontend's
 // confirmation modal.
 func (s *DockerService) RecreateDockerContainer(kind, folder string) error {
 	return s.runAction(func(stdout io.Writer) error {
@@ -388,6 +411,8 @@ func (s *DockerService) RecreateDockerContainer(kind, folder string) error {
 			return err
 		case kindMariaDB:
 			return appstack.RecreateMariaDB(ctx, s.exe, stdout)
+		case kindSelenium:
+			return appstack.RecreateSelenium(ctx, s.exe, stdout)
 		case kindApp:
 			return appstack.RecreateApp(ctx, s.exe, stdout, folder)
 		}
@@ -398,7 +423,7 @@ func (s *DockerService) RecreateDockerContainer(kind, folder string) error {
 // ── Atualizar imagem ──────────────────────────────────────────────────────
 
 // UpdateDockerContainerImage updates the image of one container: Nginx,
-// MariaDB, or an app together with every app sharing its Perci image (see
+// MariaDB, Selenium, or an app together with every app sharing its Perci image (see
 // updateImages).
 func (s *DockerService) UpdateDockerContainerImage(kind, folder string) error {
 	return s.runAction(func(stdout io.Writer) error {
@@ -408,6 +433,8 @@ func (s *DockerService) UpdateDockerContainerImage(kind, folder string) error {
 			target.Nginx = true
 		case kindMariaDB:
 			target.MariaDB = true
+		case kindSelenium:
+			target.Selenium = true
 		case kindApp:
 			t, err := appstack.AppImageTarget(folder)
 			if err != nil {
@@ -471,6 +498,27 @@ func (s *DockerService) updateImages(stdout io.Writer, target appstack.ImageUpda
 	return nil
 }
 
+// ── Configuração do Behat ─────────────────────────────────────────────────
+
+// GetBehatSetup returns what the registered Moodle app folder needs in its
+// config.php and on the command line to run Behat (appstack.BehatSetupFor).
+// An app without a Behat test site is an error.
+func (s *DockerService) GetBehatSetup(folder string) (appstack.BehatSetup, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return appstack.BehatSetup{}, err
+	}
+	app, found := appstack.FindAppByFolder(cfg.Docker.Apps, folder)
+	if !found {
+		return appstack.BehatSetup{}, errors.New(i18n.Tr("docker.appNotRegistered", i18n.Args{"app": folder}))
+	}
+	setup, ok := appstack.BehatSetupFor(cfg, app)
+	if !ok {
+		return appstack.BehatSetup{}, errors.New(i18n.Tr("docker.behatOff", i18n.Args{"app": folder}))
+	}
+	return setup, nil
+}
+
 // ── Ver Logs ──────────────────────────────────────────────────────────────
 
 // GetContainerLogsSnapshot fetches the last 200 lines once (docker logs
@@ -506,18 +554,19 @@ func (s *DockerService) SaveTextFile(path, content string) error {
 // ── Exportar/Importar ─────────────────────────────────────────────────────
 
 // TransferSelection is the frontend's choice of items on Docker →
-// Exportar/Importar: the Nginx and MariaDB containers, apps by folder and
-// plugin mounts by key ("<app>/<rel_path>").
+// Exportar/Importar: the Nginx, MariaDB and Selenium containers, apps by
+// folder and plugin mounts by key ("<app>/<rel_path>").
 type TransferSelection struct {
-	Nginx   bool     `json:"nginx"`
-	MariaDB bool     `json:"mariadb"`
-	Apps    []string `json:"apps"`
-	Plugins []string `json:"plugins"`
+	Nginx    bool     `json:"nginx"`
+	MariaDB  bool     `json:"mariadb"`
+	Selenium bool     `json:"selenium"`
+	Apps     []string `json:"apps"`
+	Plugins  []string `json:"plugins"`
 }
 
 // domain converts s to the appstack selection.
 func (s TransferSelection) domain() appstack.TransferSelection {
-	return appstack.TransferSelection{Nginx: s.Nginx, MariaDB: s.MariaDB, Apps: s.Apps, Plugins: s.Plugins}
+	return appstack.TransferSelection{Nginx: s.Nginx, MariaDB: s.MariaDB, Selenium: s.Selenium, Apps: s.Apps, Plugins: s.Plugins}
 }
 
 // TransferApp is one Container Aplicativo listed on Exportar/Importar.
@@ -545,8 +594,9 @@ type TransferPlugin struct {
 }
 
 // TransferItems lists the items of the local config (Exportar) or of an
-// export file (Importar). Nginx and MariaDB tell whether each is present;
-// LocalNginx, LocalMariaDB and Commands are filled for an import only:
+// export file (Importar). Nginx, MariaDB and Selenium tell whether each is
+// present; LocalNginx, LocalMariaDB, LocalSelenium and Commands are filled
+// for an import only:
 // what already exists here, and one "<pasta>: <comando>" entry per start
 // command and "<pasta> (worker): <comando>" per worker command the
 // file's apps run.
@@ -554,10 +604,12 @@ type TransferItems struct {
 	WorkspacePath string           `json:"workspacePath"`
 	Nginx         bool             `json:"nginx"`
 	MariaDB       bool             `json:"mariadb"`
+	Selenium      bool             `json:"selenium"`
 	Apps          []TransferApp    `json:"apps"`
 	Plugins       []TransferPlugin `json:"plugins"`
 	LocalNginx    bool             `json:"localNginx"`
 	LocalMariaDB  bool             `json:"localMariaDb"`
+	LocalSelenium bool             `json:"localSelenium"`
 	Commands      []string         `json:"commands"`
 }
 
@@ -568,6 +620,7 @@ func transferItems(e appstack.ExportedConfig, local *config.Config) TransferItem
 		WorkspacePath: e.WorkspacePath,
 		Nginx:         e.Docker.NginxCreated,
 		MariaDB:       e.Docker.MariaDB.DBUser != "",
+		Selenium:      e.Docker.SeleniumCreated,
 		Apps:          []TransferApp{},
 		Plugins:       []TransferPlugin{},
 		Commands:      importCommands(e),
@@ -671,6 +724,7 @@ func (s *DockerService) PreviewImportConfig(path string) (TransferItems, error) 
 	items := transferItems(exported, cfg)
 	items.LocalNginx = cfg.Docker.NginxCreated
 	items.LocalMariaDB = cfg.Docker.MariaDB.DBUser != ""
+	items.LocalSelenium = cfg.Docker.SeleniumCreated
 	for i, st := range states {
 		items.Plugins[i].Mounted = st.Mounted
 		items.Plugins[i].Reason = st.Reason

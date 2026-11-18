@@ -398,9 +398,11 @@ func TestNginxRunArgs(t *testing.T) {
 		"/home/u/.perci/appstack/certs",
 		"/home/u/workspace/localhost/html",
 		"/home/u/workspace/localhost/logs/nginx",
+		[]string{"a-behat.test", "b-behat.test"},
 	)
 
 	wantContains := []string{
+		"--network-alias a-behat.test --network-alias b-behat.test",
 		"--name", NginxContainerName,
 		"--network", NetworkName,
 		"-p", "127.0.0.1:80:80",

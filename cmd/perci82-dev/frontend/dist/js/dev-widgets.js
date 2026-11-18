@@ -60,7 +60,7 @@ btnLogsExport.addEventListener("click", function () {
 // CONTAINER_TYPE_LABELS maps each container type to its name; "generic"
 // is translated, so the map has getters.
 const CONTAINER_TYPE_LABELS = {
-  nginx: "Nginx", mariadb: "MariaDB", moodle: "Moodle", php: "PHP",
+  nginx: "Nginx", mariadb: "MariaDB", selenium: "Selenium", moodle: "Moodle", php: "PHP",
   get generic() { return t("docker.type.generic"); }, node: "Node", php_node: "PHP + Node",
 };
 
@@ -193,7 +193,7 @@ function reconcileKeyedList(container, items, keyOf, signatureOf, buildNode) {
 }
 
 // buildContainerFieldsHTML renders the fields for one final container
-// kind ("nginx"|"mariadb"|"moodle"|"php"|"generic"|"node"|"php_node")
+// kind ("nginx"|"mariadb"|"selenium"|"moodle"|"php"|"generic"|"node"|"php_node")
 // into prefix-scoped ids (ex. "dc-folder", "edit-folder") — reused by
 // both #dc-fields (Criar) and #edit-fields (Editar), values pre-fills
 // when editing.
@@ -202,6 +202,9 @@ function buildContainerFieldsHTML(prefix, kind, catalog, values) {
   const p = prefix;
   if (kind === "nginx") {
     return '<p class="opacity-70 text-sm">' + escHTML(t("docker.nginxNoParams")) + "</p>";
+  }
+  if (kind === "selenium") {
+    return '<p class="opacity-70 text-sm">' + escHTML(t("docker.seleniumNoParams")) + "</p>";
   }
   if (kind === "mariadb") {
     return (
@@ -240,6 +243,9 @@ function buildContainerFieldsHTML(prefix, kind, catalog, values) {
       p + "-dbAccess", t("docker.field.dbAccess"), !!values.dbAccess, !catalog.mariadbReady,
       catalog.mariadbReady ? "" : t("docker.field.dbAccessHint")
     );
+  }
+  if (kind === "moodle") {
+    html += checkboxFieldHTML(p + "-behat", t("docker.field.behat"), !!values.behat, false, t("docker.field.behatHint"));
   }
   html += toolsFieldsHTML(p, kind, catalog, values);
   return html;
@@ -318,9 +324,13 @@ function readContainerFieldsValues(prefix, kind, catalog) {
 
   if (kind === "nginx") return { kind: "nginx" };
   if (kind === "mariadb") return { kind: "mariadb", dbUser: get(p + "-dbUser"), dbPass: get(p + "-dbPass") };
+  if (kind === "selenium") return { kind: "selenium" };
 
   const req = { kind: kind, name: get(p + "-name"), folder: get(p + "-folder"), url: get(p + "-url") };
-  if (kind === "moodle") req.moodleVersion = get(p + "-moodleVersion");
+  if (kind === "moodle") {
+    req.moodleVersion = get(p + "-moodleVersion");
+    req.behat = getChecked(p + "-behat");
+  }
   if (kind === "moodle" || kind === "php" || kind === "generic" || kind === "php_node") {
     req.phpVersion = get(p + "-phpVersion");
     req.phpMemoryLimit = get(p + "-phpMemoryLimit");

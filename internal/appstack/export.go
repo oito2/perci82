@@ -36,8 +36,8 @@ import (
 )
 
 // ExportedConfig is the file format ExportConfig writes and ImportConfig
-// reads: a portable snapshot of the Docker stack definition (Nginx flag,
-// MariaDB credentials, Containers Aplicativo), the Moodle plugin mounts,
+// reads: a portable snapshot of the Docker stack definition (Nginx and
+// Selenium flags, MariaDB credentials, Containers Aplicativo), the Moodle plugin mounts,
 // and the WorkspacePath it was created against.
 //
 // WorkspacePath travels alongside the items so ImportConfig can refuse to
@@ -52,13 +52,14 @@ type ExportedConfig struct {
 }
 
 // TransferSelection names the items an export or an import covers: the
-// Nginx and MariaDB containers, apps by folder and plugin mounts by
-// PluginKey.
+// Nginx, MariaDB and Selenium containers, apps by folder and plugin mounts
+// by PluginKey.
 type TransferSelection struct {
-	Nginx   bool
-	MariaDB bool
-	Apps    []string
-	Plugins []string
+	Nginx    bool
+	MariaDB  bool
+	Selenium bool
+	Apps     []string
+	Plugins  []string
 }
 
 // PluginKey identifies a plugin mount: "<app>/<rel_path>".
@@ -68,7 +69,7 @@ func PluginKey(m config.MoodlePluginMount) string {
 
 // SelectAll returns the selection of every item in e.
 func SelectAll(e ExportedConfig) TransferSelection {
-	sel := TransferSelection{Nginx: e.Docker.NginxCreated, MariaDB: e.Docker.MariaDB.DBUser != ""}
+	sel := TransferSelection{Nginx: e.Docker.NginxCreated, MariaDB: e.Docker.MariaDB.DBUser != "", Selenium: e.Docker.SeleniumCreated}
 	for _, app := range e.Docker.Apps {
 		sel.Apps = append(sel.Apps, app.Folder)
 	}
@@ -94,6 +95,12 @@ func (e ExportedConfig) Filter(sel TransferSelection) (ExportedConfig, error) {
 		}
 		out.Docker.MariaDB = e.Docker.MariaDB
 	}
+	if sel.Selenium {
+		if !e.Docker.SeleniumCreated {
+			return ExportedConfig{}, errors.New(i18n.Tr("transfer.notInFile", i18n.Args{"name": "Selenium"}))
+		}
+		out.Docker.SeleniumCreated = true
+	}
 	for _, folder := range sel.Apps {
 		app, ok := FindAppByFolder(e.Docker.Apps, folder)
 		if !ok {
@@ -117,7 +124,8 @@ func (e ExportedConfig) Filter(sel TransferSelection) (ExportedConfig, error) {
 
 // empty reports whether e holds no item.
 func (e ExportedConfig) empty() bool {
-	return !e.Docker.NginxCreated && e.Docker.MariaDB.DBUser == "" && len(e.Docker.Apps) == 0 && len(e.MoodlePlugins) == 0
+	return !e.Docker.NginxCreated && e.Docker.MariaDB.DBUser == "" && !e.Docker.SeleniumCreated &&
+		len(e.Docker.Apps) == 0 && len(e.MoodlePlugins) == 0
 }
 
 // findPluginByKey returns the mount whose PluginKey is key.
@@ -395,7 +403,7 @@ func sensitiveDevPath(path string) bool {
 // local stays. It then mounts the selected plugin mounts (one password
 // prompt; a mount that can't be made on this machine is skipped with a
 // warning) and recreates the selected containers (Nginx, then MariaDB, then
-// every Container Aplicativo, in that dependency order) by reusing each
+// Selenium, then every Container Aplicativo, in that dependency order) by reusing each
 // type's own Recreate* function. Running containers of a newly mounted
 // plugin that weren't recreated are restarted so they see it.
 //
@@ -466,6 +474,9 @@ func ImportConfig(ctx context.Context, exe *executor.Executor, stdin io.Reader, 
 		if part.Docker.NginxCreated {
 			cfg.Docker.NginxCreated = true
 		}
+		if part.Docker.SeleniumCreated {
+			cfg.Docker.SeleniumCreated = true
+		}
 		if part.Docker.MariaDB.DBUser != "" {
 			// With an existing local data directory, the local root and data
 			// secrets win (they are the ones it was created with); otherwise
@@ -503,6 +514,13 @@ func ImportConfig(ctx context.Context, exe *executor.Executor, stdin io.Reader, 
 		ui.Info(stdout, i18n.Tr("transfer.run.recreateMariaDB", nil))
 		if err := RecreateMariaDB(ctx, exe, stdout); err != nil {
 			return fmt.Errorf("recreate mariadb: %w", err)
+		}
+	}
+
+	if part.Docker.SeleniumCreated {
+		ui.Info(stdout, i18n.Tr("transfer.run.recreateSelenium", nil))
+		if err := RecreateSelenium(ctx, exe, stdout); err != nil {
+			return fmt.Errorf("recreate selenium: %w", err)
 		}
 	}
 

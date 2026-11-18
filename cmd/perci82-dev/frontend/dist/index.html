@@ -355,6 +355,7 @@
                 <select id="dc-kind" class="select select-bordered">
                   <option value="nginx">Nginx</option>
                   <option value="mariadb">MariaDB</option>
+                  <option value="selenium">Selenium</option>
                   <option value="__app__" data-i18n="docker.kind.app">Contêiner Aplicativo</option>
                   <option value="node">Node</option>
                   <option value="php_node">PHP + Node</option>
@@ -1073,7 +1074,7 @@
     <label class="label cursor-pointer justify-start gap-3 items-start o2-wrap">
       <input id="su2-remove-docker" type="checkbox" class="checkbox mt-1" />
       <span>
-        <span class="label-text font-medium" data-i18n="uninstall.removeDocker">Os contêineres Docker (Nginx, MariaDB e apps)</span>
+        <span class="label-text font-medium" data-i18n="uninstall.removeDocker">Os contêineres Docker (Nginx, MariaDB, Selenium e apps)</span>
         <span class="o2-hint block" data-i18n="uninstall.removeDockerHint">Os dados em disco são mantidos.</span>
       </span>
     </label>
@@ -1151,6 +1152,29 @@
         <button id="btn-logs-refresh" type="button" class="btn btn-outline btn-sm" data-i18n="action.update">Atualizar</button>
         <button id="btn-logs-export" type="button" class="btn btn-outline btn-sm" data-i18n="logs.export">Exportar</button>
       </div>
+      <form method="dialog"><button class="btn btn-sm" data-i18n="oito2.close">Fechar</button></form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button data-i18n="oito2.close">fechar</button></form>
+</dialog>
+
+<dialog id="behat-modal" class="modal">
+  <div class="modal-box max-w-3xl">
+    <h3 id="behat-modal-title" class="font-bold text-lg mb-2" data-i18n="docker.behat.title">Configuração do Behat</h3>
+    <p id="behat-modal-intro" class="opacity-80 text-sm mb-4"></p>
+    <div class="flex items-center justify-between mb-1">
+      <span class="label-text font-semibold" data-i18n="docker.behat.configTitle">Linhas do config.php</span>
+      <button id="btn-behat-copy-config" type="button" class="btn btn-outline btn-xs" data-i18n="docker.behat.copy">Copiar</button>
+    </div>
+    <p class="text-xs opacity-60 mb-1" data-i18n="docker.behat.configHint">Cole antes de require_once(__DIR__ . '/lib/setup.php');</p>
+    <pre id="behat-modal-config" class="bg-base-200 rounded p-3 text-xs overflow-auto mb-4" style="white-space: pre;"></pre>
+    <div class="flex items-center justify-between mb-1">
+      <span class="label-text font-semibold" data-i18n="docker.behat.commandsTitle">Comandos</span>
+      <button id="btn-behat-copy-commands" type="button" class="btn btn-outline btn-xs" data-i18n="docker.behat.copy">Copiar</button>
+    </div>
+    <pre id="behat-modal-commands" class="bg-base-200 rounded p-3 text-xs overflow-auto mb-4" style="white-space: pre;"></pre>
+    <p id="behat-modal-note" class="text-sm opacity-80"></p>
+    <div class="modal-action">
       <form method="dialog"><button class="btn btn-sm" data-i18n="oito2.close">Fechar</button></form>
     </div>
   </div>

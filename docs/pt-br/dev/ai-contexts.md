@@ -222,7 +222,8 @@ O padrão **PHP Perci82** (nos tipos Plugin Moodle e Sistema PHP + Slim) grava o
 
 - O app: tipo, versões, URL e as pastas no host e no contêiner.
 - O comando do app (por exemplo `loja composer install`) e as ferramentas ativas: Composer, PHPUnit, PHP_CodeSniffer, npm nos apps PHP + Node, e o padrão `moodle` e os scripts de CLI nos apps Moodle.
+- Nos apps Moodle, os testes: como inicializar e rodar o PHPUnit e, quando o [site de testes do Behat](docker.md#behat) do app está ligado, o endereço do site do Behat, as linhas do `config.php` que ele exige e os comandos que o inicializam e rodam os cenários. Sem o contêiner Selenium, os comandos deixam de fora os cenários `@javascript`; com o Behat desligado, o arquivo orienta o agente a pedir que você o ligue.
 - O banco: host, porta, banco e usuário, quando o app tem acesso ao banco. A senha nunca é gravada: o arquivo diz que ela só está no ambiente do app (`DB_PASS`).
 - As pastas de desenvolvimento montadas, os logs e os reinícios.
 
-A primeira linha do arquivo traz uma assinatura SHA-256 do restante. Uma cópia assinada, gravada para configurações anteriores do app, aparece como **desatualizado**, e **Atualizar** a regrava; uma cópia alterada à mão não confere com a assinatura e aparece como **editado**. Quando nenhum app do Docker contém a pasta, o padrão é pulado (a confirmação mostra "não gerado (nenhum app do Docker usa esta pasta)").
+A primeira linha do arquivo traz uma assinatura SHA-256 do restante. Uma cópia assinada, gravada para configurações anteriores do app (inclusive ao ligar ou desligar o site de testes do Behat e ao criar ou remover o contêiner Selenium), aparece como **desatualizado**, e **Atualizar** a regrava; uma cópia alterada à mão não confere com a assinatura e aparece como **editado**. Quando nenhum app do Docker contém a pasta, o padrão é pulado (a confirmação mostra "não gerado (nenhum app do Docker usa esta pasta)").

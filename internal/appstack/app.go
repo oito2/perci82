@@ -265,7 +265,7 @@ var stackMu sync.Mutex
 // reservedFolders are the infrastructure containers' own names: an app
 // folder is also its container name, so an app called "nginx" would collide
 // with the stack's Nginx.
-var reservedFolders = map[string]bool{NginxContainerName: true, MariaDBContainerName: true}
+var reservedFolders = map[string]bool{NginxContainerName: true, MariaDBContainerName: true, SeleniumContainerName: true}
 
 // ValidateApp checks every field of app on its own, without Docker or
 // config, so callers can refuse bad input before removing anything.
@@ -309,6 +309,15 @@ func ValidateApp(app config.AppContainer) error {
 		}
 	}
 
+	if app.Behat {
+		if app.Type != config.AppTypeMoodle {
+			return fmt.Errorf("behat is only available for moodle apps, not %s", app.Type)
+		}
+		if _, ok := BehatHostFor(app.Folder); !ok {
+			return errors.New(i18n.Tr("docker.behatBadFolder", i18n.Args{"folder": app.Folder}))
+		}
+	}
+
 	if reservedFolders[strings.ToLower(app.Folder)] {
 		return errors.New(i18n.Tr("docker.reservedFolder", i18n.Args{"folder": app.Folder}))
 	}
@@ -337,11 +346,19 @@ func ValidateAppInStack(app config.AppContainer) error {
 
 // checkURLUnique refuses app.URL when another app (different folder)
 // already routes it, since two server blocks with one server_name leave the
-// second app unreachable.
+// second app unreachable. The same applies to the Behat test site's host
+// name, which two folders differing only in case would share.
 func checkURLUnique(app config.AppContainer, apps []config.AppContainer) error {
+	behatHost, behat := BehatHost(app)
 	for _, other := range apps {
-		if other.Folder != app.Folder && strings.EqualFold(other.URL, app.URL) {
+		if other.Folder == app.Folder {
+			continue
+		}
+		if strings.EqualFold(other.URL, app.URL) {
 			return errors.New(i18n.Tr("docker.urlTaken", i18n.Args{"url": app.URL, "app": other.Folder}))
+		}
+		if otherHost, ok := BehatHost(other); behat && ok && otherHost == behatHost {
+			return errors.New(i18n.Tr("docker.urlTaken", i18n.Args{"url": behatHost, "app": other.Folder}))
 		}
 	}
 	return nil
@@ -650,7 +667,7 @@ func recreateAppContainer(ctx context.Context, exe *executor.Executor, stdout io
 // stack's nginx/mariadb nor a registered Container Aplicativo, so the quick
 // actions and the log view never act on an unrelated container of the host.
 func requireStackContainer(name string) error {
-	if name == NginxContainerName || name == MariaDBContainerName {
+	if name == NginxContainerName || name == MariaDBContainerName || name == SeleniumContainerName {
 		return nil
 	}
 	return requireRegisteredApp(name)

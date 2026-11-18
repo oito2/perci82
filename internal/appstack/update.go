@@ -30,24 +30,26 @@ import (
 )
 
 // ImageUpdateTarget names the containers an image update covers: Nginx,
-// MariaDB and Containers Aplicativos by folder.
+// MariaDB, Selenium and Containers Aplicativos by folder.
 type ImageUpdateTarget struct {
-	Nginx   bool
-	MariaDB bool
-	Apps    []string
+	Nginx    bool
+	MariaDB  bool
+	Selenium bool
+	Apps     []string
 }
 
 // ImageUpdatePlan lists the containers whose image changed during
 // PrepareImageUpdate and that ApplyImageUpdate recreates.
 type ImageUpdatePlan struct {
-	Nginx   bool
-	MariaDB bool
-	Apps    []string
+	Nginx    bool
+	MariaDB  bool
+	Selenium bool
+	Apps     []string
 }
 
 // Empty reports whether no container needs to be recreated.
 func (p ImageUpdatePlan) Empty() bool {
-	return !p.Nginx && !p.MariaDB && len(p.Apps) == 0
+	return !p.Nginx && !p.MariaDB && !p.Selenium && len(p.Apps) == 0
 }
 
 // AllImagesTarget returns the target covering every container registered
@@ -57,11 +59,11 @@ func AllImagesTarget() (ImageUpdateTarget, error) {
 	if err != nil {
 		return ImageUpdateTarget{}, fmt.Errorf("load config: %w", err)
 	}
-	t := ImageUpdateTarget{Nginx: cfg.Docker.NginxCreated, MariaDB: cfg.Docker.MariaDB.DBUser != ""}
+	t := ImageUpdateTarget{Nginx: cfg.Docker.NginxCreated, MariaDB: cfg.Docker.MariaDB.DBUser != "", Selenium: cfg.Docker.SeleniumCreated}
 	for _, app := range cfg.Docker.Apps {
 		t.Apps = append(t.Apps, app.Folder)
 	}
-	if !t.Nginx && !t.MariaDB && len(t.Apps) == 0 {
+	if !t.Nginx && !t.MariaDB && !t.Selenium && len(t.Apps) == 0 {
 		return ImageUpdateTarget{}, i18n.NewError("docker.noContainers")
 	}
 	return t, nil
@@ -131,6 +133,15 @@ func PrepareImageUpdate(ctx context.Context, exe *executor.Executor, stdout io.W
 			return ImageUpdatePlan{}, err
 		}
 		plan.MariaDB = containerOutdated(ctx, exe, stdout, MariaDBContainerName, MariaDBImage)
+	}
+	if t.Selenium {
+		if !cfg.Docker.SeleniumCreated {
+			return ImageUpdatePlan{}, i18n.NewError("docker.noSelenium")
+		}
+		if _, err := pullImage(ctx, exe, stdout, SeleniumImage); err != nil {
+			return ImageUpdatePlan{}, err
+		}
+		plan.Selenium = containerOutdated(ctx, exe, stdout, SeleniumContainerName, SeleniumImage)
 	}
 
 	apps := make([]config.AppContainer, 0, len(t.Apps))
@@ -220,7 +231,8 @@ func containerOutdated(ctx context.Context, exe *executor.Executor, stdout io.Wr
 }
 
 // ApplyImageUpdate recreates the containers of plan from their current
-// images, in the order MariaDB, apps, Nginx, then reloads Nginx's routing.
+// images, in the order MariaDB, apps, Nginx, Selenium, then reloads Nginx's
+// routing.
 // Recreating keeps every bind-mounted folder (html, data, logs, the
 // MariaDB data directory, Moodle plugin mounts on the host). Containers
 // that were not running before are stopped again afterwards.
@@ -264,6 +276,13 @@ func ApplyImageUpdate(ctx context.Context, exe *executor.Executor, stdout io.Wri
 		ui.Info(stdout, i18n.Tr("transfer.run.recreateNginx", nil))
 		if _, err := recreateNginx(ctx, exe, nil, stdout, false); err != nil {
 			return fmt.Errorf("recreate nginx: %w", err)
+		}
+	}
+	if plan.Selenium {
+		remember(SeleniumContainerName)
+		ui.Info(stdout, i18n.Tr("transfer.run.recreateSelenium", nil))
+		if err := RecreateSelenium(ctx, exe, stdout); err != nil {
+			return fmt.Errorf("recreate selenium: %w", err)
 		}
 	}
 	if plan.Nginx || len(plan.Apps) > 0 {

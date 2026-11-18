@@ -17,6 +17,7 @@ package appstack
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/oito2/perci82/internal/config"
 )
@@ -39,6 +40,38 @@ var ValidAppFolder = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$`)
 // single wildcard for *.localhost, so a value like "foo.bar.localhost"
 // would not match it.
 var ValidAppURL = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.localhost$`)
+
+// BehatHostSuffix is appended to an app's lowercased folder name to form
+// the host name of its Behat test site. It stays outside ".localhost":
+// libcurl and Chrome resolve every *.localhost name to the loopback address
+// without asking DNS, so such a name could never reach the Nginx container
+// from inside another container.
+const BehatHostSuffix = "-behat.test"
+
+// validBehatFolder matches the lowercased folder names that, followed by
+// "-behat", form a valid DNS label: letters, digits and hyphens only (no
+// underscore) and at most 57 characters, so the label stays within 63.
+var validBehatFolder = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,56}$`)
+
+// BehatHostFor returns the Behat test site's host name for an app folder,
+// and false when the folder cannot form a valid host name.
+func BehatHostFor(folder string) (string, bool) {
+	lower := strings.ToLower(folder)
+	if !validBehatFolder.MatchString(lower) {
+		return "", false
+	}
+	return lower + BehatHostSuffix, true
+}
+
+// BehatHost returns the host name of app's Behat test site, and false when
+// app has none: it is not a Moodle app, its Behat option is off, or its
+// folder cannot form a valid host name.
+func BehatHost(app config.AppContainer) (string, bool) {
+	if app.Type != config.AppTypeMoodle || !app.Behat {
+		return "", false
+	}
+	return BehatHostFor(app.Folder)
+}
 
 // ValidPHPMemoryLimit matches PHP's ini shorthand for memory_limit: a
 // plain integer (bytes), optionally suffixed with K/M/G (case-insensitive),

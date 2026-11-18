@@ -4,18 +4,19 @@
 
 # Docker
 
-Creates and manages a local development stack in Docker: one Nginx reverse proxy that serves every app over HTTPS at `https://<app>.localhost`, one shared MariaDB database, and one container per app. The side list has four screens: **Create Container**, **Manage Containers**, **Development Folders** and **Export/Import**.
+Creates and manages a local development stack in Docker: one Nginx reverse proxy that serves every app over HTTPS at `https://<app>.localhost`, one shared MariaDB database, one container per app and, optionally, a shared Selenium container for Moodle's Behat tests. The side list has four screens: **Create Container**, **Manage Containers**, **Development Folders** and **Export/Import**.
 
 ![Docker → Create Container](../../img/dev-docker.png)
 
 ## The stack
 
-Every container joins the Docker network `docker-php-network` and restarts with Docker (`--restart unless-stopped`). Nginx and MariaDB exist once each; apps are identified by their folder name, which is also the container's name.
+Every container joins the Docker network `docker-php-network` and restarts with Docker (`--restart unless-stopped`), except Selenium, which stays stopped after the computer restarts until you start it. Nginx, MariaDB and Selenium exist once each; apps are identified by their folder name, which is also the container's name.
 
 | Container | Image | Published on the host | What it does |
 |---|---|---|---|
 | Nginx | `nginx:1.26-alpine` | `127.0.0.1:80` and `127.0.0.1:443` | Routes each app's `<name>.localhost` URL to its container; any other `*.localhost` name answers 404 |
 | MariaDB | `mariadb:11.4` | `127.0.0.1:3306` | Shared database server with the database `dev_db` |
+| Selenium (optional) | `selenium/standalone-chrome:4.52.0-20261101` | `127.0.0.1:7900` (noVNC) | Chrome for the `@javascript` [Behat](#behat) scenarios of every Moodle app |
 | App | built by Perci82 Dev (see below) | — | Runs the app's PHP (php-fpm) and/or Node dev server |
 
 The HTTPS certificate is made with mkcert when the Nginx container is created. It covers `*.localhost`, `localhost` and each app's URL by name, and is generated again when it lacks a name or expires within 30 days. mkcert's certificate authority is also added to the browsers installed as Flatpaks (this needs `certutil`, which the Mkcert prerequisite brings); restart those browsers afterwards. Nginx's routing is rewritten and reloaded without downtime every time an app is created, edited or removed.
@@ -57,18 +58,18 @@ The container settings are saved in `~/.perci/config.yaml`.
 
 ## Create Container
 
-Choose the **Container type**: **Nginx**, **MariaDB**, **App container** (then **Type**: **Moodle**, **PHP** or **Generic**), **Node** or **PHP + Node**. Nginx and MariaDB are disabled once they exist. Click **Create Container**; the progress shows in the run log.
+Choose the **Container type**: **Nginx**, **MariaDB**, **Selenium**, **App container** (then **Type**: **Moodle**, **PHP** or **Generic**), **Node** or **PHP + Node**. Nginx, MariaDB and Selenium are disabled once they exist. Click **Create Container**; the progress shows in the run log.
 
 Docker must be installed. The Nginx container also needs mkcert, installed in [Environment → Prerequisites](environment.md). The first Nginx creation runs `mkcert -install`, which can ask for the administrator password outside Perci82 Dev: the screen warns about it, and if it hangs, run `mkcert -install` once in a terminal before clicking **Create Container**.
 
-**Nginx** has no fields. **MariaDB** asks for **Database user** (letters, digits and `_`, 1-32 characters; `dev_user` by default) and **Password** (a random one is filled in). A root password is generated and saved. When the data folder already holds a database made with other credentials, the creation is refused: MariaDB ignores new credentials on existing data.
+**Nginx** and **Selenium** have no fields. **MariaDB** asks for **Database user** (letters, digits and `_`, 1-32 characters; `dev_user` by default) and **Password** (a random one is filled in). A root password is generated and saved. When the data folder already holds a database made with other credentials, the creation is refused: MariaDB ignores new credentials on existing data.
 
 App fields:
 
 | Field | Types | Notes |
 |---|---|---|
 | **App name** | all | Display name |
-| **Folder (the container's technical name)** | all | Letters, digits, `-` and `_`, starting with a letter or digit (2-64 characters, as Docker requires for a container name); `nginx` and `mariadb` are reserved. Names the project folder, the container and the command |
+| **Folder (the container's technical name)** | all | Letters, digits, `-` and `_`, starting with a letter or digit (2-64 characters, as Docker requires for a container name); `nginx`, `mariadb` and `selenium` are reserved. Names the project folder, the container and the command |
 | **URL** | all | One label followed by `.localhost`; filled from the folder until you edit it; one URL per app |
 | **Moodle version** | Moodle | `3.x`, `4.1`, `4.2-4.3`, `4.4-4.5`, `5.0` or `5.1+` |
 | **PHP version** | Moodle, PHP, Generic, PHP + Node | `7.4` to `8.4`; for Moodle, only the versions that Moodle version supports |
@@ -78,6 +79,7 @@ App fields:
 | **Port** | Node, PHP + Node | The dev server's port (`5173` by default), 1024-65535 except 3306 and 9000 |
 | **Worker command (optional)** | PHP + Node | A background process (for example a queue consumer), run through `sh -c` in `api/` |
 | **Enable database access** | Moodle, PHP, Generic, PHP + Node | Available once MariaDB exists |
+| **Behat test site** | Moodle | Off by default. Serves the app's folder also at `http://<folder>-behat.test` for [Behat](#behat); the folder then needs at most 57 characters, with only letters, digits and hyphens |
 | **Tools of the app's command** | every type but Node | Checklist: **Composer**, **PHPUnit**, **PHP_CodeSniffer (phpcs and phpcbf)** and, for Moodle, **moodle-cs (Moodle's coding standard in phpcs)**. All checked by default |
 
 Moodle versions and PHP:
@@ -101,8 +103,9 @@ A table with each container (apps show as `<name> (<type>)`), its status and its
 |---|---|---|
 | **Start** / **Stop** / **Restart** | all | Starts, stops or restarts the container |
 | **Recreate** | all | Removes the container and creates it again with the saved parameters (and writes the app's command again) |
-| **Update image** | all | Pulls or rebuilds the image at the newest fix of the same version and recreates the containers that use it; nothing is recreated when nothing changed |
+| **Update image** | all | Pulls or rebuilds the image at the newest fix of the same version and recreates the containers that use it; nothing is recreated when nothing changed. Selenium's image has a fixed tag, which changes only with a Perci82 Dev update |
 | **Create the app's command** | apps that still have the old `php-<folder>`, `composer-<folder>`… commands | Replaces them with the [app's command](#the-apps-command), without recreating the container |
+| **Behat configuration** | Moodle apps with **Behat test site** on | Shows the lines to add to the app's `config.php` and the commands that initialize the test site and run the scenarios, each with **Copy** (see [Behat](#behat)) |
 | **View Logs** | all | Shows the container's last 200 lines; **Update** fetches them again and **Export** saves them to a `.txt` file |
 | **Edit** | MariaDB and apps | Opens the creation fields with the current values. For an app the folder can't change; the image is built and the input checked before the running container is replaced. For MariaDB, new credentials are refused when the data was created with others |
 | **Backup** | MariaDB | Saves every database to a `.sql` file you choose (MariaDB must be running) |
@@ -137,6 +140,54 @@ The first argument picks the tool when it is one of the type's subcommands; anyt
 - **Collisions:** when another program already has the app's name (a file in `~/.local/bin` that Perci82 Dev didn't write, or a command on `PATH`), the command isn't created and the old `<tool>-<folder>` commands are written instead.
 - **Lifecycle:** the command is written when the container is created, recreated or edited, and deleted with **Remove**. `~/.local/bin` is added to your shell's rc file (`~/.bashrc`, `~/.zshrc` or fish's `config.fish`) when it isn't on your `PATH`.
 
+## Behat
+
+Moodle's Behat tests run against a second site, `$CFG->behat_wwwroot`, that serves the same Moodle folder. With **Behat test site** on, a Moodle app gets one:
+
+- **Address:** `http://<folder>-behat.test` (the folder in lowercase), HTTP only. Nginx serves it from the app's folder and PHP, with the same routing as the app. It doesn't block `/behat/` and `/fixtures/`, which the tests use; the app's own site still does.
+- **Reachable from the containers:** the name is a network alias of the Nginx container on `docker-php-network`, so the app container (where Behat runs) and Selenium (where Chrome runs) reach it. It is not reachable from the host's browser. The name is outside `.localhost` because PHP's curl and Chrome resolve every `*.localhost` name to the loopback address without asking DNS. Turning the option on or off reconnects the Nginx container to the network with the new names, without recreating it; if that fails, the run log says so and **Recreate** on Nginx applies them.
+
+Perci82 Dev never edits `config.php`. **Behat configuration**, in the app's row of Manage Containers, shows what to add before `require_once(__DIR__ . '/lib/setup.php');`:
+
+```php
+// Behat.
+$CFG->behat_wwwroot  = 'http://mdle-behat.test';
+$CFG->behat_prefix   = 'bht_';
+$CFG->behat_dataroot = '/var/www/data/behat';
+```
+
+The prefix keeps the test site's tables apart from the app's, and the data folder lives in the app's moodledata (the container's only writable, persistent folder). The window also shows the commands, run through the [app's command](#the-apps-command) (in Moodle 5.1+, `admin/` is `public/admin/`):
+
+```bash
+mdle admin/tool/behat/cli/init.php
+mdle vendor/bin/behat --config /var/www/data/behat/behatrun/behat/behat.yml --tags='@local_example&&~@javascript'
+```
+
+There is one run command per plugin mounted in the app in [Development Folders](#development-folders) (with a placeholder component when there is none). Run `init.php` again after Moodle upgrades, plugin installs or new step definitions.
+
+**`@javascript` scenarios** need a browser. Create the **Selenium** container (Create Container → Selenium): one Chrome serves every Moodle app, reached at `http://selenium:4444/wd/hub`. With it, **Behat configuration** adds the profile below and the run commands no longer leave `@javascript` out:
+
+```php
+$CFG->behat_profiles = [
+    'default' => [
+        'browser' => 'chrome',
+        'wd_host' => 'http://selenium:4444/wd/hub',
+    ],
+];
+```
+
+Selenium runs with a 2 GB `/dev/shm` (Chrome fails with Docker's 64 MB default) and up to two sessions. It doesn't start again on its own after the computer restarts: start it in Manage Containers before running those scenarios. To watch the tests, open `http://localhost:7900` (password `secret`).
+
+To check the setup, from the app's folder:
+
+```bash
+mdle -r '$c = curl_init("http://mdle-behat.test/"); curl_setopt($c, CURLOPT_RETURNTRANSFER, 1); curl_exec($c); echo curl_getinfo($c, CURLINFO_HTTP_CODE), "\n";'
+```
+
+It prints `200` or `303`; `0` means the name doesn't reach Nginx (Behat is off, or the network names weren't applied), and `404` means Nginx doesn't serve that name.
+
+The [AI contexts](ai-contexts.md#php-perci82) of projects that use the app describe the same setup to the coding agents.
+
 ## Development Folders
 
 Mounts a development folder inside an app's project: it shows as an ordinary folder in the editor and in the container. The folder is bind-mounted on the host by a systemd `.mount` unit in `/etc/systemd/system`, ordered before `docker.service`, so it is back after a reboot before the containers start. The unit refuses to mount when a folder on the way to the development folder or to the destination has become a symbolic link, and a destination reached through a link is refused when the mount is created.
@@ -166,16 +217,16 @@ In Moodle, after applying, open Site administration → Notifications to install
 
 ## Export/Import
 
-**Export** lists what can be exported in three groups — **Infrastructure** (Nginx, MariaDB), **Apps** and **Mounted development folders** — with **Check all** in each group. Checking an item also checks what it depends on (Nginx for an app, MariaDB for an app with database access, the app of a mounted folder) and an app's mounted folders. **Export…** saves a YAML file (`perci-export.yaml` by default; `.yaml` is added when the name you type has no `.yaml` or `.yml` extension), readable only by you.
+**Export** lists what can be exported in three groups — **Infrastructure** (Nginx, MariaDB, Selenium), **Apps** and **Mounted development folders** — with **Check all** in each group. Checking an item also checks what it depends on (Nginx for an app, MariaDB for an app with database access, the app of a mounted folder) and an app's mounted folders. **Export…** saves a YAML file (`perci-export.yaml` by default; `.yaml` is added when the name you type has no `.yaml` or `.yml` extension), readable only by you.
 
-The file holds only definitions: the workspace path, the Nginx and MariaDB containers with MariaDB's credentials **in plain text** (keep it as a secret), the app settings and the mounted folders. It doesn't hold project files nor databases. The format is the same as Perci 1.9's: files exported by Perci 1.9 import here without conversion.
+The file holds only definitions: the workspace path, the Nginx, MariaDB and Selenium containers with MariaDB's credentials **in plain text** (keep it as a secret), the app settings and the mounted folders. It doesn't hold project files nor databases. The format is the same as Perci 1.9's: files exported by Perci 1.9 import here without conversion.
 
 **Import**: **Choose file**, check the items and click **Import**. The tab shows the file's workspace, marks the items that already exist here (they are replaced and recreated) and disables the mounted folders that can't be made on this machine (for example a development folder that doesn't exist here, or one outside your home folder, the home folder itself or inside a hidden folder of it, such as `~/.ssh`; mount such a folder by hand in [Development Folders](#development-folders)). The confirmation lists the start and worker commands the checked apps will run. Then:
 
 - The file must be the one the tab listed: when it changed since you chose it, the import is refused and you choose it again.
 - The whole file is checked before anything changes. It is refused when this machine has another workspace path set, and when an app uses the database and MariaDB exists neither here nor in the selection.
 - The checked items are added to this machine's settings, replacing the ones with the same folder; nothing else changes. When no workspace path is set here, the file's is adopted.
-- The checked folders are mounted, then Nginx, MariaDB and the apps are recreated in that order. Running containers that got a new mount and weren't recreated are restarted.
+- The checked folders are mounted, then Nginx, MariaDB, Selenium and the apps are recreated in that order. Running containers that got a new mount and weren't recreated are restarted.
 
 ## What needs the password
 

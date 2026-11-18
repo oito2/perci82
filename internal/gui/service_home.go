@@ -506,10 +506,10 @@ func (h *DevHomeService) PickUninstallAIContextsBackupPath() (string, error) {
 //     "Contextos de IA"; the context files in those folders are never
 //     touched by the uninstall.
 //   - removeDocker: removes every registered container (apps, then
-//     MariaDB, then Nginx — apps first so nothing routes through infra
-//     that's about to disappear) via appstack.DeleteApp/DeleteMariaDB/
-//     DeleteNginx — disk data (workspace/localhost/...) is left
-//     untouched.
+//     Selenium, MariaDB and Nginx — apps first so nothing routes through
+//     infra that's about to disappear) via appstack.DeleteApp/
+//     DeleteSelenium/DeleteMariaDB/DeleteNginx — disk data
+//     (workspace/localhost/...) is left untouched.
 //
 // A failed backup aborts the uninstall before anything is removed; only
 // "nothing to export" is a warning.
@@ -620,6 +620,11 @@ func (h *DevHomeService) selfUninstall(w io.Writer, removeConfig, removeDocker b
 			for _, app := range cfg.Docker.Apps {
 				if delErr := appstack.DeleteApp(ctx, h.exe, w, app.Folder); delErr != nil {
 					ui.Warning(w, i18n.Tr("devuninstall.containerFailed", i18n.Args{"name": app.Folder, "error": delErr.Error()}))
+				}
+			}
+			if cfg.Docker.SeleniumCreated {
+				if delErr := appstack.DeleteSelenium(ctx, h.exe, w); delErr != nil {
+					ui.Warning(w, i18n.Tr("devuninstall.containerFailed", i18n.Args{"name": "Selenium", "error": delErr.Error()}))
 				}
 			}
 			if delErr := appstack.DeleteMariaDB(ctx, h.exe, w); delErr != nil {

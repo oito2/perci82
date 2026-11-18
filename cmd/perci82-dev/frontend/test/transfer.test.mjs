@@ -35,7 +35,7 @@ const fileItems = () => ({
   commands: ["blog: php artisan serve"],
 });
 
-const none = () => ({ nginx: false, mariadb: false, apps: [], plugins: [] });
+const none = () => ({ nginx: false, mariadb: false, selenium: false, apps: [], plugins: [] });
 
 function load(fixtures) {
   return loadScripts(scriptOrder(), { fixtures });
@@ -117,7 +117,7 @@ test("Importar: lists the file, leaves an unavailable plugin out and imports the
   assert.ok(call, "ImportDockerContainerConfig not called");
   assert.equal(call.args[0], "/tmp/perci-export.yaml");
   assert.deepEqual(JSON.parse(JSON.stringify(call.args[1])), {
-    nginx: true, mariadb: true, apps: ["blog", "mdle"], plugins: ["mdle/local/x"],
+    nginx: true, mariadb: true, selenium: false, apps: ["blog", "mdle"], plugins: ["mdle/local/x"],
   });
 });
 
@@ -145,7 +145,7 @@ test("Exportar: exports the checked items to the chosen file", async () => {
   assert.ok(call, "ExportDockerConfig not called");
   assert.equal(call.args[0], "/tmp/out.yaml");
   assert.deepEqual(JSON.parse(JSON.stringify(call.args[1])), {
-    nginx: false, mariadb: true, apps: ["blog", "mdle"], plugins: ["mdle/local/x"],
+    nginx: false, mariadb: true, selenium: false, apps: ["blog", "mdle"], plugins: ["mdle/local/x"],
   });
 });
 

@@ -67,6 +67,12 @@ type phpApp struct {
 	mount     *config.MoodlePluginMount
 	mounts    []config.MoodlePluginMount
 	mariadb   config.MariaDBConfig
+	// behat is the app's Behat setup, valid when hasBehat is true (a Moodle
+	// app with its Behat test site on); selenium tells whether the shared
+	// Selenium container is set up.
+	behat    appstack.BehatSetup
+	hasBehat bool
+	selenium bool
 }
 
 // within reports whether path is root or inside it, links resolved.
@@ -97,7 +103,8 @@ func phpAppFor(dir string) (phpApp, bool) {
 		if a.Type == config.AppTypeNode {
 			continue
 		}
-		found := phpApp{app: a, workspace: workspace, mariadb: cfg.Docker.MariaDB}
+		found := phpApp{app: a, workspace: workspace, mariadb: cfg.Docker.MariaDB, selenium: cfg.Docker.SeleniumCreated}
+		found.behat, found.hasBehat = appstack.BehatSetupFor(cfg, a)
 		for _, m := range cfg.MoodlePlugins {
 			if m.App == a.Folder {
 				found.mounts = append(found.mounts, m)
@@ -233,19 +240,64 @@ func (p phpApp) vars() map[string]string {
 	}
 
 	return map[string]string{
-		"APP":         a.Folder,
-		"APP_TYPE":    appTypeLabels[a.Type],
-		"APP_URL":     "https://" + a.URL,
-		"PHP_VERSION": a.PHPVersion,
-		"MOODLE_ROWS": moodleRows,
-		"ROOTS":       roots,
-		"TOOL_ROWS":   strings.Join(rows, "\n"),
-		"FALLBACK":    "php",
-		"TOOL_NOTES":  toolNotes,
-		"DATABASE":    database,
-		"MOUNTS":      mounts,
-		"LOGS":        "- PHP and web server logs: `" + appstack.AppLogDir(p.workspace, a.Folder) + "` on the host.",
+		"APP":          a.Folder,
+		"APP_TYPE":     appTypeLabels[a.Type],
+		"APP_URL":      "https://" + a.URL,
+		"PHP_VERSION":  a.PHPVersion,
+		"MOODLE_ROWS":  moodleRows,
+		"ROOTS":        roots,
+		"TOOL_ROWS":    strings.Join(rows, "\n"),
+		"FALLBACK":     "php",
+		"TOOL_NOTES":   toolNotes,
+		"DATABASE":     database,
+		"MOUNTS":       mounts,
+		"MOODLE_TESTS": p.moodleTests(),
+		"LOGS":         "- PHP and web server logs: `" + appstack.AppLogDir(p.workspace, a.Folder) + "` on the host.",
 	}
+}
+
+// moodleTests returns the "Moodle Tests" section of PHP-PERCI82.md, with
+// its closing separator, for a Moodle app: how to run PHPUnit and Behat
+// through the app's command, from the app's Behat option and the Selenium
+// container's state. It is "" for every other app type.
+func (p phpApp) moodleTests() string {
+	a := p.app
+	if a.Type != config.AppTypeMoodle {
+		return ""
+	}
+	cmd := a.Folder
+	admin := "admin"
+	if moodle51(a) {
+		admin = "public/admin"
+	}
+	code := func(s string) string { return "`" + s + "`" }
+
+	var b strings.Builder
+	b.WriteString("## Moodle Tests\n\n### PHPUnit\n\n")
+	b.WriteString("- `config.php` needs `$CFG->phpunit_prefix` and `$CFG->phpunit_dataroot` (a folder under `/var/www/data`, the container's persistent, writable folder).\n")
+	b.WriteString("- Initialize, and again after upgrades, plugin installs or new test files: " + code(cmd+" "+admin+"/tool/phpunit/cli/init.php") + ".\n")
+	b.WriteString("- Run: " + code(cmd+" vendor/bin/phpunit --testsuite <component>_testsuite") + ".\n\n")
+
+	b.WriteString("### Behat\n\n")
+	if !p.hasBehat {
+		b.WriteString("- Behat is off for this app: it has no test site. Ask the user to turn on \"Behat test site\" in Perci82 Dev (Docker → Manage Containers → Edit); never try to serve a test site another way, such as editing the Nginx configuration.\n\n---\n\n")
+		return b.String()
+	}
+	s := p.behat
+	b.WriteString("- Test site: " + code(s.WWWRoot) + ", HTTP only, served by Nginx from this app's folder and reachable from the stack's containers. Never use a `*.localhost` name in `$CFG->behat_wwwroot`: libcurl and Chrome resolve it to the loopback address.\n")
+	b.WriteString("- `config.php` needs these lines before `require_once(__DIR__ . '/lib/setup.php');` (Perci82 Dev never edits it; when they are missing, show them to the user and ask before adding them):\n\n")
+	b.WriteString("```php\n" + s.ConfigPHP + "```\n\n")
+	b.WriteString("- Initialize the test site, and again after upgrades, plugin installs or new step definitions: " + code(s.InitCommand) + ".\n")
+	for _, run := range s.RunCommands {
+		b.WriteString("- Run: " + code(run) + ".\n")
+	}
+	if p.selenium {
+		b.WriteString("- `@javascript` scenarios run in the Chrome of the shared Selenium container (" + code(appstack.SeleniumWebDriverURL) + "). It does not start on its own after the computer restarts: when Behat cannot reach it, ask the user to start it in Perci82 Dev (Docker → Manage Containers). The user can watch the tests at `http://localhost:7900`.\n")
+	} else {
+		b.WriteString("- No Selenium container is set up, so `@javascript` scenarios cannot run: keep `~@javascript` in the tags, and ask the user to create the Selenium container in Perci82 Dev (Docker → Create Container → Selenium) when a scenario needs JavaScript.\n")
+	}
+	b.WriteString("\n---\n\n")
+	return b.String()
 }
 
 // phpGuideFor returns PHP-PERCI82.md as Perci writes it for the project in

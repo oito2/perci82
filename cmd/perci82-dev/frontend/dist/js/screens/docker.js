@@ -78,6 +78,7 @@ function renderDockerCreateScreen() {
     renderMkcertAlert(catalog);
     dcKind.querySelector('option[value="nginx"]').disabled = catalog.nginxExists;
     dcKind.querySelector('option[value="mariadb"]').disabled = catalog.mariadbExists;
+    dcKind.querySelector('option[value="selenium"]').disabled = catalog.seleniumExists;
     if (dcKind.selectedOptions[0] && dcKind.selectedOptions[0].disabled) {
       dcKind.value = catalog.nginxExists ? (catalog.mariadbExists ? "__app__" : "mariadb") : "nginx";
     }
@@ -213,6 +214,12 @@ function buildDockerRow(row) {
     wrap.appendChild(btnMigrate);
   }
 
+  if (row.behat) {
+    const btnBehat = iconButton("flaskConical", t("docker.behat.title"));
+    btnBehat.addEventListener("click", function () { openBehatSetup(row); });
+    wrap.appendChild(btnBehat);
+  }
+
   const btnLogs = iconButton("scrollText", t("docker.logs"));
   btnLogs.addEventListener("click", function () { openLogs(row.folder, row.name); });
   wrap.appendChild(btnLogs);
@@ -277,8 +284,50 @@ function updateImageMessage(row) {
   const kept = " " + t("docker.updateImageKept");
   if (row.family === "mariadb") return t("docker.updateImageMariaDB") + kept;
   if (row.family === "nginx") return t("docker.updateImageNginx") + kept;
+  if (row.family === "selenium") return t("docker.updateImageSelenium") + kept;
   return t("docker.updateImageApp", { name: row.name }) + kept;
 }
+
+// --- "Configuração do Behat" ----------------------------------------------
+
+// __behatSetup holds the BehatSetup shown in the Behat modal, for its copy
+// buttons.
+let __behatSetup = null;
+
+// behatCommandsText is the text of the modal's command block: the test
+// site's initialization, then one run command per plugin component.
+function behatCommandsText(setup) {
+  return [setup.initCommand].concat(setup.runCommands || []).join("\n");
+}
+
+// openBehatSetup fills and shows the Behat modal of a Moodle app row: the
+// config.php lines, the commands and whether @javascript scenarios run.
+function openBehatSetup(row) {
+  App.GetBehatSetup(row.folder).then(function (setup) {
+    __behatSetup = setup;
+    behatModalTitle.textContent = t("docker.behat.titleFor", { name: row.name });
+    behatModalIntro.textContent = t("docker.behat.intro", { url: setup.wwwroot });
+    behatModalConfig.textContent = setup.configPhp;
+    behatModalCommands.textContent = behatCommandsText(setup);
+    behatModalNote.textContent = setup.selenium ? t("docker.behat.withSelenium") : t("docker.behat.withoutSelenium");
+    showDialog(behatModal);
+  }).catch(function (err) { openError(String(err)); });
+}
+
+// copyBehatText copies text to the clipboard and briefly says so on btn.
+function copyBehatText(btn, text) {
+  Clipboard.SetText(text).then(function () {
+    btn.textContent = t("docker.behat.copied");
+    setTimeout(function () { btn.textContent = t("docker.behat.copy"); }, 1500);
+  }).catch(function (err) { openError(String(err)); });
+}
+
+btnBehatCopyConfig.addEventListener("click", function () {
+  if (__behatSetup) copyBehatText(btnBehatCopyConfig, __behatSetup.configPhp);
+});
+btnBehatCopyCommands.addEventListener("click", function () {
+  if (__behatSetup) copyBehatText(btnBehatCopyCommands, behatCommandsText(__behatSetup));
+});
 
 btnDockerlistUpdateAll.addEventListener("click", function () {
   if (running) return;

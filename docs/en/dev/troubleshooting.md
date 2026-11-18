@@ -47,6 +47,10 @@ The authentication was cancelled or the password was wrong. Run the action again
 
 Docker isn't installed, isn't running, or your user can't reach it. Install Docker in [Environment → Prerequisites](environment.md): it adds your user to the `docker` group, which only takes effect after you log out and back in.
 
+## Behat says "http://<folder>-behat.test is not available"
+
+Moodle's Behat initialization couldn't reach the test site from inside the app container. Check that **Behat test site** is on for the app (Docker → Manage Containers → Edit), that Nginx is running, and that `config.php` uses the address shown in **Behat configuration**, never a `*.localhost` one. When the run log of the last change warned that the Nginx network names couldn't be updated, use **Recreate** on Nginx. The check command in [Docker → Behat](docker.md#behat) shows where it fails.
+
 ## "secret-tool not found — install Libsecret Tools in Environment → Prerequisites"
 
 A Git account's API token is stored in the system keyring through `secret-tool`. Install **Libsecret Tools** in [Environment → Prerequisites](environment.md) and save the account again.

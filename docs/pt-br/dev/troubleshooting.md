@@ -47,6 +47,10 @@ A autenticação foi cancelada ou a senha estava errada. Rode a ação de novo. 
 
 O Docker não está instalado, não está rodando ou o seu usuário não tem acesso a ele. Instale o Docker em [Ambiente → Pré-requisitos](environment.md): ele adiciona o seu usuário ao grupo `docker`, o que só vale depois de você sair e entrar de novo na sessão.
 
+## O Behat diz "http://<pasta>-behat.test is not available"
+
+A inicialização do Behat do Moodle não alcançou o site de testes de dentro do contêiner do aplicativo. Confira se o **Site de testes do Behat** está ligado no aplicativo (Docker → Gerenciar Contêineres → Editar), se o Nginx está rodando e se o `config.php` usa o endereço mostrado em **Configuração do Behat**, nunca um `*.localhost`. Quando o log de execução da última mudança avisou que os nomes de rede do Nginx não puderam ser atualizados, use **Recriar** no Nginx. O comando de conferência em [Docker → Behat](docker.md#behat) mostra onde falha.
+
 ## "secret-tool não encontrado — instale o Libsecret Tools em Ambiente → Pré-requisitos"
 
 O token de API de uma conta Git é guardado no chaveiro do sistema pelo `secret-tool`. Instale o **Libsecret Tools** em [Ambiente → Pré-requisitos](environment.md) e salve a conta de novo.

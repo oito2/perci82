@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -353,6 +354,20 @@ const appDenyBlocks = `    location ~ /\.(?!well-known).* {
     }
 `
 
+// appBehatDenyBlocks is the deny block of a Moodle app's Behat test site
+// (buildBehatServerBlock): appDenyBlocks without the /behat/ and /fixtures/
+// rules, since Behat requests pages under them, starting with
+// admin/tool/behat/tests/behat/fixtures/environment.php, which Moodle's
+// Behat initialization fetches to check that the test site answers.
+const appBehatDenyBlocks = `    location ~ /\.(?!well-known).* {
+        return 404;
+    }
+    location ~ (/vendor/|/node_modules/|composer\.json|/readme|/README|readme\.txt|/upgrade\.txt|/UPGRADING\.md|db/install\.xml|phpunit\.xml|\.lock|environment\.xml) {
+        deny all;
+        return 404;
+    }
+`
+
 // appComboDenyBlocks is AppTypePHPNode's deny block: the same protections
 // as appDenyBlocks, but anchored to ^/api/ so they only match the PHP half
 // of the combo (fastcgi, served via root+try_files off Nginx's own
@@ -563,11 +578,7 @@ func buildAppServerBlock(app config.AppContainer) string {
 	switch app.Type {
 	case config.AppTypeMoodle:
 		routing = moodleRoutingFor(app.MoodleVersion)
-		root := appHTMLMount + "/" + app.Folder
-		if app.MoodleVersion == MoodleVersion51Plus || app.MoodleVersion == "" {
-			root += "/public" // 5.1+ serves every web-accessible file from /public; "" counts as 5.1+
-		}
-		fmt.Fprintf(&b, "    root %s;\n    index index.php index.html;\n", root)
+		fmt.Fprintf(&b, "    root %s;\n    index index.php index.html;\n", moodleRoot(app))
 	case config.AppTypeNode:
 		// No root/index — proxy_pass only, nothing served from disk, so no
 		// deny block either (see appDenyBlocks' doc comment).
@@ -592,14 +603,45 @@ func buildAppServerBlock(app config.AppContainer) string {
 	return b.String()
 }
 
+// moodleRoot returns the Nginx root of an AppTypeMoodle app: its folder,
+// plus /public for Moodle 5.1+ (an empty MoodleVersion counts as 5.1+),
+// which serves every web-accessible file from there.
+func moodleRoot(app config.AppContainer) string {
+	root := appHTMLMount + "/" + app.Folder
+	if app.MoodleVersion == MoodleVersion51Plus || app.MoodleVersion == "" {
+		root += "/public"
+	}
+	return root
+}
+
+// buildBehatServerBlock renders the server{} block of app's Behat test
+// site, or "" when app has none (BehatHost). It serves the app's own root
+// through the app's own Moodle routing, on HTTP only, under the
+// "<folder>-behat.test" host name, with appBehatDenyBlocks.
+func buildBehatServerBlock(app config.AppContainer) string {
+	host, ok := BehatHost(app)
+	if !ok || !ValidAppFolder.MatchString(app.Folder) {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "\nserver {\n    listen 80;\n    server_name %s;\n", host)
+	fmt.Fprintf(&b, "    root %s;\n    index index.php index.html;\n\n", moodleRoot(app))
+	b.WriteString(appBehatDenyBlocks)
+	b.WriteString(strings.ReplaceAll(moodleRoutingFor(app.MoodleVersion), "{{FOLDER}}", app.Folder))
+	b.WriteString("}\n")
+	return b.String()
+}
+
 // BuildNginxConf renders the full default.conf content: the fixed
-// catch-all block plus one server{} per app in apps.
+// catch-all block plus one server{} per app in apps, each followed by its
+// Behat test site's server{} when it has one.
 func BuildNginxConf(apps []config.AppContainer) string {
 	var b strings.Builder
 	b.WriteString(nginxResolver)
 	b.WriteString(nginxConfBase)
 	for _, app := range apps {
 		b.WriteString(buildAppServerBlock(app))
+		b.WriteString(buildBehatServerBlock(app))
 	}
 	return b.String()
 }
@@ -653,6 +695,7 @@ func ReloadNginxConfig(ctx context.Context, exe *executor.Executor, stdout io.Wr
 			return err
 		}
 		ui.Info(stdout, i18n.Tr("docker.run.nginxConfSaved", nil))
+		syncNginxAliases(ctx, exe, stdout, apps)
 		return nil
 	}
 
@@ -681,6 +724,93 @@ func ReloadNginxConfig(ctx context.Context, exe *executor.Executor, stdout io.Wr
 		return fmt.Errorf("reload nginx: %w", err)
 	}
 	ui.Success(stdout, i18n.Tr("docker.run.nginxReloaded", nil))
+	syncNginxAliases(ctx, exe, stdout, apps)
+	return nil
+}
+
+// behatAliases returns the sorted host names of the Behat test sites of
+// apps (BehatHost): the network aliases the Nginx container needs on
+// NetworkName, so the stack's containers reach those sites through it.
+func behatAliases(apps []config.AppContainer) []string {
+	var aliases []string
+	for _, app := range apps {
+		if host, ok := BehatHost(app); ok && !slices.Contains(aliases, host) {
+			aliases = append(aliases, host)
+		}
+	}
+	slices.Sort(aliases)
+	return aliases
+}
+
+// nginxBehatAliases returns the sorted Behat host names (those ending in
+// BehatHostSuffix) among the Nginx container's current aliases on
+// NetworkName.
+func nginxBehatAliases(ctx context.Context, exe *executor.Executor) ([]string, error) {
+	out, err := exe.Output(ctx, executor.Options{}, "docker", "inspect",
+		"-f", `{{json (index .NetworkSettings.Networks "`+NetworkName+`").Aliases}}`, "--", NginxContainerName)
+	if err != nil {
+		return nil, fmt.Errorf("inspect the nginx container: %w", err)
+	}
+	return parseBehatAliases(out)
+}
+
+// parseBehatAliases parses the JSON alias list docker inspect prints
+// ("null" when there is none) and keeps the sorted Behat host names.
+func parseBehatAliases(out string) ([]string, error) {
+	var all []string
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &all); err != nil {
+		return nil, fmt.Errorf("parse the nginx container's aliases: %w", err)
+	}
+	var aliases []string
+	for _, alias := range all {
+		if strings.HasSuffix(alias, BehatHostSuffix) && !slices.Contains(aliases, alias) {
+			aliases = append(aliases, alias)
+		}
+	}
+	slices.Sort(aliases)
+	return aliases, nil
+}
+
+// syncNginxAliases gives the Nginx container, when it exists, the network
+// aliases of apps' Behat test sites. Docker sets aliases only when a
+// container joins a network, so when they differ from the current ones the
+// container is disconnected from NetworkName and connected again with the
+// new list; Nginx stays up, unreachable from the other containers for that
+// moment only. A failure is reported as a warning: the routing change has
+// already been applied, and recreating Nginx sets the aliases too.
+func syncNginxAliases(ctx context.Context, exe *executor.Executor, stdout io.Writer, apps []config.AppContainer) {
+	if !NginxExists(ctx, exe) {
+		return
+	}
+	want := behatAliases(apps)
+	have, err := nginxBehatAliases(ctx, exe)
+	if (err == nil && slices.Equal(have, want)) || (err != nil && len(want) == 0) {
+		return
+	}
+	if err := reconnectNginx(ctx, exe, stdout, want); err != nil {
+		ui.Warning(stdout, i18n.Tr("docker.run.nginxAliasesFailed", i18n.Args{"error": err.Error()}))
+		return
+	}
+	ui.Info(stdout, i18n.Tr("docker.run.nginxAliasesUpdated", nil))
+}
+
+// reconnectNginx disconnects the Nginx container from NetworkName and
+// connects it again with aliases.
+func reconnectNginx(ctx context.Context, exe *executor.Executor, stdout io.Writer, aliases []string) error {
+	var out bytes.Buffer
+	opts := executor.Options{Stdout: &out, Stderr: &out}
+	if err := exe.Run(ctx, opts, "docker", "network", "disconnect", "--", NetworkName, NginxContainerName); err != nil {
+		return fmt.Errorf("disconnect nginx from %s: %w: %s", NetworkName, err, strings.TrimSpace(out.String()))
+	}
+	args := []string{"network", "connect"}
+	for _, alias := range aliases {
+		args = append(args, "--alias", alias)
+	}
+	args = append(args, "--", NetworkName, NginxContainerName)
+	out.Reset()
+	if err := exe.Run(ctx, opts, "docker", args...); err != nil {
+		return fmt.Errorf("connect nginx to %s: %w: %s", NetworkName, err, strings.TrimSpace(out.String()))
+	}
 	return nil
 }
 
@@ -739,8 +869,10 @@ func validateNginxConfStandalone(ctx context.Context, exe *executor.Executor, co
 
 // nginxRunArgs builds the "docker run" argument list for the Nginx
 // container, given the already-resolved paths for its config, certs, html
-// tree and logs. Unit-testable without a Docker daemon.
-func nginxRunArgs(confPath, certsDir, htmlDir, logDir string) []string {
+// tree and logs, and the network aliases it answers to on NetworkName (the
+// Behat test sites' host names, see behatAliases). Unit-testable without a
+// Docker daemon.
+func nginxRunArgs(confPath, certsDir, htmlDir, logDir string, aliases []string) []string {
 	args := []string{
 		"run", "-d",
 		"--name", NginxContainerName,
@@ -748,6 +880,9 @@ func nginxRunArgs(confPath, certsDir, htmlDir, logDir string) []string {
 		"--restart", "unless-stopped",
 		"-p", "127.0.0.1:80:80",
 		"-p", "127.0.0.1:443:443",
+	}
+	for _, alias := range aliases {
+		args = append(args, "--network-alias", alias)
 	}
 	args = append(args, bindMount(confPath, nginxConfTarget, false)...)
 	args = append(args, bindMount(certsDir, nginxCertsTarget, true)...)
@@ -811,7 +946,7 @@ func createNginx(ctx context.Context, exe *executor.Executor, stdin io.Reader, s
 	}
 
 	ui.Info(stdout, i18n.Tr("docker.run.creating", i18n.Args{"name": "nginx"}))
-	args := nginxRunArgs(confPath, filepath.Dir(certFile), htmlDir, logDir)
+	args := nginxRunArgs(confPath, filepath.Dir(certFile), htmlDir, logDir, behatAliases(cfg.Docker.Apps))
 	if err := exe.Run(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, "docker", args...); err != nil {
 		return "", fmt.Errorf("create the nginx container: %w", err)
 	}

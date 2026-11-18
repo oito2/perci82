@@ -30,7 +30,7 @@ Run PHP and its tools only through `{{APP}}` (in `~/.local/bin`), never with a P
 {{TOOL_NOTES}}
 ---
 
-## Database
+{{MOODLE_TESTS}}## Database
 
 {{DATABASE}}
 
@@ -45,4 +45,4 @@ Run PHP and its tools only through `{{APP}}` (in `~/.local/bin`), never with a P
 ## Logs and Restarts
 
 {{LOGS}}
-- Restart, recreate or change the app only through Perci82 Dev (Docker → Manage Containers). Never run `docker` commands that change containers, and never touch the Nginx or MariaDB containers.
+- Restart, recreate or change the app only through Perci82 Dev (Docker → Manage Containers). Never run `docker` commands that change containers, and never touch the Nginx, MariaDB or Selenium containers.

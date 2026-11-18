@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [Dev 1.1.0] - 2026-11-18
+
+### Added
+
+- Perci82 Dev: Moodle apps have a **Behat test site** option (off by default). When on, Nginx also serves the app's folder at `http://<folder>-behat.test` over HTTP, without the `/behat/` and `/fixtures/` blocks of the app's own site, and the Nginx container answers to that name on the Docker network, so Behat in the app container reaches it. Turning the option on or off reconnects Nginx to the network without recreating it. The name stays outside `.localhost`, which PHP's curl and Chrome resolve to the loopback address.
+- Perci82 Dev: **Behat configuration** in Docker → Manage Containers shows the lines to add to the app's `config.php` (Perci82 Dev never edits it) and the commands that initialize the test site and run the scenarios of the app's mounted plugins, each with **Copy**.
+- Perci82 Dev: an optional shared **Selenium** container (`selenium/standalone-chrome:4.52.0-20261101`, 2 GB `/dev/shm`, two sessions, noVNC at `http://localhost:7900`) runs Chrome for the `@javascript` Behat scenarios of every Moodle app. It is created, managed, updated, exported and imported like Nginx and MariaDB, removed by the uninstall with the other containers, and doesn't start again on its own after the computer restarts. `selenium` is now a reserved app folder name.
+- Perci82 Dev: the PHP Perci82 AI context of Moodle apps gains a "Moodle Tests" section — PHPUnit, and the Behat site, `config.php` lines and commands, following the app's Behat option and the Selenium container. Projects with the context applied show as outdated until updated.
+
+### Changed
+
+- Perci82 Dev: the Moodle AI context explains that Behat can't use a `*.localhost` site name inside containers, that the Behat site must not block `/behat/` and `/fixtures/`, and that `@javascript` scenarios need a WebDriver browser set in `$CFG->behat_profiles`.
+
 ## [Dev 1.0.2] - 2026-11-17
 
 ### Fixed
@@ -163,7 +176,8 @@ First release of Perci82 System, split from Perci 1.9.0.
 
 - `install-system.sh` checks, when the GitHub CLI is logged in, that `checksums.txt` was attested by the release workflow (covering the binary and the menu entry archive), and extracts only menu entries and icons from the archive.
 
-[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.0.2...HEAD
+[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.1.0...HEAD
+[Dev 1.1.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.1.0
 [Dev 1.0.2]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.2
 [System 1.0.1]: https://github.com/oito2/perci82/releases/tag/system-v1.0.1
 [Dev 1.0.1]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.1
