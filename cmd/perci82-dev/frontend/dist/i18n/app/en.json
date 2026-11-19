@@ -612,7 +612,7 @@
 	"uninstall.backupReposHint": "The file Repositories → Export/Import reads.",
 	"uninstall.backups": "Backups before removing",
 	"uninstall.backupsHint": "Each backup is saved to its own file, chosen after you confirm. If a save window is cancelled, nothing is removed.",
-	"uninstall.binary": "Perci82 Dev will be removed: the binary, the application menu entry, the icons and the tray's login autostart.",
+	"uninstall.binary": "Perci82 Dev removes what is its own, the tray's login autostart included, and then shows the command that removes its package: the binary, the application menu entry and the icons.",
 	"uninstall.cancelled": "No path was chosen for the backup — the uninstall did not start.",
 	"uninstall.cancelledTitle": "Uninstall cancelled",
 	"uninstall.confirmTitle": "Uninstall Perci82 Dev?",

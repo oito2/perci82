@@ -16,7 +16,6 @@
 package gui
 
 import (
-	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -26,7 +25,6 @@ import (
 
 	"github.com/oito2/perci82/internal/config"
 	"github.com/oito2/perci82/internal/dev/agentskills"
-	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/selfupdate"
 )
 
@@ -39,7 +37,7 @@ import (
 func TestBoundMethods_RefuseBadPathsBeforeRunning(t *testing.T) {
 	// A refused backup path must stop the uninstall before it runs.
 	prevUninstall := uninstallApp
-	uninstallApp = func(context.Context, *executor.Executor, io.Writer, string, selfupdate.UninstallOptions) error {
+	uninstallApp = func(io.Writer, string, selfupdate.UninstallOptions) error {
 		t.Error("the uninstall ran despite a bad backup path")
 		return nil
 	}

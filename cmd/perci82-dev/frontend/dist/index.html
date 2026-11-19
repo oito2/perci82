@@ -185,13 +185,18 @@
             </div>
 
             <!-- Update: the status of the last check, "Verificar" and, when a
-                 newer release exists, "Atualizar". -->
+                 newer release exists and the app runs from its package, the
+                 package manager's command that installs it. -->
             <div class="o2-sec">
               <h3 data-i18n="dashboard.updateSection">Atualização</h3>
               <div class="o2-row">
                 <span id="su-status" class="o2-grow" data-i18n="dashboard.checking">Verificando...</span>
                 <button id="btn-su-check" class="btn btn-sm" data-i18n="dashboard.check">Verificar</button>
-                <button id="btn-su-update" class="btn btn-sm btn-primary hidden" disabled data-i18n="dashboard.update">Atualizar</button>
+              </div>
+              <div id="su-upgrade" class="o2-row hidden">
+                <span data-i18n="dashboard.upgradeWith">Para atualizar, rode num terminal:</span>
+                <code id="su-upgrade-cmd" class="o2-grow o2-wrap"></code>
+                <button id="btn-su-copy" type="button" class="btn btn-sm" data-i18n="oito2.copy">Copiar</button>
               </div>
             </div>
 
@@ -1046,7 +1051,7 @@
 <dialog id="uninstall-modal" class="modal">
   <div class="modal-box">
     <h3 class="font-bold text-lg mb-2" data-i18n="uninstall.confirmTitle">Desinstalar o Perci82 Dev?</h3>
-    <p class="opacity-80 mb-4" data-i18n="uninstall.binary">O Perci82 Dev será removido: o binário, a entrada no menu de aplicativos, os ícones e a abertura no login da bandeja.</p>
+    <p class="opacity-80 mb-4" data-i18n="uninstall.binary">O Perci82 Dev remove o que é dele, incluindo a abertura no login da bandeja, e, no fim, mostra o comando que remove o pacote: o binário, a entrada no menu de aplicativos e os ícones.</p>
     <p class="font-medium" data-i18n="uninstall.backups">Backups antes de remover</p>
     <p class="o2-hint mb-2" data-i18n="uninstall.backupsHint">Cada backup é salvo num arquivo separado, escolhido depois de confirmar. Se a janela de salvar for cancelada, nada é removido.</p>
     <label class="label cursor-pointer justify-start gap-3 items-start o2-wrap">
@@ -1092,6 +1097,22 @@
     </div>
   </div>
   <form method="dialog" class="modal-backdrop"><button data-i18n="oito2.close">fechar</button></form>
+</dialog>
+
+<!-- After a successful uninstall: the command that removes the package
+     and the button that closes the app. -->
+<dialog id="uninstall-done-modal" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg mb-2" data-i18n="dashboard.uninstallDoneTitle">Limpeza concluída</h3>
+    <p id="uninstall-done-text" class="opacity-80 mb-4"></p>
+    <div id="uninstall-done-row" class="o2-row hidden">
+      <code id="uninstall-done-cmd" class="o2-grow o2-wrap"></code>
+      <button id="btn-uninstall-done-copy" type="button" class="btn btn-sm" data-i18n="oito2.copy">Copiar</button>
+    </div>
+    <div class="modal-action">
+      <button id="btn-uninstall-done-quit" type="button" class="btn btn-primary" data-i18n="dashboard.uninstallQuit">Fechar o aplicativo</button>
+    </div>
+  </div>
 </dialog>
 
 <!-- "Contextos de IA :: Gerenciar Contextos": the text of one context,

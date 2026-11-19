@@ -212,6 +212,54 @@ export class MultiSelectItemInfo {
 }
 
 /**
+ * PackageInfo tells how the running application was installed: Packaged
+ * when its .deb or .rpm package put it in /usr/bin, with the package
+ * manager commands that upgrade and remove that package ("" on a
+ * distribution without apt or dnf).
+ */
+export class PackageInfo {
+    /**
+     * Creates a new PackageInfo instance.
+     * @param {Partial<PackageInfo>} [$$source = {}] - The source object to create the PackageInfo.
+     */
+    constructor($$source = {}) {
+        if (!("packaged" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["packaged"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["upgradeCommand"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["removeCommand"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PackageInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {PackageInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PackageInfo(/** @type {Partial<PackageInfo>} */($$parsedSource));
+    }
+}
+
+/**
  * PostinstallActionInfo is one item of "Linux :: Pós-instalação", without
  * the Run and Applied funcs of internal/system/postinstall.Action (func
  * values aren't JSON-safe).
@@ -377,9 +425,9 @@ export class Section {
 }
 
 /**
- * SelfUpdateInfo is what "Home :: Atualizar Perci" needs to render: the
- * installed version, the latest one found on GitHub Releases, and whether
- * they differ — or Error when the check itself failed (e.g. no network).
+ * SelfUpdateInfo is what Visão Geral's "Atualização" shows: the
+ * installed version, the newest published one, and whether they differ —
+ * or Error when the check itself failed (e.g. no network).
  */
 export class SelfUpdateInfo {
     /**

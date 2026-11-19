@@ -42,6 +42,7 @@ export {
     ManagedItemInfo,
     MenuItem,
     MultiSelectItemInfo,
+    PackageInfo,
     RemoteRepoList,
     RepoExportItems,
     RepoFileChoice,

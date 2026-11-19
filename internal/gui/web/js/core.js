@@ -140,7 +140,6 @@ const dashboardContainer = document.getElementById("dashboard-container");
 const dashboardVersion = document.getElementById("dashboard-version");
 const suStatus = document.getElementById("su-status");
 const btnSuCheck = document.getElementById("btn-su-check");
-const btnSuUpdate = document.getElementById("btn-su-update");
 const su2RemoveConfig = document.getElementById("su2-remove-config");
 const btnSu2Uninstall = document.getElementById("btn-su2-uninstall");
 const selfconfigContainer = document.getElementById("selfconfig-container");
@@ -239,20 +238,14 @@ function finishRun(result) {
   termTitle.textContent = result.ok ? t("term.done") : t("term.failed");
   if (result.ok) termProgress.value = termProgress.max;
   run.buttons.forEach(function (b) { b.disabled = false; });
-  // An update that ended outside Visão Geral leaves its status stale: the
-  // next visit checks again.
-  if (run.actionId === "dashboard" && dashboardRunningAction === "self-update") selfUpdateCheckedAt = 0;
+  // A successful uninstall shows the command that removes the package,
+  // whatever screen is showing now.
+  if (run.actionId === "dashboard" && dashboardRunningAction === "self-uninstall" && result.ok) showUninstallDone();
   const current = window.__selectedItem && window.__selectedItem.actionId;
   doneHandlerFor(current)(run);
   if (run.actionId === "dashboard") dashboardRunningAction = null;
 }
 
-// "Atualizar" and "Desinstalar" both live in Visão Geral —
-// dashboardRunningAction (set before each one) says which one finished.
-// A successful uninstall closes the window on its own.
-ACTION_DONE_HANDLERS.dashboard = function () {
-  if (dashboardRunningAction === "self-update") loadSelfUpdateStatus(true);
-};
 
 // doneHandlerFor returns the refresh for the screen showing actionId: its
 // ACTION_DONE_HANDLERS entry, else its family's done, else nothing.

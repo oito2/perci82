@@ -276,14 +276,16 @@ test("IA Contextos: an answer for a folder that was cleared is dropped", async (
 });
 
 // FE-05
-test("an update that ends outside Visão Geral makes the next visit check again", () => {
-  const { ctx } = load();
-  evalIn(ctx, 'selfUpdateCheckedAt = 12345; dashboardRunningAction = "self-update"');
+test("an uninstall that ends outside Visão Geral still shows the command that removes the package", async () => {
+  const { ctx, element } = load({ GetPackageInfo: { packaged: true, removeCommand: "sudo dnf remove perci82-dev" } });
+  evalIn(ctx, 'dashboardRunningAction = "self-uninstall"');
   ctx.__selectedItem = { actionId: "dashboard" };
-  ctx.startExecution("Atualizar Perci");
+  ctx.startExecution("Desinstalar");
   ctx.__selectedItem = { actionId: "fonts" };
   ctx.finishRun({ ok: true });
-  assert.equal(evalIn(ctx, "selfUpdateCheckedAt"), 0);
+  await tick();
+  assert.equal(element("uninstall-done-cmd").textContent, "sudo dnf remove perci82-dev");
+  assert.equal(evalIn(ctx, "dashboardRunningAction"), null);
 });
 
 test("the update check shows a failure instead of staying on Verificando", async () => {

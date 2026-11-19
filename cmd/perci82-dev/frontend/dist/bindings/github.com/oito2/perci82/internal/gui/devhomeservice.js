@@ -57,6 +57,17 @@ export function GetLanguageOptions() {
 }
 
 /**
+ * GetPackageInfo reports whether Perci82 Dev runs from its package and the
+ * commands that upgrade and remove it.
+ * @returns {$CancellablePromise<$models.PackageInfo>}
+ */
+export function GetPackageInfo() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetPackageInfo").then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
  * GetProjectNotesPath returns the persisted project notes folder, "" when
  * unset or when the config can't be read.
  * @returns {$CancellablePromise<string>}
@@ -73,7 +84,7 @@ export function GetProjectNotesPath() {
  */
 export function GetRepositorySummary() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetRepositorySummary").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
+        return $$createType4($result);
     }));
 }
 
@@ -85,7 +96,7 @@ export function GetRepositorySummary() {
  */
 export function GetSections() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetSections").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType6($result);
     }));
 }
 
@@ -96,7 +107,7 @@ export function GetSections() {
  */
 export function GetSelfUpdateInfo() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetSelfUpdateInfo").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType6($result);
+        return $$createType7($result);
     }));
 }
 
@@ -108,7 +119,7 @@ export function GetSelfUpdateInfo() {
  */
 export function GetSystemScheme() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetSystemScheme").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType7($result);
+        return $$createType8($result);
     }));
 }
 
@@ -129,7 +140,7 @@ export function GetTheme() {
  */
 export function GetThemeOptions() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.GetThemeOptions").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType9($result);
+        return $$createType10($result);
     }));
 }
 
@@ -192,8 +203,18 @@ export function PickWorkspaceFolder() {
 }
 
 /**
- * RunSelfUninstall removes Perci82 Dev — its binary, menu entry and icons
- * (selfupdate.Uninstall). Four steps run first, all optional:
+ * QuitApp closes the application, like the tray's "Sair" — the last step
+ * of an uninstall, once the command that removes the package was shown.
+ * @returns {$CancellablePromise<void>}
+ */
+export function QuitApp() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.QuitApp");
+}
+
+/**
+ * RunSelfUninstall cleans Perci82 Dev up before its package is removed
+ * (selfupdate.Uninstall, which prints the command that removes it). Four
+ * steps run first, all optional:
  * 
  *   - backupPath != "": exports cfg.Docker and the Moodle plugin mounts to
  *     that path first (appstack.ExportConfig) — reimportable later via
@@ -215,11 +236,9 @@ export function PickWorkspaceFolder() {
  * "nothing to export" is a warning.
  * 
  * With removeConfig, Perci82 Dev's settings and its folders under ~/.perci
- * (devDataDirs) go too, and, once the binary is removed, the includeIf
- * rules, gitconfig files and API tokens of the Git accounts
- * (gitaccount.Forget); their SSH keys and repositories stay.
- * 
- * A successful uninstall closes the window (runUninstall).
+ * (devDataDirs) go too, and the includeIf rules, gitconfig files and API
+ * tokens of the Git accounts (gitaccount.Forget); their SSH keys and
+ * repositories stay.
  * @param {boolean} removeConfig
  * @param {boolean} removeDocker
  * @param {string} backupPath
@@ -229,15 +248,6 @@ export function PickWorkspaceFolder() {
  */
 export function RunSelfUninstall(removeConfig, removeDocker, backupPath, reposBackupPath, aiBackupPath) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.RunSelfUninstall", removeConfig, removeDocker, backupPath, reposBackupPath, aiBackupPath);
-}
-
-/**
- * RunSelfUpdate updates Perci82 Dev to its newest release; the
- * "Atualizar" button click is itself the confirmation.
- * @returns {$CancellablePromise<void>}
- */
-export function RunSelfUpdate() {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevHomeService.RunSelfUpdate");
 }
 
 /**
@@ -298,10 +308,11 @@ export function SetWorkspacePath(path) {
 const $$createType0 = $models.LanguageState.createFrom;
 const $$createType1 = i18n$0.Option.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.RepositorySummary.createFrom;
-const $$createType4 = $models.Section.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $models.SelfUpdateInfo.createFrom;
-const $$createType7 = theme$0.SystemScheme.createFrom;
-const $$createType8 = $models.ThemeOption.createFrom;
-const $$createType9 = $Create.Array($$createType8);
+const $$createType3 = $models.PackageInfo.createFrom;
+const $$createType4 = $models.RepositorySummary.createFrom;
+const $$createType5 = $models.Section.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.SelfUpdateInfo.createFrom;
+const $$createType8 = theme$0.SystemScheme.createFrom;
+const $$createType9 = $models.ThemeOption.createFrom;
+const $$createType10 = $Create.Array($$createType9);

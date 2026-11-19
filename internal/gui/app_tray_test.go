@@ -329,6 +329,29 @@ func TestSelfUpdateInfo_PerApp(t *testing.T) {
 	}
 }
 
+// GetPackageInfo gives the package manager commands only when the app runs
+// from its package, asking about its own app.
+func TestPackageInfo_PerApp(t *testing.T) {
+	var apps []string
+	prev := packaged
+	packaged = func(_ context.Context, app string) bool {
+		apps = append(apps, app)
+		return app == "dev"
+	}
+	t.Cleanup(func() { packaged = prev })
+
+	if sys := (&SystemHomeService{}).GetPackageInfo(); sys != (PackageInfo{}) {
+		t.Errorf("System info = %+v, want not packaged and no commands", sys)
+	}
+	dev := (&DevHomeService{}).GetPackageInfo()
+	if !dev.Packaged || (dev.RemoveCommand != "" && !strings.HasSuffix(dev.RemoveCommand, " perci82-dev")) {
+		t.Errorf("Dev info = %+v, want packaged with its own commands", dev)
+	}
+	if !slices.Equal(apps, []string{"system", "dev"}) {
+		t.Errorf("asked about %v, want [system dev]", apps)
+	}
+}
+
 // uninstallCall records one call of uninstallApp.
 type uninstallCall struct {
 	app  string
@@ -343,7 +366,7 @@ func newUninstallHome(t *testing.T, onUninstall func() error) (*DevHomeService, 
 	t.Setenv("HOME", t.TempDir())
 	calls := 0
 	prev := uninstallApp
-	uninstallApp = func(_ context.Context, _ *executor.Executor, _ io.Writer, app string, opts selfupdate.UninstallOptions) error {
+	uninstallApp = func(_ io.Writer, app string, opts selfupdate.UninstallOptions) error {
 		calls++
 		lastUninstall = uninstallCall{app, opts}
 		return onUninstall()
@@ -361,7 +384,7 @@ var lastUninstall uninstallCall
 // ~/.perci/git, and ~/.perci/appstack only with the containers that mount
 // it; the MariaDB dumps in appstack/backups always stay.
 func TestDevSelfUninstall_PassesItsAppAndDataDirs(t *testing.T) {
-	h, _ := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
+	h, _ := newUninstallHome(t, func() error { return nil })
 	appstackDir := filepath.Join(os.Getenv("HOME"), ".perci", "appstack")
 	cases := []struct {
 		removeConfig, removeDocker, backups bool
@@ -385,7 +408,7 @@ func TestDevSelfUninstall_PassesItsAppAndDataDirs(t *testing.T) {
 			}
 		}
 		var out bytes.Buffer
-		if err := h.selfUninstall(&out, c.removeConfig, c.removeDocker, "", "", ""); !errors.Is(err, selfupdate.ErrUninstalled) {
+		if err := h.selfUninstall(&out, c.removeConfig, c.removeDocker, "", "", ""); err != nil {
 			t.Fatalf("selfUninstall: %v", err)
 		}
 		got := lastUninstall
@@ -407,7 +430,7 @@ func registerNginx(t *testing.T) {
 
 // A backup that fails stops the uninstall before anything is removed.
 func TestSelfUninstall_FailedBackupAborts(t *testing.T) {
-	h, calls := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
+	h, calls := newUninstallHome(t, func() error { return nil })
 	registerNginx(t)
 	if err := writeAutostartDesktopFile(); err != nil {
 		t.Fatal(err)
@@ -421,7 +444,7 @@ func TestSelfUninstall_FailedBackupAborts(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "nada foi removido") {
 		t.Fatalf("err = %v, want the backup failure", err)
 	}
-	if errors.Is(err, selfupdate.ErrUninstalled) || *calls != 0 {
+	if err == nil || *calls != 0 {
 		t.Errorf("uninstall ran after a failed backup (calls=%d, err=%v)", *calls, err)
 	}
 	if path, _ := autostartDesktopPath(); !fileExists(path) {
@@ -441,15 +464,15 @@ func TestSelfUninstall_BackupBeforeUninstall(t *testing.T) {
 	backedUp := false
 	h, calls := newUninstallHome(t, func() error {
 		backedUp = fileExists(backup)
-		return selfupdate.ErrUninstalled
+		return nil
 	})
 	registerNginx(t)
 	if err := writeAutostartDesktopFile(); err != nil {
 		t.Fatal(err)
 	}
 	err := h.selfUninstall(io.Discard, false, false, backup, "", "")
-	if !errors.Is(err, selfupdate.ErrUninstalled) || *calls != 1 {
-		t.Fatalf("err=%v calls=%d, want ErrUninstalled after one uninstall", err, *calls)
+	if err != nil || *calls != 1 {
+		t.Fatalf("err=%v calls=%d, want success after one uninstall", err, *calls)
 	}
 	if !backedUp {
 		t.Error("the uninstall ran before the backup was written")
@@ -461,11 +484,11 @@ func TestSelfUninstall_BackupBeforeUninstall(t *testing.T) {
 
 // "Nothing to export" is only a warning: the uninstall goes on.
 func TestSelfUninstall_NothingToExportIsWarning(t *testing.T) {
-	h, calls := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
+	h, calls := newUninstallHome(t, func() error { return nil })
 	backup := filepath.Join(t.TempDir(), "backup.yaml")
 	var out strings.Builder
 	err := h.selfUninstall(&out, false, false, backup, "", "")
-	if !errors.Is(err, selfupdate.ErrUninstalled) || *calls != 1 {
+	if err != nil || *calls != 1 {
 		t.Fatalf("err=%v calls=%d, want the uninstall to proceed", err, *calls)
 	}
 	if !strings.Contains(out.String(), appstack.ErrNothingToExport.Error()) {
@@ -492,10 +515,10 @@ func registerGitAccount(t *testing.T) config.GitAccount {
 // The repositories backup is its own file; failing to write it stops the
 // uninstall, and "nothing to export" is only a warning.
 func TestSelfUninstall_ReposBackup(t *testing.T) {
-	h, calls := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
+	h, calls := newUninstallHome(t, func() error { return nil })
 	var out strings.Builder
 	empty := filepath.Join(t.TempDir(), "repos.yaml")
-	if err := h.selfUninstall(&out, false, false, "", empty, ""); !errors.Is(err, selfupdate.ErrUninstalled) {
+	if err := h.selfUninstall(&out, false, false, "", empty, ""); err != nil {
 		t.Fatalf("without accounts: err=%v, want the uninstall to proceed", err)
 	}
 	if !strings.Contains(out.String(), gitaccount.ErrNothingToExport.Error()) || fileExists(empty) {
@@ -504,8 +527,8 @@ func TestSelfUninstall_ReposBackup(t *testing.T) {
 
 	registerGitAccount(t)
 	backup := filepath.Join(t.TempDir(), "repos.yaml")
-	if err := h.selfUninstall(io.Discard, false, false, "", backup, ""); !errors.Is(err, selfupdate.ErrUninstalled) {
-		t.Fatalf("err=%v, want ErrUninstalled", err)
+	if err := h.selfUninstall(io.Discard, false, false, "", backup, ""); err != nil {
+		t.Fatalf("err=%v, want success", err)
 	}
 	if data, err := os.ReadFile(backup); err != nil || !strings.Contains(string(data), "username: oito2") {
 		t.Errorf("repositories backup = %q, %v", data, err)
@@ -526,10 +549,10 @@ func TestSelfUninstall_ReposBackup(t *testing.T) {
 // workspace relative to it; failing to write it stops the uninstall, and
 // "nothing to export" is only a warning.
 func TestSelfUninstall_AIContextsBackup(t *testing.T) {
-	h, calls := newUninstallHome(t, func() error { return selfupdate.ErrUninstalled })
+	h, calls := newUninstallHome(t, func() error { return nil })
 	var out strings.Builder
 	empty := filepath.Join(t.TempDir(), "ai.yaml")
-	if err := h.selfUninstall(&out, false, false, "", "", empty); !errors.Is(err, selfupdate.ErrUninstalled) {
+	if err := h.selfUninstall(&out, false, false, "", "", empty); err != nil {
 		t.Fatalf("without contexts: err=%v, want the uninstall to proceed", err)
 	}
 	if !strings.Contains(out.String(), managerai.ErrNothingToExport.Error()) || fileExists(empty) {
@@ -544,8 +567,8 @@ func TestSelfUninstall_AIContextsBackup(t *testing.T) {
 		t.Fatal(err)
 	}
 	backup := filepath.Join(t.TempDir(), "ai.yaml")
-	if err := h.selfUninstall(io.Discard, false, false, "", "", backup); !errors.Is(err, selfupdate.ErrUninstalled) {
-		t.Fatalf("err=%v, want ErrUninstalled", err)
+	if err := h.selfUninstall(io.Discard, false, false, "", "", backup); err != nil {
+		t.Fatalf("err=%v, want success", err)
 	}
 	f, err := managerai.LoadTransfer(backup)
 	if err != nil || len(f.Contexts) != 1 || f.Contexts[0].Path != "app" || !f.Contexts[0].Relative {
@@ -569,11 +592,11 @@ func TestSelfUninstall_RemoveConfigForgetsGitAccounts(t *testing.T) {
 	h, _ := newUninstallHome(t, func() error {
 		home, _ := os.UserHomeDir()
 		_ = os.RemoveAll(filepath.Join(home, ".perci"))
-		return selfupdate.ErrUninstalled
+		return nil
 	})
 	registerGitAccount(t)
 	var out strings.Builder
-	if err := h.selfUninstall(&out, true, false, "", "", ""); !errors.Is(err, selfupdate.ErrUninstalled) {
+	if err := h.selfUninstall(&out, true, false, "", "", ""); err != nil {
 		t.Fatalf("err=%v", err)
 	}
 	if !strings.Contains(out.String(), "Regra da conta OITO2 removida") {
@@ -582,7 +605,7 @@ func TestSelfUninstall_RemoveConfigForgetsGitAccounts(t *testing.T) {
 
 	registerGitAccount(t)
 	out.Reset()
-	if err := h.selfUninstall(&out, false, false, "", "", ""); !errors.Is(err, selfupdate.ErrUninstalled) {
+	if err := h.selfUninstall(&out, false, false, "", "", ""); err != nil {
 		t.Fatalf("err=%v", err)
 	}
 	if strings.Contains(out.String(), "Regra da conta") {
@@ -604,7 +627,7 @@ func TestSystemSelfUninstall_RunsAsAction(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	var got []uninstallCall
 	prev := uninstallApp
-	uninstallApp = func(_ context.Context, _ *executor.Executor, _ io.Writer, app string, opts selfupdate.UninstallOptions) error {
+	uninstallApp = func(_ io.Writer, app string, opts selfupdate.UninstallOptions) error {
 		got = append(got, uninstallCall{app, opts})
 		return errors.New("cancelled")
 	}

@@ -1,0 +1,56 @@
+# nfpm configuration of the Perci82 Dev .deb and .rpm packages. Paths are
+# relative to the repository root. The Makefile's release-app target sets
+# VERSION (vX.Y.Z) and PKG_BINARY (the built binary to package).
+name: perci82-dev
+arch: amd64
+platform: linux
+version: ${VERSION}
+version_schema: semver
+release: 1
+section: devel
+priority: optional
+maintainer: oito2 <oito2@users.noreply.github.com>
+vendor: oito2
+homepage: https://github.com/oito2/perci82
+license: GPL-3.0-or-later
+description: |-
+  Development environment desktop application
+  Perci82 Dev sets up a development environment: prerequisites, languages
+  and SDKs, AI apps, IDEs, Docker containers, Git repositories and
+  accounts, AI contexts, skills and MCP servers.
+
+overrides:
+  deb:
+    depends:
+      - libgtk-4-1
+      - libwebkitgtk-6.0-4
+  rpm:
+    depends:
+      - gtk4
+      - webkitgtk6.0
+
+contents:
+  - src: ${PKG_BINARY}
+    expand: true
+    dst: /usr/bin/perci82-dev
+    file_info:
+      mode: 0755
+  - src: packaging/io.github.oito2.perci82.dev.desktop
+    dst: /usr/share/applications/io.github.oito2.perci82.dev.desktop
+    file_info:
+      mode: 0644
+  - src: packaging/hicolor/*/apps/io.github.oito2.perci82.dev*
+    dst: /usr/share/icons/hicolor
+    file_info:
+      mode: 0644
+  - src: packaging/nfpm/copyright
+    dst: /usr/share/doc/perci82-dev/copyright
+    packager: deb
+    file_info:
+      mode: 0644
+  - src: LICENSE
+    dst: /usr/share/licenses/perci82-dev/LICENSE
+    type: license
+    packager: rpm
+    file_info:
+      mode: 0644

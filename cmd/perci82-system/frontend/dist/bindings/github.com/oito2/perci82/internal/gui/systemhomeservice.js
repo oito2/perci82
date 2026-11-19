@@ -64,12 +64,23 @@ export function GetLanguageOptions() {
 }
 
 /**
+ * GetPackageInfo reports whether Perci82 System runs from its package and
+ * the commands that upgrade and remove it.
+ * @returns {$CancellablePromise<$models.PackageInfo>}
+ */
+export function GetPackageInfo() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetPackageInfo").then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType3($result);
+    }));
+}
+
+/**
  * GetSections returns Perci82 System's sections, labeled in its language.
  * @returns {$CancellablePromise<$models.Section[]>}
  */
 export function GetSections() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSections").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType4($result);
+        return $$createType5($result);
     }));
 }
 
@@ -80,7 +91,7 @@ export function GetSections() {
  */
 export function GetSelfUpdateInfo() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSelfUpdateInfo").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType6($result);
     }));
 }
 
@@ -90,7 +101,7 @@ export function GetSelfUpdateInfo() {
  */
 export function GetSystemInfo() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSystemInfo").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType6($result);
+        return $$createType7($result);
     }));
 }
 
@@ -102,7 +113,7 @@ export function GetSystemInfo() {
  */
 export function GetSystemScheme() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetSystemScheme").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType7($result);
+        return $$createType8($result);
     }));
 }
 
@@ -123,28 +134,28 @@ export function GetTheme() {
  */
 export function GetThemeOptions() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.GetThemeOptions").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType9($result);
+        return $$createType10($result);
     }));
 }
 
 /**
- * RunSelfUninstall removes Perci82 System — its binary, menu entry and
- * icons and, with removeConfig, its settings (selfupdate.Uninstall) — in
- * the Execução tab; a successful uninstall then closes the window.
+ * QuitApp closes the application, like the tray's "Sair" — the last step
+ * of an uninstall, once the command that removes the package was shown.
+ * @returns {$CancellablePromise<void>}
+ */
+export function QuitApp() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.QuitApp");
+}
+
+/**
+ * RunSelfUninstall removes, with removeConfig, Perci82 System's settings
+ * (selfupdate.Uninstall) in the Execução tab; the package itself is removed
+ * with the command the uninstall prints (PackageInfo.RemoveCommand).
  * @param {boolean} removeConfig
  * @returns {$CancellablePromise<void>}
  */
 export function RunSelfUninstall(removeConfig) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.RunSelfUninstall", removeConfig);
-}
-
-/**
- * RunSelfUpdate updates Perci82 System to its newest release; the
- * "Atualizar" button click is itself the confirmation.
- * @returns {$CancellablePromise<void>}
- */
-export function RunSelfUpdate() {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.SystemHomeService.RunSelfUpdate");
 }
 
 /**
@@ -185,10 +196,11 @@ export function SetTheme(choice) {
 const $$createType0 = $models.LanguageState.createFrom;
 const $$createType1 = i18n$0.Option.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.Section.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.SelfUpdateInfo.createFrom;
-const $$createType6 = $models.SystemInfo.createFrom;
-const $$createType7 = theme$0.SystemScheme.createFrom;
-const $$createType8 = $models.ThemeOption.createFrom;
-const $$createType9 = $Create.Array($$createType8);
+const $$createType3 = $models.PackageInfo.createFrom;
+const $$createType4 = $models.Section.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.SelfUpdateInfo.createFrom;
+const $$createType7 = $models.SystemInfo.createFrom;
+const $$createType8 = theme$0.SystemScheme.createFrom;
+const $$createType9 = $models.ThemeOption.createFrom;
+const $$createType10 = $Create.Array($$createType9);

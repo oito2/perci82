@@ -21,7 +21,7 @@ DIST     := dist
 # The production tag turns off Wails' debug mode (webview developer tools).
 TAGS     := production
 
-.PHONY: build build-system build-dev run-system run-dev test test-frontend lint lint-shell clean release release-system release-dev release-app generate-bindings check-bindings generate check-generated parity-sync
+.PHONY: build build-system build-dev run-system run-dev test test-frontend lint lint-shell clean release release-system release-dev release-app install-nfpm generate-bindings check-bindings generate check-generated parity-sync
 
 # Builds both applications with the production tag only: GTK4 + WebKitGTK
 # 6.0 is the default stack. -trimpath keeps the builder's local paths out of
@@ -58,13 +58,13 @@ lint:
 	go vet ./...
 	golangci-lint run
 
-# lint-shell checks the generated installers with ShellCheck and their
-# template's formatting with shfmt (4-space indentation, indented case
-# items); both tools must be installed.
-INSTALLERS := install-system.sh install-dev.sh
+# lint-shell checks the installer and scripts/build-pages.sh with ShellCheck
+# and their formatting with shfmt (4-space indentation, indented case items);
+# both tools must be installed.
+SHELL_SCRIPTS := install.sh scripts/build-pages.sh
 lint-shell:
-	shellcheck --shell=bash $(INSTALLERS)
-	shfmt -d -i 4 -ci scripts/install.sh.in $(INSTALLERS)
+	shellcheck --shell=bash $(SHELL_SCRIPTS)
+	shfmt -d -i 4 -ci $(SHELL_SCRIPTS)
 
 clean:
 	rm -f perci82-system perci82-dev
@@ -73,13 +73,16 @@ clean:
 # Only linux/amd64 is built — Wails uses cgo (GTK4/WebKitGTK 6.0 via C
 # bindings), so a plain "GOARCH=arm64 go build" doesn't cross-compile.
 #
-# release-<app> writes dist/<app>-linux-amd64, dist/<app>-menu.tar.gz (the
-# application menu entry: share/applications/<id>.desktop and the app's
-# hicolor icons) and adds both to dist/checksums.txt, keeping the lines of
-# the other application's files (release builds both into one checksums.txt).
-# The archive is built reproducibly (sorted entries, fixed owner/mtime,
-# gzip -n) so the same tag yields the same hash.
-MENU_STAGE := $(DIST)/menu
+# release-<app> builds the app into dist/build/<app> and packages it with
+# nfpm (packaging/nfpm/<app>.yaml) as dist/<app>_<X.Y.Z>-1_amd64.deb and
+# dist/<app>-<X.Y.Z>-1.x86_64.rpm, then adds both to dist/checksums.txt,
+# keeping the lines of the other application's packages (release builds both
+# into one checksums.txt). VERSION must be vX.Y.Z. The packages' file times
+# come from SOURCE_DATE_EPOCH, the time of the current commit, so the same
+# commit yields the same package contents.
+NFPM_VERSION := v2.48.0
+NFPM         ?= nfpm
+SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct 2>/dev/null || echo 0)
 
 release:
 	rm -f $(DIST)/checksums.txt
@@ -87,30 +90,30 @@ release:
 	$(MAKE) release-dev
 
 release-system:
-	$(MAKE) release-app APP=perci82-system APP_ID=io.github.oito2.perci82.system
+	$(MAKE) release-app APP=perci82-system
 
 release-dev:
-	$(MAKE) release-app APP=perci82-dev APP_ID=io.github.oito2.perci82.dev
+	$(MAKE) release-app APP=perci82-dev
 
 release-app:
-	@test -n "$(APP)" -a -n "$(APP_ID)" || { echo "APP and APP_ID are required" >&2; exit 1; }
+	@test -n "$(APP)" || { echo "APP is required" >&2; exit 1; }
+	@echo "$(VERSION)" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "VERSION must be vX.Y.Z (got '$(VERSION)')" >&2; exit 1; }
 	@echo "Building $(APP) $(VERSION)..."
-	@mkdir -p $(DIST)
-	go build -tags $(TAGS) -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/$(APP)-linux-amd64 ./cmd/$(APP)
-	rm -rf $(MENU_STAGE)
-	mkdir -p $(MENU_STAGE)/share/applications $(MENU_STAGE)/share/icons
-	cp packaging/$(APP_ID).desktop $(MENU_STAGE)/share/applications/$(APP_ID).desktop
-	cd packaging && find hicolor -name '$(APP_ID).*' -o -name '$(APP_ID)-symbolic.*' | while read -r f; do \
-		install -D -m 644 "$$f" "$(abspath $(MENU_STAGE))/share/icons/$$f" || exit 1; \
+	@mkdir -p $(DIST)/build
+	go build -tags $(TAGS) -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/build/$(APP) ./cmd/$(APP)
+	rm -f $(DIST)/$(APP)_*.deb $(DIST)/$(APP)-[0-9]*.rpm
+	for fmt in deb rpm; do \
+		VERSION=$(VERSION) PKG_BINARY=$(DIST)/build/$(APP) SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) \
+			$(NFPM) package --config packaging/nfpm/$(APP).yaml --packager $$fmt --target $(DIST)/ || exit 1; \
 	done
-	chmod -R u=rwX,go=rX $(MENU_STAGE)
-	tar --sort=name --owner=0 --group=0 --numeric-owner --mtime='@0' \
-		-C $(MENU_STAGE) -cf - share | gzip -n > $(DIST)/$(APP)-menu.tar.gz
-	rm -rf $(MENU_STAGE)
-	cd $(DIST) && { if [ -f checksums.txt ]; then grep -v -e '  $(APP)-linux-amd64$$' -e '  $(APP)-menu.tar.gz$$' checksums.txt || true; fi; \
-		sha256sum $(APP)-linux-amd64 $(APP)-menu.tar.gz; } > checksums.txt.new && mv checksums.txt.new checksums.txt
-	@echo "Binaries in $(DIST):"
+	cd $(DIST) && { if [ -f checksums.txt ]; then grep -v -e '  $(APP)_[^ ]*\.deb$$' -e '  $(APP)-[0-9][^ ]*\.rpm$$' checksums.txt || true; fi; \
+		sha256sum $(APP)_*.deb $(APP)-[0-9]*.rpm; } > checksums.txt.new && mv checksums.txt.new checksums.txt
+	@echo "Packages in $(DIST):"
 	@ls -lh $(DIST)/
+
+# install-nfpm installs the pinned nfpm CLI that release-app uses.
+install-nfpm:
+	go install github.com/goreleaser/nfpm/v2/cmd/nfpm@$(NFPM_VERSION)
 
 # generate-bindings regenerates each application's frontend/dist/bindings/
 # (JS generated from the exported methods of the services its main.go
@@ -136,17 +139,14 @@ check-bindings:
 
 # generate rewrites the generated files: those built from the oito2_ui
 # parity fixtures (internal/gui/web/css/oito2.css and the common message
-# catalogs in internal/gui/web/i18n/oito2/) and the installers built from
-# scripts/install.sh.in; check-generated fails when they are out of date,
-# without writing anything.
+# catalogs in internal/gui/web/i18n/oito2/); check-generated fails when
+# they are out of date, without writing anything.
 generate:
 	go generate ./internal/theme ./internal/i18n
-	go run ./tools/geninstall
 
 check-generated:
 	go run ./internal/theme/gencss -out internal/gui/web/css/oito2.css -check
 	go run ./internal/i18n/genoito2 -l10n internal/theme/parity/l10n.json -out internal/gui/web/i18n/oito2 -check
-	go run ./tools/geninstall -check
 
 # parity-sync copies the oito2_ui fixtures Perci82 uses from a checkout of
 # oito2_ui (default references/oito2_ui; OITO2_UI=<dir> picks another) and

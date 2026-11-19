@@ -36,7 +36,7 @@ Principais recursos do Perci82 System:
 - **Pós-instalação** — a configuração recomendada do Ubuntu, Ubuntu Budgie, Linux Mint, Zorin OS, Fedora e Pop!_OS, item por item.
 - **Atualizar SO & Apps** — pacotes da distribuição, Snap e Flatpak atualizados de uma vez, pedindo a senha uma só vez.
 - **Fontes, templates de arquivos e Flatpaks** — listas que instalam o que você marca e removem o que você desmarca.
-- **Autoatualização e desinstalação** pela Visão Geral; interface em português e inglês; temas do oito2.
+- **Aviso de atualização e desinstalação** na Visão Geral, com o comando do `apt`/`dnf` para copiar; interface em português e inglês; temas do oito2.
 
 Principais recursos do Perci82 Dev:
 
@@ -45,7 +45,7 @@ Principais recursos do Perci82 Dev:
 - **Repositórios** — contas Git com chave SSH, identidade e token de API próprios; os repositórios de cada conta, com clonar, atualizar (pull) e exportar/importar.
 - **Contextos de IA** — regras para Claude Code, Gemini, Codex, OpenCode e Antigravity em cada projeto, a partir dos padrões do Perci82 e dos seus contextos personalizados, com anotações de projeto guardadas fora do repositório.
 - **Skills & MCPs** — skills do skills.sh e servidores MCP, incluindo o Build82 e o Sync82, registrados nos agentes de programação.
-- **Bandeja do sistema** com uma janela compacta de Contêineres; autoatualização e desinstalação pela Visão Geral; interface em português e inglês; temas do oito2.
+- **Bandeja do sistema** com uma janela compacta de Contêineres; aviso de atualização e desinstalação na Visão Geral; interface em português e inglês; temas do oito2.
 
 ![Visão Geral do Perci82 System](../img/system-overview.png)
 
@@ -53,11 +53,11 @@ Principais recursos do Perci82 Dev:
 
 | SO | Situação | Distribuições | Dependências de execução |
 |---|---|---|---|
-| Linux (amd64) | Suportado | Distribuições com `apt` (Debian, Ubuntu, Linux Mint, Zorin OS, Pop!_OS) ou `dnf` (Fedora) | `apt`: `libgtk-4-1 libwebkitgtk-6.0-4` · `dnf`: `gtk4 webkitgtk6.0` |
+| Linux (amd64) | Suportado | Debian 13+, Ubuntu 24.04+, Linux Mint 22+, LMDE 7+, Zorin OS 18+, Pop!_OS 24.04+ (`apt`) ou Fedora 40+ (`dnf`) | `apt`: `libgtk-4-1 libwebkitgtk-6.0-4` · `dnf`: `gtk4 webkitgtk6.0` |
 | Windows | Não suportado | — | — |
 | macOS | Não suportado | — | — |
 
-Os binários das releases rodam em Linux amd64 com as bibliotecas de execução do GTK 4 e do WebKitGTK 6.0, que normalmente já estão presentes num Linux desktop. Para instalar uma release, veja a [Instalação automatizada](#instalação-automatizada); a instalação manual está em [Instalar o Perci82 System](system/installation.md#instalação-manual) e em [Instalar o Perci82 Dev](dev/installation.md#instalação-manual).
+As releases são pacotes `.deb` e `.rpm` para Linux amd64, publicados num repositório `apt`/`dnf` assinado; o gerenciador de pacotes instala as bibliotecas de execução do GTK 4 e do WebKitGTK 6.0 de que eles dependem. Para instalar, veja a [Instalação automatizada](#instalação-automatizada); adicionar o repositório à mão e instalar um pacote baixado estão em [Instalar o Perci82 System](system/installation.md#adicionar-o-repositório-à-mão) e em [Instalar o Perci82 Dev](dev/installation.md#adicionar-o-repositório-à-mão).
 
 ### Compilar a partir do código
 
@@ -102,24 +102,24 @@ make generate
 
 ## Instalação automatizada
 
-Cada aplicativo tem o seu próprio instalador, que instala a release mais recente dele. Perci82 System:
+Um só script instala um dos aplicativos ou os dois. Ele pergunta quais:
 
 ```bash
-curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-system.sh | bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install.sh | bash
 ```
 
-Perci82 Dev:
+Ou informe quais — `system`, `dev` ou `all`:
 
 ```bash
-curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-dev.sh | bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install.sh | bash -s -- system dev
 ```
 
-Os instaladores precisam de `curl`, `jq`, `sha256sum`, `tar` e `sudo`. Eles conferem o SHA-256 do binário (e, quando o GitHub CLI está logado, a attestation do `checksums.txt` pelo workflow de release), instalam em `/usr/local/bin/perci82-system` ou `/usr/local/bin/perci82-dev` e criam a entrada no menu de aplicativos. Quando o Perci antigo (`prci`) está instalado, perguntam se devem removê-lo; as configurações em `~/.perci` são mantidas, porque os dois aplicativos as usam.
+O script precisa de `curl`, `gpg` e `sudo`. Ele baixa a chave do repositório do Perci82 e confere a impressão digital dela (`A1B1 AC75 B535 0344 B6C8  043C FF9E 1B0F 3C2A 545F`), adiciona o repositório de pacotes (`https://oito2.github.io/perci82/`) ao `apt` ou ao `dnf` e instala os pacotes `perci82-system` e/ou `perci82-dev`. Quando o Perci antigo (`prci`) está instalado, pergunta se deve removê-lo; as configurações em `~/.perci` são mantidas, porque os dois aplicativos as usam.
 
 ## Atualização e manutenção
 
-- **Atualizar:** Visão Geral → **Verificar** procura uma release mais nova do aplicativo; **Atualizar** baixa a release, confere o SHA-256 e substitui o binário. Rodar o instalador de novo também instala a release mais recente. Compilações a partir do código informam a versão `dev` e não se atualizam sozinhas.
-- **Desinstalar:** Visão Geral → **Desinstalar** remove o binário, a entrada no menu e os ícones do aplicativo. "Também remover as configurações" remove só as configurações daquele aplicativo (e, no Perci82 Dev, os arquivos das contas Git em `~/.perci` e, junto com os contêineres Docker, os arquivos da stack Docker, mantendo os backups do MariaDB); a pasta `~/.perci` só é apagada quando nenhum outro aplicativo Perci82 nem o Perci antigo está instalado e não sobrou mais nada nela. A janela de desinstalação do Perci82 Dev também oferece backups do Docker, dos repositórios e dos contextos de IA, e a remoção dos contêineres Docker. Veja [Desinstalar o Perci82 System](system/uninstallation.md) e [Desinstalar o Perci82 Dev](dev/uninstallation.md).
+- **Atualizar:** o gerenciador de pacotes atualiza os dois aplicativos junto com o resto do sistema (`sudo apt update && sudo apt upgrade` ou `sudo dnf upgrade`). Visão Geral → **Verificar** procura uma release mais nova e, quando o aplicativo roda a partir do pacote, mostra o comando que a instala. Compilações a partir do código informam a versão `dev`.
+- **Desinstalar:** Visão Geral → **Desinstalar** limpa o que é do aplicativo: "Também remover as configurações" remove só as configurações daquele aplicativo (e, no Perci82 Dev, os arquivos das contas Git em `~/.perci` e, junto com os contêineres Docker, os arquivos da stack Docker, mantendo os backups do MariaDB); a pasta `~/.perci` só é apagada quando nenhum outro aplicativo Perci82 nem o Perci antigo está instalado e não sobrou mais nada nela. A janela de desinstalação do Perci82 Dev também oferece backups do Docker, dos repositórios e dos contextos de IA, e a remoção dos contêineres Docker. No fim, ela mostra o comando que remove o pacote (`sudo apt remove perci82-<app>` ou `sudo dnf remove perci82-<app>`). Veja [Desinstalar o Perci82 System](system/uninstallation.md) e [Desinstalar o Perci82 Dev](dev/uninstallation.md).
 
 ## Documentação
 

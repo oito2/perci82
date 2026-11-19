@@ -6,6 +6,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [Dev 1.2.0] - 2026-11-19
+
+### Added
+
+- Perci82 Dev is published as `.deb` and `.rpm` packages for amd64 (Debian 13+, Ubuntu 24.04+, Linux Mint 22+, LMDE 7+, Zorin OS 18+, Pop!_OS 24.04+ and Fedora 40+), in a signed `apt`/`dnf` repository at `https://oito2.github.io/perci82/` (key `A1B1 AC75 B535 0344 B6C8  043C FF9E 1B0F 3C2A 545F`), so `apt upgrade` and `dnf upgrade` update it. Each release also attaches the packages, their `checksums.txt` and build attestations.
+- Perci82 Dev: Overview → Updates shows, when a newer release exists and the app runs from its package, the command that installs it, with **Copy**.
+- Perci82 Dev: after **Uninstall**, a window shows the command that removes the package, with **Copy** and **Close the app**.
+
+### Changed
+
+- One install script, `install.sh`, installs Perci82 Dev, Perci82 System or both: it asks which ones, or takes `system`, `dev` or `all` as arguments. It adds the package repository (checking the key's fingerprint) and installs the packages; `install-system.sh` and `install-dev.sh` are gone.
+- Perci82 Dev is installed as `/usr/bin/perci82-dev`; an older `/usr/local/bin/perci82-dev` comes first in `PATH` and must be removed (`sudo rm -f /usr/local/bin/perci82-dev`).
+- Perci82 Dev: the update check reads the newest version from the repository site (`latest/dev.json`) and falls back to the GitHub API, authenticated with the GitHub CLI's token when there is one.
+- Perci82 Dev: **Uninstall** removes the app's settings and data but no longer its binary, menu entry or icons, which belong to the package, and no longer closes the window on its own.
+
+### Removed
+
+- Perci82 Dev: the built-in self-update (**Update** button). The package manager updates the app.
+- The standalone binary (`perci82-dev-linux-amd64`) and the menu entry archive (`perci82-dev-menu.tar.gz`) are no longer published.
+
+### Fixed
+
+- The installer and the update check failed with HTTP 403 when GitHub's limit for requests without login (60 an hour per address) was reached, common on shared networks: the installer no longer uses the GitHub API, and the update check asks it only when the repository site can't answer.
+
+## [System 1.2.0] - 2026-11-19
+
+### Added
+
+- Perci82 System is published as `.deb` and `.rpm` packages for amd64 (Debian 13+, Ubuntu 24.04+, Linux Mint 22+, LMDE 7+, Zorin OS 18+, Pop!_OS 24.04+ and Fedora 40+), in a signed `apt`/`dnf` repository at `https://oito2.github.io/perci82/` (key `A1B1 AC75 B535 0344 B6C8  043C FF9E 1B0F 3C2A 545F`), so `apt upgrade` and `dnf upgrade` update it. Each release also attaches the packages, their `checksums.txt` and build attestations.
+- Perci82 System: Overview → Updates shows, when a newer release exists and the app runs from its package, the command that installs it, with **Copy**.
+- Perci82 System: after **Uninstall**, a window shows the command that removes the package, with **Copy** and **Close the app**.
+
+### Changed
+
+- One install script, `install.sh`, installs Perci82 System, Perci82 Dev or both: it asks which ones, or takes `system`, `dev` or `all` as arguments. It adds the package repository (checking the key's fingerprint) and installs the packages; `install-system.sh` and `install-dev.sh` are gone.
+- Perci82 System is installed as `/usr/bin/perci82-system`; an older `/usr/local/bin/perci82-system` comes first in `PATH` and must be removed (`sudo rm -f /usr/local/bin/perci82-system`).
+- Perci82 System: the update check reads the newest version from the repository site (`latest/system.json`) and falls back to the GitHub API, authenticated with the GitHub CLI's token when there is one.
+- Perci82 System: **Uninstall** removes the app's settings and data but no longer its binary, menu entry or icons, which belong to the package, and no longer closes the window on its own.
+
+### Removed
+
+- Perci82 System: the built-in self-update (**Update** button). The package manager updates the app.
+- The standalone binary (`perci82-system-linux-amd64`) and the menu entry archive (`perci82-system-menu.tar.gz`) are no longer published.
+
+### Fixed
+
+- The installer and the update check failed with HTTP 403 when GitHub's limit for requests without login (60 an hour per address) was reached, common on shared networks: the installer no longer uses the GitHub API, and the update check asks it only when the repository site can't answer.
+
 ## [Dev 1.1.0] - 2026-11-18
 
 ### Added
@@ -176,7 +224,9 @@ First release of Perci82 System, split from Perci 1.9.0.
 
 - `install-system.sh` checks, when the GitHub CLI is logged in, that `checksums.txt` was attested by the release workflow (covering the binary and the menu entry archive), and extracts only menu entries and icons from the archive.
 
-[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.1.0...HEAD
+[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.2.0...HEAD
+[Dev 1.2.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.2.0
+[System 1.2.0]: https://github.com/oito2/perci82/releases/tag/system-v1.2.0
 [Dev 1.1.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.1.0
 [Dev 1.0.2]: https://github.com/oito2/perci82/releases/tag/dev-v1.0.2
 [System 1.0.1]: https://github.com/oito2/perci82/releases/tag/system-v1.0.1

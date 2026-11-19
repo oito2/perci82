@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Visão Geral (dashboard, Atualizar) and Configurações (theme,
+// Visão Geral (dashboard, Atualização, Desinstalar) and Configurações (theme,
 // language), shared by both applications. Each application
 // defines renderAppDashboardStats() and renderAppSelfConfig() for its own
 // parts of these screens, and the Desinstalar button's handler.
@@ -25,10 +25,10 @@
 // --- "Home :: Visão Geral" (dashboard — also the screen's initial
 // state: #dashboard-container is visible by default, without going
 // through selectItem). Brings together 3 blocks: the stats (GetAppVersion plus
-// renderAppDashboardStats), "Atualizar" and "Desinstalar". dashboardRunningAction marks which of the two
-// embedded actions is in progress — App's "action-done" event only has
-// the actionId "dashboard" to go on, so this extra flag is needed to know
-// what to reload. ---------------------------------------------------------
+// renderAppDashboardStats), "Atualização" and "Desinstalar".
+// dashboardRunningAction marks the uninstall as the action in progress —
+// App's "action-done" event only has the actionId "dashboard" to go on.
+// -------------------------------------------------------------------------
 let dashboardRunningAction = null;
 
 function renderDashboardStats() {
@@ -38,9 +38,10 @@ function renderDashboardStats() {
   renderAppDashboardStats();
 }
 
-// --- "Atualizar" (embedded in Visão Geral) ------------------------
-// Reopening Visão Geral re-checks GitHub at most every 10 minutes; force
-// (the "Verificar novamente" button, after an update) always does.
+// --- "Atualização" (embedded in Visão Geral) ----------------------
+// Reopening Visão Geral re-checks the newest version at most every 10
+// minutes; force (the "Verificar" button) always does. The package manager
+// installs the update.
 const SELF_UPDATE_RECHECK_MS = 10 * 60 * 1000;
 let selfUpdateCheckedAt = 0;
 // selfUpdateState is what the status line shows: { key, args } of its
@@ -65,17 +66,30 @@ function showSelfUpdateState(key, args, badge) {
   dashboardVersionBadge.textContent = b ? t(b.key) : "";
 }
 
-// showUpdateButton shows "Atualizar" only while a newer release exists.
-function showUpdateButton(available) {
-  btnSuUpdate.disabled = !available;
-  btnSuUpdate.classList.toggle("hidden", !available);
+// The upgrade row of "Atualização": the package manager's command, shown
+// when a newer release exists and the app runs from its package.
+const suUpgrade = document.getElementById("su-upgrade");
+const suUpgradeCmd = document.getElementById("su-upgrade-cmd");
+const btnSuCopy = document.getElementById("btn-su-copy");
+
+function showUpgradeCommand(command) {
+  suUpgradeCmd.textContent = command || "";
+  suUpgrade.classList.toggle("hidden", !command);
 }
+
+// packageInfo resolves to App.GetPackageInfo()'s answer, {} when it fails.
+function packageInfo() {
+  return App.GetPackageInfo().catch(function () { return {}; });
+}
+
 function loadSelfUpdateStatus(force) {
   if (!force && selfUpdateCheckedAt && Date.now() - selfUpdateCheckedAt < SELF_UPDATE_RECHECK_MS) return;
   selfUpdateCheckedAt = Date.now();
   showSelfUpdateState("dashboard.checking");
-  showUpdateButton(false);
-  App.GetSelfUpdateInfo().then(function (info) {
+  showUpgradeCommand("");
+  Promise.all([App.GetSelfUpdateInfo(), packageInfo()]).then(function (res) {
+    const info = res[0];
+    const pkg = res[1] || {};
     if (info.error) {
       selfUpdateCheckedAt = 0; // retried on the next visit
       showSelfUpdateState("dashboard.checkFailed", { error: info.error });
@@ -83,7 +97,7 @@ function loadSelfUpdateStatus(force) {
     }
     if (info.updateAvailable) {
       showSelfUpdateState("dashboard.updateAvailable", { app: document.title, version: info.latestVersion }, "update");
-      showUpdateButton(true);
+      if (pkg.packaged) showUpgradeCommand(pkg.upgradeCommand);
     } else {
       showSelfUpdateState("dashboard.upToDate", { app: document.title }, "upToDate");
     }
@@ -101,15 +115,37 @@ btnSuCheck.addEventListener("click", function () {
   loadSelfUpdateStatus(true);
 });
 
-btnSuUpdate.addEventListener("click", function () {
-  if (running) return;
-  dashboardRunningAction = "self-update";
-  beginRun(t("dashboard.updateRun", { app: document.title }), function () { return App.RunSelfUpdate(); }, {
-    buttons: [btnSuUpdate, btnSuCheck],
-    maxSteps: 1,
-    announce: t("dashboard.updateStarting", { app: document.title }),
+// copyText copies text and shows "Copiado" on button for a moment.
+function copyText(button, text) {
+  Clipboard.SetText(text).then(function () {
+    button.textContent = t("oito2.copied");
+    setTimeout(function () { button.textContent = t("oito2.copy"); }, 1500);
+  }).catch(function () { openError(t("oito2.copyFailed")); });
+}
+
+btnSuCopy.addEventListener("click", function () { copyText(btnSuCopy, suUpgradeCmd.textContent); });
+
+// --- After "Desinstalar" -----------------------------------------------
+// A successful uninstall cleaned up what is the user's: the window shows
+// the command that removes the package, and "Fechar" quits the app.
+const uninstallDoneModal = document.getElementById("uninstall-done-modal");
+const uninstallDoneText = document.getElementById("uninstall-done-text");
+const uninstallDoneRow = document.getElementById("uninstall-done-row");
+const uninstallDoneCmd = document.getElementById("uninstall-done-cmd");
+const btnUninstallDoneCopy = document.getElementById("btn-uninstall-done-copy");
+
+function showUninstallDone() {
+  return packageInfo().then(function (pkg) {
+    const command = (pkg && pkg.packaged && pkg.removeCommand) || "";
+    uninstallDoneText.textContent = t(command ? "dashboard.uninstallDonePackaged" : "dashboard.uninstallDoneOther", { app: document.title });
+    uninstallDoneCmd.textContent = command;
+    uninstallDoneRow.classList.toggle("hidden", !command);
+    showDialog(uninstallDoneModal);
   });
-});
+}
+
+btnUninstallDoneCopy.addEventListener("click", function () { copyText(btnUninstallDoneCopy, uninstallDoneCmd.textContent); });
+document.getElementById("btn-uninstall-done-quit").addEventListener("click", function () { App.QuitApp(); });
 
 // --- "Home :: Configurar" (self-config) ---------------------------------
 // Tema — "Definido pelo sistema" or one of the oito2 presets; a click

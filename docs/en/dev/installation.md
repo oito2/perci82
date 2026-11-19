@@ -4,51 +4,75 @@
 
 # Installing Perci82 Dev
 
-Perci82 Dev is released for **Linux on amd64** only: it is built with Wails v3, which uses cgo with GTK 4 and WebKitGTK 6.0, so each platform needs a native build.
+Perci82 Dev is released for **Linux on amd64** only, as `.deb` and `.rpm` packages: it is built with Wails v3, which uses cgo with GTK 4 and WebKitGTK 6.0, so each platform needs a native build.
 
 ## Requirements
 
 | OS | Status | Distributions | Runtime dependencies |
 |---|---|---|---|
-| Linux (amd64) | Supported | Distributions with `apt` (Debian 13+, Ubuntu 24.04+, Linux Mint 22+, LMDE 7+, ZorinOS 18+, Pop!_OS 24.04+) or `dnf` (Fedora) | `apt`: `libgtk-4-1 libwebkitgtk-6.0-4` · `dnf`: `gtk4 webkitgtk6.0` |
+| Linux (amd64) | Supported | Debian 13+, Ubuntu 24.04+, Linux Mint 22+, LMDE 7+, Zorin OS 18+, Pop!_OS 24.04+ (`apt`) or Fedora 40+ (`dnf`) | `apt`: `libgtk-4-1 libwebkitgtk-6.0-4` · `dnf`: `gtk4 webkitgtk6.0` |
 | Windows | Not supported | — | — |
 | macOS | Not supported | — | — |
 
-The GTK 4 and WebKitGTK 6.0 libraries are normally already present on a desktop Linux. Actions that change the system ask for your password through the desktop's authentication dialog (`pkexec`/PolicyKit).
+The package depends on the GTK 4 and WebKitGTK 6.0 runtime libraries, and the package manager installs them when they are missing; older releases don't have WebKitGTK 6.0. Actions that change the system ask for your password through the desktop's authentication dialog (`pkexec`/PolicyKit).
 
 The tools the screens rely on — Git, Docker, Node.js, `secret-tool` and others — are not needed to start the app: install them from [Environment → Prerequisites](environment.md).
 
 ## Install script (recommended)
 
 ```bash
-curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-dev.sh | bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install.sh | bash -s -- dev
 ```
 
-The script needs `curl`, `jq`, `sha256sum`, `tar` and `sudo`. It:
+Without `-s -- dev`, the script asks which apps to install: Perci82 System, Perci82 Dev or both. It also takes `system`, `dev` or `all` as arguments. It needs `curl`, `gpg` and `sudo`, and:
 
-1. Finds the newest Perci82 Dev release on GitHub (tags `dev-vX.Y.Z`; drafts and prereleases are skipped).
-2. Downloads `perci82-dev-linux-amd64` and `checksums.txt`, and checks the binary's SHA-256. When the GitHub CLI (`gh`) is installed and logged in, it also checks that `checksums.txt` was attested by this repository's release workflow, which vouches for the binary and the menu entry archive through their checksums.
-3. Installs the binary as `/usr/local/bin/perci82-dev` (with `sudo` when that folder isn't writable).
-4. Extracts the menu entry archive `perci82-dev-menu.tar.gz` (checked against `checksums.txt` too) into `/usr`: only the application menu entry and the icons, whatever else the archive holds. A failure here doesn't undo the install; run `perci82-dev` from a terminal instead.
+1. Checks that the machine is amd64 with `apt` or `dnf` and, on `apt`, that the release has WebKitGTK 6.0.
+2. Downloads the repository's signing key, `https://oito2.github.io/perci82/perci82.asc`, and checks its fingerprint: `A1B1 AC75 B535 0344 B6C8  043C FF9E 1B0F 3C2A 545F`.
+3. Adds the Perci82 package repository, shared by both apps:
+   - `apt`: the key as `/usr/share/keyrings/perci82-archive-keyring.asc` and the source `/etc/apt/sources.list.d/perci82.sources`;
+   - `dnf`: the key as `/etc/pki/rpm-gpg/RPM-GPG-KEY-perci82` (also imported into rpm) and the repository `/etc/yum.repos.d/perci82.repo`.
+4. Installs the package `perci82-dev` with `apt-get install` or `dnf install`. An app that is already installed is updated when a newer version exists.
 5. When the old Perci (`prci`) is installed, lists its files and asks whether to remove them. Its settings in `~/.perci` are kept: Perci82 Dev reads them.
 
 Open **Perci82 Dev** from the application menu, or run `perci82-dev`.
 
-## Manual install
+## Add the repository by hand
 
-Download `perci82-dev-linux-amd64`, `perci82-dev-menu.tar.gz` and `checksums.txt` from the newest `dev-v*` release on the [releases page](https://github.com/oito2/perci82/releases), then:
+On `apt` (Debian, Ubuntu, Linux Mint, Zorin OS, Pop!_OS):
+
+```bash
+sudo curl -fsSLo /usr/share/keyrings/perci82-archive-keyring.asc https://oito2.github.io/perci82/perci82.asc
+gpg --show-keys /usr/share/keyrings/perci82-archive-keyring.asc   # must show A1B1AC75B5350344B6C8043CFF9E1B0F3C2A545F
+sudo curl -fsSLo /etc/apt/sources.list.d/perci82.sources https://oito2.github.io/perci82/perci82.sources
+sudo apt update
+sudo apt install perci82-dev
+```
+
+On `dnf` (Fedora):
+
+```bash
+sudo curl -fsSLo /etc/pki/rpm-gpg/RPM-GPG-KEY-perci82 https://oito2.github.io/perci82/perci82.asc
+gpg --show-keys /etc/pki/rpm-gpg/RPM-GPG-KEY-perci82   # must show A1B1AC75B5350344B6C8043CFF9E1B0F3C2A545F
+sudo curl -fsSLo /etc/yum.repos.d/perci82.repo https://oito2.github.io/perci82/perci82.repo
+sudo dnf install perci82-dev
+```
+
+The first `dnf install` asks to import the key; check that it shows the same fingerprint.
+
+## Install a downloaded package
+
+Download the package and `checksums.txt` from the newest `dev-v*` release on the [releases page](https://github.com/oito2/perci82/releases), then, with the release's version in place of `X.Y.Z`:
 
 ```bash
 sha256sum --ignore-missing -c checksums.txt
-sudo install -m 755 -o root -g root perci82-dev-linux-amd64 /usr/local/bin/perci82-dev
-sudo tar -xzf perci82-dev-menu.tar.gz -C /usr --no-same-owner --no-same-permissions --no-overwrite-dir
-sudo gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor
+sudo apt install ./perci82-dev_X.Y.Z-1_amd64.deb    # Debian, Ubuntu, Linux Mint
+sudo dnf install ./perci82-dev-X.Y.Z-1.x86_64.rpm   # Fedora
 ```
 
-Every release file has a build provenance attestation, which the GitHub CLI checks:
+A package installed this way isn't updated by `apt upgrade` or `dnf upgrade`: add the repository for that. Every release file has a build provenance attestation, which the GitHub CLI checks:
 
 ```bash
-gh attestation verify perci82-dev-linux-amd64 --repo oito2/perci82
+gh attestation verify perci82-dev_X.Y.Z-1_amd64.deb --repo oito2/perci82
 ```
 
 ## Build from source
@@ -69,19 +93,25 @@ make build-dev   # writes ./perci82-dev
 ./perci82-dev
 ```
 
-A build from source reports the version `dev`, and its self-update is turned off. To build the release files, as the release workflow does:
+A build from source reports the version `dev`. To build the release packages, as the release workflow does (nfpm goes to `$(go env GOPATH)/bin`, which must be in `PATH`):
 
 ```bash
-make release-dev VERSION=v1.0.0
+make install-nfpm   # once: nfpm, the packaging tool
+make release-dev VERSION=v1.2.0
 ```
 
-It writes `dist/perci82-dev-linux-amd64`, `dist/perci82-dev-menu.tar.gz` (the menu entry and icons, under `share/`) and `dist/checksums.txt`.
+It writes `dist/perci82-dev_1.2.0-1_amd64.deb`, `dist/perci82-dev-1.2.0-1.x86_64.rpm` and `dist/checksums.txt`, and the binary they hold in `dist/build/perci82-dev`.
 
 ## Updating
 
-**Overview → Updates → Check** looks for a newer Perci82 Dev release; **Update** appears only when there is one. The update downloads the new binary, checks its SHA-256 against the release's `checksums.txt`, replaces the installed binary and asks you to restart the app. A slow download is never cut; it stops only when no data arrives for a minute. The checksum comes from the same GitHub release as the binary, so the update trusts that release; it does not check the build attestation. To check it yourself, use the command in [Manual install](#manual-install) before updating. See [Overview](overview.md).
+The package manager updates Perci82 Dev with the rest of the system: `sudo apt update && sudo apt upgrade` or `sudo dnf upgrade`. When a newer release exists, **Overview → Updates** also shows the command that installs just that one, with **Copy**:
 
-Running the install script again also installs the newest release.
+```bash
+sudo apt update && sudo apt install --only-upgrade perci82-dev   # apt
+sudo dnf upgrade --refresh perci82-dev                             # dnf
+```
+
+See [Overview](overview.md).
 
 ## Next steps
 

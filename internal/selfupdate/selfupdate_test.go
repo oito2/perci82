@@ -16,376 +16,304 @@
 package selfupdate
 
 import (
+	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
+
+	"github.com/oito2/perci82/internal/distro"
 )
 
-// withTestServer points apiBaseURL/httpClient/trustedDownloadHost at an
-// httptest.TLSServer for the duration of the test, restoring the real
-// values afterward. The server itself is configured by the caller.
-func withTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+// withServer points latestBaseURL, apiBaseURL and httpClient at a local
+// server running handler, and makes githubToken return token, for the
+// duration of the test.
+func withServer(t *testing.T, token string, handler http.HandlerFunc) *httptest.Server {
 	t.Helper()
-	srv := httptest.NewTLSServer(handler)
+	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
-
-	origAPIBase, origClient, origHost := apiBaseURL, httpClient, trustedDownloadHost
-	host, err := url.Parse(srv.URL)
-	if err != nil {
-		t.Fatalf("parse test server URL: %v", err)
-	}
-
-	apiBaseURL = srv.URL
-	httpClient = srv.Client()
-	trustedDownloadHost = host.Host
-
+	origLatest, origAPI, origClient, origToken := latestBaseURL, apiBaseURL, httpClient, githubToken
+	latestBaseURL, apiBaseURL, httpClient = srv.URL+"/latest/", srv.URL, srv.Client()
+	githubToken = func(context.Context) string { return token }
 	t.Cleanup(func() {
-		apiBaseURL, httpClient, trustedDownloadHost = origAPIBase, origClient, origHost
+		latestBaseURL, apiBaseURL, httpClient, githubToken = origLatest, origAPI, origClient, origToken
 	})
 	return srv
 }
 
-// release is one entry of the test release list.
-type release struct {
-	tag               string
-	draft, prerelease bool
-	assets            []string // asset names, served under the server URL
-}
-
-// releasesJSON renders releases as the GitHub API's release list, with
-// every asset URL under base.
-func releasesJSON(base string, releases ...release) string {
-	var parts []string
-	for _, r := range releases {
-		var assets []string
-		for _, a := range r.assets {
-			assets = append(assets, fmt.Sprintf(`{"name":%q,"browser_download_url":%q}`, a, base+"/"+r.tag+"/"+a))
-		}
-		parts = append(parts, fmt.Sprintf(`{"tag_name":%q,"draft":%v,"prerelease":%v,"assets":[%s]}`,
-			r.tag, r.draft, r.prerelease, strings.Join(assets, ",")))
-	}
-	return "[" + strings.Join(parts, ",") + "]"
-}
-
 const releasesPath = "/repos/oito2/perci82/releases"
 
-// Among the monorepo's releases, each application gets its own highest
-// published version: other applications' tags, drafts, prereleases and
-// malformed tags are skipped, and versions compare numerically.
-func TestLatestRelease_PicksTheAppsNewestRelease(t *testing.T) {
-	sysAsset, devAsset := assetName("system"), assetName("dev")
-	binContent := []byte("fake-binary-content")
-	wantChecksum := sha256Hex(binContent)
-
-	var srv *httptest.Server
-	srv = withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+// The site's latest/<app>.json answers first; the GitHub API isn't asked.
+func TestLatestRelease_FromSite(t *testing.T) {
+	withServer(t, "", func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case releasesPath:
-			if r.URL.Query().Get("per_page") != "100" {
-				t.Errorf("query = %q, want per_page=100", r.URL.RawQuery)
-			}
-			fmt.Fprint(w, releasesJSON(srv.URL,
-				release{tag: "dev-v9.0.0", assets: []string{devAsset, "checksums.txt"}},
-				release{tag: "system-v1.2.3", assets: []string{sysAsset, "checksums.txt"}},
-				release{tag: "system-v1.2.10", assets: []string{sysAsset, "checksums.txt"}},
-				release{tag: "system-v1.9.0", draft: true, assets: []string{sysAsset, "checksums.txt"}},
-				release{tag: "system-v2.0.0", prerelease: true, assets: []string{sysAsset, "checksums.txt"}},
-				release{tag: "system-v3.0.0-rc.1", assets: []string{sysAsset, "checksums.txt"}},
-				release{tag: "system-v4.0", assets: []string{sysAsset, "checksums.txt"}},
-				release{tag: "v5.0.0", assets: []string{sysAsset, "checksums.txt"}},
-			))
-		case "/system-v1.2.10/checksums.txt":
-			fmt.Fprintf(w, "%s  %s\ndeadbeef  some-other-file\n", wantChecksum, sysAsset)
+		case "/latest/system.json":
+			fmt.Fprint(w, `{"app":"system","version":"v1.2.0","tag":"system-v1.2.0"}`)
+		case "/latest/dev.json":
+			fmt.Fprint(w, `{"app":"dev","version":"v1.3.1","tag":"dev-v1.3.1"}`)
 		default:
+			t.Errorf("unexpected request %s", r.URL.Path)
 			http.NotFound(w, r)
 		}
 	})
-
-	rel, err := LatestRelease(context.Background(), "system")
-	if err != nil {
-		t.Fatalf("LatestRelease(system): %v", err)
-	}
-	if rel.App != "system" || rel.Version != "v1.2.10" {
-		t.Errorf("got %s %s, want system v1.2.10", rel.App, rel.Version)
-	}
-	if want := srv.URL + "/system-v1.2.10/" + sysAsset; rel.DownloadURL != want {
-		t.Errorf("DownloadURL = %q, want %q", rel.DownloadURL, want)
-	}
-	if rel.ChecksumSHA256 != "" {
-		t.Errorf("LatestRelease must not resolve the checksum, got %q", rel.ChecksumSHA256)
-	}
-	if err := resolveChecksum(context.Background(), rel); err != nil {
-		t.Fatalf("resolveChecksum: %v", err)
-	}
-	if rel.ChecksumSHA256 != wantChecksum {
-		t.Errorf("ChecksumSHA256 = %q, want %q", rel.ChecksumSHA256, wantChecksum)
-	}
-
-	dev, err := LatestRelease(context.Background(), "dev")
-	if err != nil || dev.Version != "v9.0.0" || dev.DownloadURL != srv.URL+"/dev-v9.0.0/"+devAsset {
-		t.Errorf("LatestRelease(dev) got %+v, %v", dev, err)
-	}
-}
-
-// An application without a published release gets a clear error.
-func TestLatestRelease_NoReleaseOfTheApp(t *testing.T) {
-	var srv *httptest.Server
-	srv = withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, releasesJSON(srv.URL, release{tag: "dev-v1.0.0", assets: []string{assetName("dev")}}))
-	})
-	_, err := LatestRelease(context.Background(), "system")
-	if err == nil || !strings.Contains(err.Error(), "Perci82 System") {
-		t.Errorf("got %v, want an error naming Perci82 System", err)
-	}
-}
-
-func TestLatestRelease_UnknownApp(t *testing.T) {
-	hits := 0
-	withTestServer(t, func(w http.ResponseWriter, r *http.Request) { hits++ })
-	if _, err := LatestRelease(context.Background(), "other"); err == nil || hits != 0 {
-		t.Errorf("got err=%v with %d requests, want an error and no request", err, hits)
-	}
-}
-
-// A plain version check never requests checksums.txt.
-func TestLatestRelease_DoesNotDownloadChecksums(t *testing.T) {
-	var srv *httptest.Server
-	checksumHits := 0
-	srv = withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == releasesPath {
-			fmt.Fprint(w, releasesJSON(srv.URL, release{tag: "dev-v1.2.3", assets: []string{assetName("dev"), "checksums.txt"}}))
-			return
+	for app, want := range map[string]Release{
+		"system": {App: "system", Version: "v1.2.0", Tag: "system-v1.2.0"},
+		"dev":    {App: "dev", Version: "v1.3.1", Tag: "dev-v1.3.1"},
+	} {
+		rel, err := LatestRelease(t.Context(), app)
+		if err != nil || *rel != want {
+			t.Errorf("LatestRelease(%s) = %+v, %v; want %+v", app, rel, err, want)
 		}
-		checksumHits++
-	})
-	if _, err := LatestRelease(context.Background(), "dev"); err != nil {
-		t.Fatal(err)
-	}
-	if checksumHits != 0 {
-		t.Errorf("checksums.txt requested %d times, want 0", checksumHits)
 	}
 }
 
-func TestLatestRelease_MissingAsset(t *testing.T) {
-	withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, releasesJSON("https://example.invalid", release{tag: "system-v1.2.3", assets: []string{"perci82-system-linux-riscv64"}}))
-	})
-	if _, err := LatestRelease(context.Background(), "system"); err == nil {
-		t.Error("a release without the running architecture's asset must fail")
-	}
-}
-
-// A release without checksums.txt is still reported (the version check
-// works); only applying it is refused.
-func TestLatestRelease_MissingChecksumsFileStillReported(t *testing.T) {
-	var srv *httptest.Server
-	srv = withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, releasesJSON(srv.URL, release{tag: "system-v1.2.3", assets: []string{assetName("system")}}))
-	})
-
-	rel, err := LatestRelease(context.Background(), "system")
-	if err != nil {
-		t.Fatalf("LatestRelease: %v", err)
-	}
-	if rel.Version != "v1.2.3" || rel.ChecksumsURL != "" {
-		t.Errorf("rel = %+v", rel)
-	}
-	if err := resolveChecksum(context.Background(), rel); err == nil {
-		t.Fatal("resolving the checksum of a release without checksums.txt must fail")
-	}
-}
-
-func TestResolveChecksum_NotListedForAsset(t *testing.T) {
-	srv := withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/checksums.txt" {
-			fmt.Fprint(w, "deadbeef  algum-outro-arquivo\n")
-		}
-	})
-	rel := &Release{App: "system", Version: "v1.2.3", ChecksumsURL: srv.URL + "/checksums.txt"}
-	if err := resolveChecksum(context.Background(), rel); err == nil {
-		t.Error("esperava erro por checksum do asset não estar listado em checksums.txt, mas passou")
-	}
-}
-
-func TestLatestRelease_APIError(t *testing.T) {
-	withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	})
-
-	if _, err := LatestRelease(context.Background(), "system"); err == nil {
-		t.Error("esperava erro por status 500 da API, mas passou")
-	}
-}
-
-func TestFetchChecksum(t *testing.T) {
-	sum := sha256.Sum256([]byte("conteudo-amd64"))
-	wantHash := hex.EncodeToString(sum[:])
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "%s  prci-linux-amd64\ndeadbeef  prci-linux-arm64\n", wantHash)
-	}))
-	defer srv.Close()
-
-	got, err := fetchChecksum(context.Background(), srv.URL, "prci-linux-amd64")
-	if err != nil {
-		t.Fatalf("fetchChecksum: %v", err)
-	}
-	if got != wantHash {
-		t.Errorf("fetchChecksum() = %q, want %q", got, wantHash)
-	}
-
-	if _, err := fetchChecksum(context.Background(), srv.URL, "prci-linux-inexistente"); err == nil {
-		t.Error("esperava erro para asset não listado, mas passou")
-	}
-}
-
-func TestVerifyChecksum(t *testing.T) {
-	content := []byte("binario-de-teste")
-	sum := sha256.Sum256(content)
-	goodHash := hex.EncodeToString(sum[:])
-
-	tmp, err := os.CreateTemp(t.TempDir(), "checksum-*.bin")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := tmp.Write(content); err != nil {
-		t.Fatal(err)
-	}
-	if err := tmp.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := verifyChecksum(tmp.Name(), goodHash); err != nil {
-		t.Errorf("esperava verificação OK com hash correto, deu erro: %v", err)
-	}
-
-	if err := verifyChecksum(tmp.Name(), "0000000000000000000000000000000000000000000000000000000000ff"); err == nil {
-		t.Error("esperava erro com hash adulterado, mas passou")
-	}
-
-	if err := verifyChecksum(filepath.Join(t.TempDir(), "nao-existe"), goodHash); err == nil {
-		t.Error("esperava erro ao verificar arquivo inexistente, mas passou")
-	}
-}
-
-func TestValidateDownloadURL(t *testing.T) {
-	tests := []struct {
-		name    string
-		url     string
-		wantErr bool
-	}{
-		{"github release asset", "https://github.com/oito2/perci82/releases/download/v1.0.0/prci-linux-amd64", false},
-		{"githubusercontent cdn", "https://objects.githubusercontent.com/foo/bar", false},
-		{"http scheme rejected", "http://github.com/oito2/perci82/releases/download/v1.0.0/prci-linux-amd64", true},
-		{"untrusted host rejected", "https://evil.example.com/prci-linux-amd64", true},
-		{"lookalike host rejected", "https://github.com.evil.com/x", true},
-		{"malformed url rejected", "://not a url", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateDownloadURL(tt.url)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateDownloadURL(%q) err=%v, wantErr=%v", tt.url, err, tt.wantErr)
+// A missing or inconsistent latest/<app>.json falls back to the GitHub
+// API, which picks the app's highest published version and sends the
+// token when there is one.
+func TestLatestRelease_FallsBackToAPI(t *testing.T) {
+	for name, site := range map[string]string{
+		"missing":      "",
+		"other app":    `{"app":"dev","version":"v9.0.0","tag":"dev-v9.0.0"}`,
+		"bad version":  `{"app":"system","version":"1.2","tag":"system-1.2"}`,
+		"tag mismatch": `{"app":"system","version":"v9.0.0","tag":"system-v1.0.0"}`,
+		"not json":     `<html>`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			withServer(t, "tok", func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/latest/system.json":
+					if site == "" {
+						http.NotFound(w, r)
+						return
+					}
+					fmt.Fprint(w, site)
+				case releasesPath:
+					if got := r.Header.Get("Authorization"); got != "Bearer tok" {
+						t.Errorf("Authorization = %q", got)
+					}
+					fmt.Fprint(w, `[
+						{"tag_name":"dev-v9.0.0"},
+						{"tag_name":"system-v1.2.3"},
+						{"tag_name":"system-v1.2.10"},
+						{"tag_name":"system-v1.9.0","draft":true},
+						{"tag_name":"system-v2.0.0","prerelease":true},
+						{"tag_name":"system-v3.0.0-rc.1"},
+						{"tag_name":"v5.0.0"}]`)
+				default:
+					http.NotFound(w, r)
+				}
+			})
+			rel, err := LatestRelease(t.Context(), "system")
+			if err != nil || rel.Version != "v1.2.10" || rel.Tag != "system-v1.2.10" {
+				t.Errorf("got %+v, %v; want system v1.2.10", rel, err)
 			}
 		})
 	}
 }
 
-// A redirect to a host outside the trusted set must be refused on the hop
-// itself, not only when the first URL is validated.
-func TestDownloadFile_RejectsRedirectToUntrustedHost(t *testing.T) {
-	srv := withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "https://evil.example.com/prci", http.StatusFound)
-	})
-	f, err := os.CreateTemp(t.TempDir(), "dl-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = f.Close() }()
-
-	err = downloadFile(context.Background(), srv.URL+"/prci", f)
-	if err == nil || !strings.Contains(err.Error(), "untrusted") {
-		t.Fatalf("expected an untrusted-host error, got %v", err)
-	}
-}
-
-func TestDownloadFile_RefusesOversizedBody(t *testing.T) {
-	srv := withTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
-		chunk := make([]byte, 1<<20)
-		for i := 0; i <= maxBinarySize>>20; i++ {
-			if _, err := w.Write(chunk); err != nil {
-				return
-			}
+// Without a token the API request carries no Authorization header; when
+// both sources fail, the error names both.
+func TestLatestRelease_BothFail(t *testing.T) {
+	withServer(t, "", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			t.Error("Authorization sent without a token")
 		}
+		w.WriteHeader(http.StatusForbidden)
 	})
-	f, err := os.CreateTemp(t.TempDir(), "dl-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = f.Close() }()
-
-	err = downloadFile(context.Background(), srv.URL+"/prci", f)
-	if err == nil || !strings.Contains(err.Error(), "larger than") {
-		t.Fatalf("expected an explicit size error, got %v", err)
+	_, err := LatestRelease(t.Context(), "dev")
+	if err == nil || !strings.Contains(err.Error(), "403") || !strings.Contains(err.Error(), "GitHub API") {
+		t.Errorf("err = %v, want both failures reported", err)
 	}
 }
 
-func TestVerifyChecksum_CaseInsensitive(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "bin")
-	content := []byte("perci")
-	if err := os.WriteFile(path, content, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	sum := sha256.Sum256(content)
-	if err := verifyChecksum(path, " "+strings.ToUpper(hex.EncodeToString(sum[:]))+"\n"); err != nil {
-		t.Fatalf("uppercase/whitespace checksum should match: %v", err)
-	}
-}
-
-// A download that stops sending data is abandoned after stallTimeout; one
-// that keeps sending is not cut, however long it takes.
-func TestDownloadFile_StallTimeout(t *testing.T) {
-	orig := stallTimeout
-	stallTimeout = 200 * time.Millisecond
-	t.Cleanup(func() { stallTimeout = orig })
-
-	release := make(chan struct{})
-	srv := withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/slow" {
-			for i := 0; i < 6; i++ {
-				_, _ = w.Write([]byte("x"))
-				w.(http.Flusher).Flush()
-				time.Sleep(100 * time.Millisecond)
-			}
+func TestLatestRelease_NoReleaseOfTheApp(t *testing.T) {
+	withServer(t, "", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == releasesPath {
+			fmt.Fprint(w, `[{"tag_name":"system-v1.0.0"}]`)
 			return
 		}
-		_, _ = w.Write([]byte("start"))
-		w.(http.Flusher).Flush()
-		select {
-		case <-release:
-		case <-r.Context().Done():
-		}
+		http.NotFound(w, r)
 	})
-	t.Cleanup(func() { close(release) })
-	f, err := os.CreateTemp(t.TempDir(), "dl-*")
-	if err != nil {
+	if _, err := LatestRelease(t.Context(), "dev"); err == nil {
+		t.Error("a release of another app was accepted")
+	}
+}
+
+func TestLatestRelease_UnknownApp(t *testing.T) {
+	if _, err := LatestRelease(context.Background(), "other"); err == nil {
+		t.Error("an unknown app was accepted")
+	}
+}
+
+// Packaged requires the running binary to be /usr/bin/perci82-<app> and
+// owned by a package.
+func TestPackaged(t *testing.T) {
+	origExe, origOwned := executablePath, ownedByPackage
+	t.Cleanup(func() { executablePath, ownedByPackage = origExe, origOwned })
+	for _, c := range []struct {
+		name  string
+		exe   string
+		owned bool
+		want  bool
+	}{
+		{"packaged", "/usr/bin/perci82-dev", true, true},
+		{"not owned", "/usr/bin/perci82-dev", false, false},
+		{"other folder", "/usr/local/bin/perci82-dev", true, false},
+		{"other app's binary", "/usr/bin/perci82-system", true, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			executablePath = func() (string, error) { return c.exe, nil }
+			var asked string
+			ownedByPackage = func(_ context.Context, path string) bool { asked = path; return c.owned }
+			if got := Packaged(t.Context(), "dev"); got != c.want {
+				t.Errorf("Packaged = %v, want %v", got, c.want)
+			}
+			if c.want && asked != c.exe {
+				t.Errorf("asked the package database about %q", asked)
+			}
+		})
+	}
+	if Packaged(t.Context(), "other") {
+		t.Error("an unknown app was reported as packaged")
+	}
+}
+
+func TestCommands(t *testing.T) {
+	orig := detectFamily
+	t.Cleanup(func() { detectFamily = orig })
+	for family, want := range map[string][2]string{
+		distro.Debian:  {"sudo apt update && sudo apt install --only-upgrade perci82-system", "sudo apt remove perci82-system"},
+		distro.Fedora:  {"sudo dnf upgrade --refresh perci82-system", "sudo dnf remove perci82-system"},
+		distro.Unknown: {"", ""},
+	} {
+		detectFamily = func() string { return family }
+		if got := UpgradeCommand("system"); got != want[0] {
+			t.Errorf("%s: UpgradeCommand = %q, want %q", family, got, want[0])
+		}
+		if got := RemoveCommand("system"); got != want[1] {
+			t.Errorf("%s: RemoveCommand = %q, want %q", family, got, want[1])
+		}
+	}
+}
+
+// writeConfig writes data as ~/.perci/config.yaml under a fresh HOME and
+// returns ~/.perci.
+func writeConfig(t *testing.T, data string) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	dir := filepath.Join(home, ".perci")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = f.Close() }()
-
-	if err := downloadFile(context.Background(), srv.URL+"/stalled", f); err == nil || !strings.Contains(err.Error(), "no data received") {
-		t.Errorf("stalled download: %v, want the stall error", err)
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(data), 0o600); err != nil {
+		t.Fatal(err)
 	}
-	if err := downloadFile(context.Background(), srv.URL+"/slow", f); err != nil {
-		t.Errorf("a slow download that keeps sending was cut: %v", err)
+	return dir
+}
+
+// withInstallDirs makes installDirs return dirs for the duration of the
+// test.
+func withInstallDirs(t *testing.T, dirs ...string) {
+	t.Helper()
+	orig := installDirs
+	installDirs = func(string) []string { return dirs }
+	t.Cleanup(func() { installDirs = orig })
+}
+
+// Without RemoveConfig nothing is removed; the output ends with the
+// command that removes the package.
+func TestUninstall_KeepsSettings(t *testing.T) {
+	cfgDir := writeConfig(t, "language: en\n")
+	orig := detectFamily
+	detectFamily = func() string { return distro.Debian }
+	t.Cleanup(func() { detectFamily = orig })
+	var buf bytes.Buffer
+	if err := Uninstall(&buf, "system", UninstallOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(cfgDir, "config.yaml")); string(data) != "language: en\n" {
+		t.Errorf("config changed: %q", data)
+	}
+	if !strings.Contains(buf.String(), "sudo apt remove perci82-system") {
+		t.Errorf("no remove command in:\n%s", buf.String())
+	}
+	if err := Uninstall(&buf, "other", UninstallOptions{}); err == nil {
+		t.Error("an unknown app was accepted")
+	}
+}
+
+// "Também remover configurações" removes only the application's own keys
+// and data folders; ~/.perci goes only when nothing else needs it.
+func TestUninstall_RemoveConfigKeepsWhatOthersNeed(t *testing.T) {
+	cases := []struct {
+		name      string
+		config    string
+		installed string // another binary next to the running one
+		wantDir   bool
+	}{
+		{"last application, nothing else left", "language: en\ntray_enabled: true\n", "", false},
+		{"Perci82 System still installed", "language: en\n", "perci82-system", true},
+		{"old Perci still installed", "language: en\n", "prci", true},
+		{"other settings left", "language: en\nflatpak_scope: user\n", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfgDir := writeConfig(t, tc.config)
+			for _, d := range []string{"appstack/nginx", "git"} {
+				if err := os.MkdirAll(filepath.Join(cfgDir, d), 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			outside := filepath.Join(filepath.Dir(cfgDir), "escape")
+			if err := os.Mkdir(outside, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			dir := t.TempDir()
+			exe := filepath.Join(dir, "perci82-dev")
+			if err := os.WriteFile(exe, nil, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			orig := executablePath
+			executablePath = func() (string, error) { return exe, nil }
+			t.Cleanup(func() { executablePath = orig })
+			if tc.installed != "" {
+				if err := os.WriteFile(filepath.Join(dir, tc.installed), nil, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			withInstallDirs(t, dir)
+
+			var buf bytes.Buffer
+			opts := UninstallOptions{RemoveConfig: true, DataDirs: []string{"appstack", "git", "../escape", ""}}
+			if err := Uninstall(&buf, "dev", opts); err != nil {
+				t.Fatalf("err = %v", err)
+			}
+			if _, err := os.Stat(exe); err != nil {
+				t.Errorf("the binary was touched: %v", err)
+			}
+			for _, d := range []string{"appstack", "git"} {
+				if _, err := os.Stat(filepath.Join(cfgDir, d)); !os.IsNotExist(err) {
+					t.Errorf("~/.perci/%s left behind", d)
+				}
+			}
+			if _, err := os.Stat(outside); err != nil {
+				t.Errorf("a data folder outside ~/.perci was removed: %v", err)
+			}
+			_, err := os.Stat(cfgDir)
+			if gotDir := err == nil; gotDir != tc.wantDir {
+				t.Fatalf("~/.perci kept = %v, want %v\n%s", gotDir, tc.wantDir, buf.String())
+			}
+			if tc.wantDir {
+				data, _ := os.ReadFile(filepath.Join(cfgDir, "config.yaml"))
+				if strings.Contains(string(data), "language") || strings.Contains(string(data), "tray_enabled") {
+					t.Errorf("Dev keys left in config.yaml:\n%s", data)
+				}
+			}
+		})
 	}
 }

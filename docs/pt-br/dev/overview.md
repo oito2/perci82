@@ -26,15 +26,20 @@ O Perci82 Dev roda uma vez por sessão: abri-lo de novo traz para a frente a jan
 
 ## Atualização
 
-O aplicativo procura uma versão mais nova quando a tela abre (de novo, no máximo a cada 10 minutos); **Verificar** procura na hora. Ele olha só as versões do próprio Perci82 Dev (tags `dev-vX.Y.Z`) no GitHub.
+O aplicativo procura uma versão mais nova quando a tela abre (de novo, no máximo a cada 10 minutos); **Verificar** procura na hora. Ele lê a versão mais recente do Perci82 Dev no site do repositório de pacotes (`https://oito2.github.io/perci82/latest/dev.json`) e, quando isso falha, nas releases do Perci82 Dev no GitHub (tags `dev-vX.Y.Z`).
 
-Quando existe uma versão mais nova, aparece **Atualizar**. Ele baixa o novo binário, confere o SHA-256 pelo `checksums.txt` da release, substitui o binário instalado e mostra o andamento na aba **Execução**. Depois, reinicie o aplicativo.
+Quando existe uma versão mais nova e o aplicativo foi instalado pelo pacote, a tela mostra o comando que a instala, com **Copiar**. Rode-o num terminal:
 
-Uma compilação a partir do código-fonte informa a versão `dev` e não se atualiza sozinha.
+```bash
+sudo apt update && sudo apt install --only-upgrade perci82-dev   # apt
+sudo dnf upgrade --refresh perci82-dev                             # dnf
+```
+
+O `apt upgrade` e o `dnf upgrade` também o atualizam junto com o resto do sistema. O aplicativo nunca substitui os próprios arquivos. Uma compilação a partir do código-fonte informa a versão `dev` e não mostra comando.
 
 ## Desinstalar
 
-**Desinstalar Perci82 Dev** abre uma janela de confirmação com os backups do Docker, dos repositórios e dos contextos de IA, e as opções de remover os contêineres Docker e as configurações do Perci82 Dev. Veja [Desinstalar](uninstallation.md).
+**Desinstalar Perci82 Dev** abre uma janela de confirmação com os backups do Docker, dos repositórios e dos contextos de IA, e as opções de remover os contêineres Docker e as configurações do Perci82 Dev. Ao terminar, uma janela mostra o comando que remove o pacote. Veja [Desinstalar](uninstallation.md).
 
 ## Bandeja do sistema
 

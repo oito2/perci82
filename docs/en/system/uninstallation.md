@@ -6,11 +6,15 @@
 
 ## What installing puts on the system
 
+The package `perci82-system` holds the binary, the menu entry, the icons and the license; the package manager removes them. The rest stays until removed as below.
+
 | Item | Path |
 |---|---|
-| Binary | `/usr/local/bin/perci82-system` |
+| Binary | `/usr/bin/perci82-system` |
 | Application menu entry | `/usr/share/applications/io.github.oito2.perci82.system.desktop` |
 | Icons | `/usr/share/icons/hicolor/<size>x<size>/apps/io.github.oito2.perci82.system.png` (16, 22, 24, 32, 48, 64, 128, 256 and 512), `/usr/share/icons/hicolor/scalable/apps/io.github.oito2.perci82.system.svg`, `/usr/share/icons/hicolor/symbolic/apps/io.github.oito2.perci82.system-symbolic.svg` |
+| License | `/usr/share/doc/perci82-system/copyright` (`.deb`) or `/usr/share/licenses/perci82-system/LICENSE` (`.rpm`) |
+| Package repository | Shared with Perci82 Dev. `apt`: `/etc/apt/sources.list.d/perci82.sources` and `/usr/share/keyrings/perci82-archive-keyring.asc`; `dnf`: `/etc/yum.repos.d/perci82.repo`, `/etc/pki/rpm-gpg/RPM-GPG-KEY-perci82` and the key imported into rpm (`gpg-pubkey-3c2a545f`) |
 | Settings | `~/.perci/config.yaml` — shared with Perci82 Dev; Perci82 System's keys are listed in [Settings](settings.md#where-the-settings-are-saved) |
 
 Perci82 System has no autostart entry, tray icon or service.
@@ -19,22 +23,36 @@ Perci82 System has no autostart entry, tray icon or service.
 
 1. Open **Overview** and click **Uninstall Perci82 System** in the **Uninstall** section.
 2. In the confirmation window, check **Also remove the Perci82 System settings** if you want its settings gone too (language, theme, Flatpak scope and the post-install records). Perci82 Dev's settings are kept.
-3. Click **Uninstall** and type your password when asked. The **Run** tab shows the progress.
+3. Click **Uninstall**. The **Run** tab shows the progress.
+4. When it finishes, the **Cleanup finished** window shows the command that removes the package, with **Copy**. Copy it, click **Close the app** and run the command in a terminal:
 
-The binary, the menu entry and the icons are removed. With the settings option, Perci82 System's keys are removed from `~/.perci/config.yaml`; the `~/.perci` folder itself goes only when neither Perci82 Dev nor the old Perci is installed and nothing else is left in it.
+   ```bash
+   sudo apt remove perci82-system   # apt
+   sudo dnf remove perci82-system   # dnf
+   ```
+
+With the settings option, Perci82 System's keys are removed from `~/.perci/config.yaml`; the `~/.perci` folder itself goes only when neither Perci82 Dev nor the old Perci is installed and nothing else is left in it.
 
 ## By hand
 
 ```bash
-sudo rm -f /usr/local/bin/perci82-system \
-  /usr/share/applications/io.github.oito2.perci82.system.desktop \
-  /usr/share/icons/hicolor/*/apps/io.github.oito2.perci82.system.png \
-  /usr/share/icons/hicolor/scalable/apps/io.github.oito2.perci82.system.svg \
-  /usr/share/icons/hicolor/symbolic/apps/io.github.oito2.perci82.system-symbolic.svg
-sudo gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor
+sudo apt remove perci82-system   # or: sudo dnf remove perci82-system
 ```
 
 To remove the settings, delete the keys `postinstall_applied`, `postinstall_machine_id`, `flatpak_scope`, `system_gui_theme` and `system_language` from `~/.perci/config.yaml`. Delete the whole `~/.perci` folder only when Perci82 Dev isn't installed: it keeps its own settings and data there.
+
+## Removing the package repository
+
+Once neither Perci82 app is installed, remove the repository and its key:
+
+```bash
+# apt
+sudo rm -f /etc/apt/sources.list.d/perci82.sources /usr/share/keyrings/perci82-archive-keyring.asc
+sudo apt update
+# dnf
+sudo rm -f /etc/yum.repos.d/perci82.repo /etc/pki/rpm-gpg/RPM-GPG-KEY-perci82
+sudo rpm -e gpg-pubkey-3c2a545f
+```
 
 ## What the app's actions leave behind
 

@@ -26,15 +26,20 @@ Perci82 Dev runs once per session: opening it again brings the running window to
 
 ## Updates
 
-The app checks for a newer release when the screen opens (again at most every 10 minutes); **Check** checks at once. It looks only at Perci82 Dev's own releases (tags `dev-vX.Y.Z`) on GitHub.
+The app checks for a newer release when the screen opens (again at most every 10 minutes); **Check** checks at once. It reads Perci82 Dev's newest version from the package repository site (`https://oito2.github.io/perci82/latest/dev.json`) and, when that fails, from Perci82 Dev's releases on GitHub (tags `dev-vX.Y.Z`).
 
-When a newer release exists, **Update** appears. It downloads the new binary, checks its SHA-256 against the release's `checksums.txt`, replaces the installed binary and shows the progress in the **Run** tab. Restart the app afterwards.
+When a newer release exists and the app was installed from its package, the screen shows the command that installs it, with **Copy**. Run it in a terminal:
 
-A build from source reports the version `dev` and can't update itself.
+```bash
+sudo apt update && sudo apt install --only-upgrade perci82-dev   # apt
+sudo dnf upgrade --refresh perci82-dev                             # dnf
+```
+
+`apt upgrade` and `dnf upgrade` also update it with the rest of the system. The app never replaces its own files. A build from source reports the version `dev` and shows no command.
 
 ## Uninstall
 
-**Uninstall Perci82 Dev** opens a confirmation window with the backups of Docker, repositories and AI contexts, and the options to remove the Docker containers and Perci82 Dev's settings. See [Uninstalling](uninstallation.md).
+**Uninstall Perci82 Dev** opens a confirmation window with the backups of Docker, repositories and AI contexts, and the options to remove the Docker containers and Perci82 Dev's settings. When it finishes, a window shows the command that removes the package. See [Uninstalling](uninstallation.md).
 
 ## System tray
 

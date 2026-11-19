@@ -4,51 +4,75 @@
 
 # Instalar o Perci82 Dev
 
-O Perci82 Dev é publicado só para **Linux em amd64**: ele é feito com o Wails v3, que usa cgo com GTK 4 e WebKitGTK 6.0, então cada plataforma precisa de uma compilação nativa.
+O Perci82 Dev é publicado só para **Linux em amd64**, como pacotes `.deb` e `.rpm`: ele é feito com o Wails v3, que usa cgo com GTK 4 e WebKitGTK 6.0, então cada plataforma precisa de uma compilação nativa.
 
 ## Requisitos
 
 | SO | Situação | Distribuições | Dependências de execução |
 |---|---|---|---|
-| Linux (amd64) | Suportado | Distribuições com `apt` (Debian 13+, Ubuntu 24.04+, Linux Mint 22+, LMDE 7+, ZorinOS 18+, Pop!_OS 24.04+) ou `dnf` (Fedora) | `apt`: `libgtk-4-1 libwebkitgtk-6.0-4` · `dnf`: `gtk4 webkitgtk6.0` |
+| Linux (amd64) | Suportado | Debian 13+, Ubuntu 24.04+, Linux Mint 22+, LMDE 7+, Zorin OS 18+, Pop!_OS 24.04+ (`apt`) ou Fedora 40+ (`dnf`) | `apt`: `libgtk-4-1 libwebkitgtk-6.0-4` · `dnf`: `gtk4 webkitgtk6.0` |
 | Windows | Não suportado | — | — |
 | macOS | Não suportado | — | — |
 
-As bibliotecas GTK 4 e WebKitGTK 6.0 normalmente já estão presentes num Linux desktop. As ações que alteram o sistema pedem a sua senha pela janela de autenticação do ambiente gráfico (`pkexec`/PolicyKit).
+O pacote depende das bibliotecas de execução do GTK 4 e do WebKitGTK 6.0, e o gerenciador de pacotes as instala quando faltam; versões mais antigas das distribuições não têm o WebKitGTK 6.0. As ações que alteram o sistema pedem a sua senha pela janela de autenticação do ambiente gráfico (`pkexec`/PolicyKit).
 
-As ferramentas que as telas usam — Git, Docker, Node.js, `secret-tool` e outras — não são necessárias para abrir o aplicativo: instale-as em [Ambiente → Pré-requisitos](environment.md).
+As ferramentas de que as telas dependem — Git, Docker, Node.js, `secret-tool` e outras — não são necessárias para abrir o aplicativo: instale-as em [Ambiente → Pré-requisitos](environment.md).
 
 ## Script de instalação (recomendado)
 
 ```bash
-curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-dev.sh | bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install.sh | bash -s -- dev
 ```
 
-O script precisa de `curl`, `jq`, `sha256sum`, `tar` e `sudo`. Ele:
+Sem `-s -- dev`, o script pergunta quais aplicativos instalar: Perci82 System, Perci82 Dev ou os dois. Ele também aceita `system`, `dev` ou `all` como argumentos. Precisa de `curl`, `gpg` e `sudo`, e:
 
-1. Procura a versão mais recente do Perci82 Dev no GitHub (tags `dev-vX.Y.Z`; rascunhos e pré-lançamentos são ignorados).
-2. Baixa `perci82-dev-linux-amd64` e `checksums.txt` e confere o SHA-256 do binário. Com o GitHub CLI (`gh`) instalado e logado, confere também se o `checksums.txt` tem a attestation do workflow de release deste repositório, que garante o binário e o arquivo da entrada no menu pelos checksums deles.
-3. Instala o binário como `/usr/local/bin/perci82-dev` (com `sudo` quando essa pasta não é gravável).
-4. Extrai em `/usr` o arquivo da entrada no menu, `perci82-dev-menu.tar.gz` (também conferido pelo `checksums.txt`): só a entrada no menu de aplicativos e os ícones, o que mais houver no arquivo é ignorado. Uma falha aqui não desfaz a instalação; nesse caso, rode `perci82-dev` num terminal.
+1. Confere se a máquina é amd64 com `apt` ou `dnf` e, no `apt`, se a versão da distribuição tem o WebKitGTK 6.0.
+2. Baixa a chave de assinatura do repositório, `https://oito2.github.io/perci82/perci82.asc`, e confere a impressão digital dela: `A1B1 AC75 B535 0344 B6C8  043C FF9E 1B0F 3C2A 545F`.
+3. Adiciona o repositório de pacotes do Perci82, o mesmo para os dois aplicativos:
+   - `apt`: a chave como `/usr/share/keyrings/perci82-archive-keyring.asc` e a fonte `/etc/apt/sources.list.d/perci82.sources`;
+   - `dnf`: a chave como `/etc/pki/rpm-gpg/RPM-GPG-KEY-perci82` (também importada no rpm) e o repositório `/etc/yum.repos.d/perci82.repo`.
+4. Instala o pacote `perci82-dev` com `apt-get install` ou `dnf install`. Um aplicativo já instalado é atualizado quando existe uma versão mais nova.
 5. Quando o Perci antigo (`prci`) está instalado, lista os arquivos dele e pergunta se deve removê-los. As configurações dele em `~/.perci` são mantidas: o Perci82 Dev as lê.
 
 Abra o **Perci82 Dev** pelo menu de aplicativos ou rode `perci82-dev`.
 
-## Instalação manual
+## Adicionar o repositório à mão
 
-Baixe `perci82-dev-linux-amd64`, `perci82-dev-menu.tar.gz` e `checksums.txt` da versão `dev-v*` mais recente na [página de releases](https://github.com/oito2/perci82/releases) e depois:
+No `apt` (Debian, Ubuntu, Linux Mint, Zorin OS, Pop!_OS):
+
+```bash
+sudo curl -fsSLo /usr/share/keyrings/perci82-archive-keyring.asc https://oito2.github.io/perci82/perci82.asc
+gpg --show-keys /usr/share/keyrings/perci82-archive-keyring.asc   # deve mostrar A1B1AC75B5350344B6C8043CFF9E1B0F3C2A545F
+sudo curl -fsSLo /etc/apt/sources.list.d/perci82.sources https://oito2.github.io/perci82/perci82.sources
+sudo apt update
+sudo apt install perci82-dev
+```
+
+No `dnf` (Fedora):
+
+```bash
+sudo curl -fsSLo /etc/pki/rpm-gpg/RPM-GPG-KEY-perci82 https://oito2.github.io/perci82/perci82.asc
+gpg --show-keys /etc/pki/rpm-gpg/RPM-GPG-KEY-perci82   # deve mostrar A1B1AC75B5350344B6C8043CFF9E1B0F3C2A545F
+sudo curl -fsSLo /etc/yum.repos.d/perci82.repo https://oito2.github.io/perci82/perci82.repo
+sudo dnf install perci82-dev
+```
+
+O primeiro `dnf install` pede para importar a chave; confira se ele mostra a mesma impressão digital.
+
+## Instalar um pacote baixado
+
+Baixe o pacote e o `checksums.txt` da versão `dev-v*` mais recente na [página de releases](https://github.com/oito2/perci82/releases) e depois, com a versão da release no lugar de `X.Y.Z`:
 
 ```bash
 sha256sum --ignore-missing -c checksums.txt
-sudo install -m 755 -o root -g root perci82-dev-linux-amd64 /usr/local/bin/perci82-dev
-sudo tar -xzf perci82-dev-menu.tar.gz -C /usr --no-same-owner --no-same-permissions --no-overwrite-dir
-sudo gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor
+sudo apt install ./perci82-dev_X.Y.Z-1_amd64.deb    # Debian, Ubuntu, Linux Mint
+sudo dnf install ./perci82-dev-X.Y.Z-1.x86_64.rpm   # Fedora
 ```
 
-Todo arquivo da release tem attestation de procedência de build, que o GitHub CLI confere:
+Um pacote instalado assim não é atualizado pelo `apt upgrade` nem pelo `dnf upgrade`: para isso, adicione o repositório. Todo arquivo da release tem attestation de procedência de build, que o GitHub CLI confere:
 
 ```bash
-gh attestation verify perci82-dev-linux-amd64 --repo oito2/perci82
+gh attestation verify perci82-dev_X.Y.Z-1_amd64.deb --repo oito2/perci82
 ```
 
 ## Compilar a partir do código-fonte
@@ -69,19 +93,25 @@ make build-dev   # gera ./perci82-dev
 ./perci82-dev
 ```
 
-Uma compilação a partir do código-fonte informa a versão `dev`, e a autoatualização dela fica desligada. Para gerar os arquivos da release, como faz o workflow de release:
+Uma compilação a partir do código-fonte informa a versão `dev`. Para gerar os pacotes da release, como faz o workflow de release (o nfpm vai para `$(go env GOPATH)/bin`, que precisa estar no `PATH`):
 
 ```bash
-make release-dev VERSION=v1.0.0
+make install-nfpm   # uma vez: o nfpm, a ferramenta de empacotamento
+make release-dev VERSION=v1.2.0
 ```
 
-Isso gera `dist/perci82-dev-linux-amd64`, `dist/perci82-dev-menu.tar.gz` (a entrada no menu e os ícones, em `share/`) e `dist/checksums.txt`.
+Isso gera `dist/perci82-dev_1.2.0-1_amd64.deb`, `dist/perci82-dev-1.2.0-1.x86_64.rpm` e `dist/checksums.txt`, e o binário que eles contêm em `dist/build/perci82-dev`.
 
 ## Atualizar
 
-**Visão Geral → Atualização → Verificar** procura uma versão mais nova do Perci82 Dev; **Atualizar** só aparece quando existe uma. A atualização baixa o novo binário, confere o SHA-256 dele pelo `checksums.txt` da release, substitui o binário instalado e pede que você reinicie o aplicativo. Um download lento nunca é interrompido; ele só para quando nenhum dado chega por um minuto. O checksum vem da mesma release do GitHub que o binário, então a atualização confia nessa release; ela não confere a attestation de build. Para conferir, use o comando de [Instalação manual](#instalação-manual) antes de atualizar. Veja a [Visão Geral](overview.md).
+O gerenciador de pacotes atualiza o Perci82 Dev junto com o resto do sistema: `sudo apt update && sudo apt upgrade` ou `sudo dnf upgrade`. Quando existe uma versão mais nova, **Visão Geral → Atualização** também mostra o comando que instala só ela, com **Copiar**:
 
-Rodar o script de instalação de novo também instala a versão mais recente.
+```bash
+sudo apt update && sudo apt install --only-upgrade perci82-dev   # apt
+sudo dnf upgrade --refresh perci82-dev                             # dnf
+```
+
+Veja a [Visão Geral](overview.md).
 
 ## Próximos passos
 

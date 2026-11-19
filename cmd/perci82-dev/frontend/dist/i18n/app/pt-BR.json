@@ -612,7 +612,7 @@
 	"uninstall.backupReposHint": "O arquivo que Repositórios → Exportar/Importar lê.",
 	"uninstall.backups": "Backups antes de remover",
 	"uninstall.backupsHint": "Cada backup é salvo num arquivo separado, escolhido depois de confirmar. Se a janela de salvar for cancelada, nada é removido.",
-	"uninstall.binary": "O Perci82 Dev será removido: o binário, a entrada no menu de aplicativos, os ícones e a abertura no login da bandeja.",
+	"uninstall.binary": "O Perci82 Dev remove o que é dele, incluindo a abertura no login da bandeja, e, no fim, mostra o comando que remove o pacote: o binário, a entrada no menu de aplicativos e os ícones.",
 	"uninstall.cancelled": "Nenhum caminho foi escolhido para o backup — a desinstalação não foi iniciada.",
 	"uninstall.cancelledTitle": "Desinstalação cancelada",
 	"uninstall.confirmTitle": "Desinstalar o Perci82 Dev?",

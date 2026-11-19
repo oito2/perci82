@@ -12,7 +12,7 @@
 	"settings.flatpakScope.system": "Sistema (todos os usuários)",
 	"settings.flatpakScope.user": "Usuário (só você)",
 	"settings.flatpakScopeSaveFailed": "Falha ao salvar o escopo do Flatpak: {error}",
-	"uninstall.binary": "O Perci82 System será removido: o binário, a entrada no menu de aplicativos e os ícones.",
+	"uninstall.binary": "O Perci82 System remove o que é dele e, no fim, mostra o comando que remove o pacote: o binário, a entrada no menu de aplicativos e os ícones.",
 	"uninstall.confirmTitle": "Desinstalar o Perci82 System?",
 	"uninstall.irreversible": "Esta ação não pode ser desfeita.",
 	"uninstall.removeConfigHint": "Idioma, tema, escopo do Flatpak e o registro da pós-instalação. As configurações do Perci82 Dev são mantidas.",

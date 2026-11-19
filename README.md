@@ -36,7 +36,7 @@ Perci82 System's main features:
 - **Post-install** — the recommended setup of Ubuntu, Ubuntu Budgie, Linux Mint, Zorin OS, Fedora and Pop!_OS, item by item.
 - **Update OS & Apps** — distribution packages, Snap and Flatpak updated in one run, with a single password prompt.
 - **Fonts, file templates and Flatpaks** — checklists that install what you check and remove what you uncheck.
-- **Self-update and uninstall** from the Overview screen; Portuguese and English interface; oito2 themes.
+- **Update notice and uninstall** on the Overview screen, with the `apt`/`dnf` command to copy; Portuguese and English interface; oito2 themes.
 
 Perci82 Dev's main features:
 
@@ -45,7 +45,7 @@ Perci82 Dev's main features:
 - **Repositories** — Git accounts with their own SSH key, identity and API token; each account's repositories, with clone, pull and export/import.
 - **AI Contexts** — rules for Claude Code, Gemini, Codex, OpenCode and Antigravity in each project, from Perci82's standards and your own custom contexts, with project notes kept outside the repository.
 - **Skills & MCPs** — skills from skills.sh and MCP servers, Build82 and Sync82 included, registered with the coding agents.
-- **System tray** with a compact Containers window; self-update and uninstall from the Overview screen; Portuguese and English interface; oito2 themes.
+- **System tray** with a compact Containers window; update notice and uninstall on the Overview screen; Portuguese and English interface; oito2 themes.
 
 ![Perci82 System's Overview](docs/img/system-overview.png)
 
@@ -53,11 +53,11 @@ Perci82 Dev's main features:
 
 | OS | Status | Distributions | Runtime dependencies |
 |---|---|---|---|
-| Linux (amd64) | Supported | Distributions with `apt` (Debian, Ubuntu, Linux Mint, Zorin OS, Pop!_OS) or `dnf` (Fedora) | `apt`: `libgtk-4-1 libwebkitgtk-6.0-4` · `dnf`: `gtk4 webkitgtk6.0` |
+| Linux (amd64) | Supported | Debian 13+, Ubuntu 24.04+, Linux Mint 22+, LMDE 7+, Zorin OS 18+, Pop!_OS 24.04+ (`apt`) or Fedora 40+ (`dnf`) | `apt`: `libgtk-4-1 libwebkitgtk-6.0-4` · `dnf`: `gtk4 webkitgtk6.0` |
 | Windows | Not supported | — | — |
 | macOS | Not supported | — | — |
 
-Release binaries run on Linux amd64 with the GTK 4 and WebKitGTK 6.0 runtime libraries, normally already present on a desktop Linux. To install a release, see [Automated Installation](#automated-installation); the manual install is in [Installing Perci82 System](docs/en/system/installation.md#manual-install) and [Installing Perci82 Dev](docs/en/dev/installation.md#manual-install).
+Releases are `.deb` and `.rpm` packages for Linux amd64, published in a signed `apt`/`dnf` repository; the package manager installs the GTK 4 and WebKitGTK 6.0 runtime libraries they depend on. To install, see [Automated Installation](#automated-installation); adding the repository by hand and installing a downloaded package are in [Installing Perci82 System](docs/en/system/installation.md#add-the-repository-by-hand) and [Installing Perci82 Dev](docs/en/dev/installation.md#add-the-repository-by-hand).
 
 ### Build from source
 
@@ -102,24 +102,24 @@ make generate
 
 ## Automated Installation
 
-Each app has its own installer, which installs the app's newest release. Perci82 System:
+One script installs either app or both. It asks which ones:
 
 ```bash
-curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-system.sh | bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install.sh | bash
 ```
 
-Perci82 Dev:
+Or name them — `system`, `dev` or `all`:
 
 ```bash
-curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-dev.sh | bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install.sh | bash -s -- system dev
 ```
 
-The installers need `curl`, `jq`, `sha256sum`, `tar` and `sudo`. They check the binary's SHA-256 (and, when the GitHub CLI is logged in, the release workflow's attestation of `checksums.txt`), install it as `/usr/local/bin/perci82-system` or `/usr/local/bin/perci82-dev` and add the application menu entry. When the old Perci (`prci`) is installed, they ask whether to remove it; its settings in `~/.perci` are kept, since both apps read them.
+The script needs `curl`, `gpg` and `sudo`. It downloads the Perci82 repository key and checks its fingerprint (`A1B1 AC75 B535 0344 B6C8  043C FF9E 1B0F 3C2A 545F`), adds the package repository (`https://oito2.github.io/perci82/`) to `apt` or `dnf`, and installs the packages `perci82-system` and/or `perci82-dev`. When the old Perci (`prci`) is installed, it asks whether to remove it; its settings in `~/.perci` are kept, since both apps read them.
 
 ## Update & Maintenance
 
-- **Update:** Overview → **Check** looks for a newer release of the app; **Update** downloads it, checks its SHA-256 and replaces the binary. Running the installer again also installs the newest release. Builds from source report the version `dev` and don't update themselves.
-- **Uninstall:** Overview → **Uninstall** removes the app's binary, menu entry and icons. "Also remove the settings" removes only that app's settings (and, in Perci82 Dev, its Git account files in `~/.perci` and, with the Docker containers, its Docker stack files, keeping the MariaDB backups); `~/.perci` itself goes only when no other Perci82 app nor the old Perci is installed and nothing else is left in it. Perci82 Dev's uninstall window also offers backups of Docker, repositories and AI contexts, and removing the Docker containers. See [Uninstalling Perci82 System](docs/en/system/uninstallation.md) and [Uninstalling Perci82 Dev](docs/en/dev/uninstallation.md).
+- **Update:** the package manager updates both apps with the rest of the system (`sudo apt update && sudo apt upgrade` or `sudo dnf upgrade`). Overview → **Check** looks for a newer release and, when the app runs from its package, shows the command that installs it. Builds from source report the version `dev`.
+- **Uninstall:** Overview → **Uninstall** cleans up what is the app's: "Also remove the settings" removes only that app's settings (and, in Perci82 Dev, its Git account files in `~/.perci` and, with the Docker containers, its Docker stack files, keeping the MariaDB backups); `~/.perci` itself goes only when no other Perci82 app nor the old Perci is installed and nothing else is left in it. Perci82 Dev's uninstall window also offers backups of Docker, repositories and AI contexts, and removing the Docker containers. It ends by showing the command that removes the package (`sudo apt remove perci82-<app>` or `sudo dnf remove perci82-<app>`). See [Uninstalling Perci82 System](docs/en/system/uninstallation.md) and [Uninstalling Perci82 Dev](docs/en/dev/uninstallation.md).
 
 ## Documentation
 

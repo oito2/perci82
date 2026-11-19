@@ -15,9 +15,21 @@ sudo apt install -y libgtk-4-1 libwebkitgtk-6.0-4
 sudo dnf install -y gtk4 webkitgtk6.0
 ```
 
-## O instalador diz "No Perci82 Dev release has been published yet."
+## O instalador diz "This release has no WebKitGTK 6.0"
 
-O script não encontrou nenhuma versão `dev-vX.Y.Z` no GitHub (rascunhos e pré-lançamentos não contam). Compile a partir do código-fonte — veja [Instalar](installation.md#compilar-a-partir-do-código-fonte).
+A versão da distribuição é mais antiga que as suportadas (Debian 13, Ubuntu 24.04, Linux Mint 22 ou mais recentes): ela não tem o `libwebkitgtk-6.0-4`, de que o Perci82 Dev precisa. Atualize a distribuição.
+
+## O instalador diz que a chave do repositório "does not have the expected fingerprint"
+
+A chave baixada de `https://oito2.github.io/perci82/perci82.asc` não é a que o script espera, então ele para antes de alterar qualquer coisa. Confira a rede (um proxy pode estar respondendo no lugar do site) e rode de novo; se continuar falhando, avise nas issues do repositório.
+
+## Uma versão antiga continua abrindo depois de instalar o pacote
+
+O Perci82 Dev 1.1 e anteriores eram instalados como `/usr/local/bin/perci82-dev`, que vem antes do `/usr/bin/perci82-dev` do pacote no `PATH`. Remova o arquivo antigo:
+
+```bash
+sudo rm -f /usr/local/bin/perci82-dev
+```
 
 ## O instalador manteve o Perci antigo: "No terminal to ask on"
 
@@ -61,4 +73,4 @@ Pastas e arquivos em que uma ação grava precisam ser escolhidos no seletor de 
 
 ## "Não foi possível verificar atualizações"
 
-A Visão Geral consulta a API do GitHub para procurar uma versão nova. Confira a conexão de rede e clique em **Verificar** de novo; a API do GitHub também limita quantas vezes um mesmo endereço pode consultar.
+A Visão Geral lê a versão mais recente no site do repositório de pacotes e, quando não consegue, na API do GitHub, que limita quantas vezes um mesmo endereço pode consultar (60 vezes por hora sem login; mais com o GitHub CLI logado). Confira a conexão de rede e clique em **Verificar** de novo.

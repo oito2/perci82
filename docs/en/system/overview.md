@@ -27,12 +27,17 @@ Only one action runs at a time, and the window doesn't close while one runs. Act
 
 ## Updates
 
-The app checks for a newer release when the screen opens (again at most every 10 minutes); **Check** checks at once. It looks only at Perci82 System's own releases (tags `system-vX.Y.Z`) on GitHub.
+The app checks for a newer release when the screen opens (again at most every 10 minutes); **Check** checks at once. It reads Perci82 System's newest version from the package repository site (`https://oito2.github.io/perci82/latest/system.json`) and, when that fails, from Perci82 System's releases on GitHub (tags `system-vX.Y.Z`).
 
-When a newer release exists, **Update** appears. It downloads the new binary, checks its SHA-256 against the release's `checksums.txt`, replaces the installed binary and shows the progress in the **Run** tab. Restart the app afterwards.
+When a newer release exists and the app was installed from its package, the screen shows the command that installs it, with **Copy**. Run it in a terminal:
 
-A build from source reports the version `dev` and can't update itself.
+```bash
+sudo apt update && sudo apt install --only-upgrade perci82-system   # apt
+sudo dnf upgrade --refresh perci82-system                             # dnf
+```
+
+`apt upgrade` and `dnf upgrade` also update it with the rest of the system. The app never replaces its own files. A build from source reports the version `dev` and shows no command.
 
 ## Uninstall
 
-**Uninstall Perci82 System** opens a confirmation window. It removes the binary, the application menu entry and the icons; **Also remove the Perci82 System settings** (unchecked each time the window opens) removes its settings too. See [Uninstalling](uninstallation.md).
+**Uninstall Perci82 System** opens a confirmation window. **Also remove the Perci82 System settings** (unchecked each time the window opens) removes its settings; then a window shows the command that removes the package — the binary, the application menu entry and the icons. See [Uninstalling](uninstallation.md).

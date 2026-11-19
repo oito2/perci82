@@ -71,6 +71,37 @@ jobs:
       - name: Build both applications
         run: make build
 
+      # The .deb and .rpm packages of both apps (nfpm at the version the
+      # Makefile pins), shown for review.
+      - name: Build and show the packages
+        run: |
+          sudo apt-get install -y rpm createrepo-c
+          make install-nfpm
+          PATH="$(go env GOPATH)/bin:$PATH" make release VERSION=v0.0.0 DIST="$RUNNER_TEMP/dist"
+          for f in "$RUNNER_TEMP"/dist/*.deb; do dpkg-deb --info "$f"; dpkg-deb --contents "$f"; done
+          for f in "$RUNNER_TEMP"/dist/*.rpm; do rpm -qip "$f"; rpm -qp --requires "$f"; rpm -qlp "$f"; done
+
+      # The package repository site, built as the release does but signed
+      # with a throwaway key: the real key exists only in the release's
+      # github-pages environment.
+      - name: Build the package repository with a throwaway key
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          install -d -m 700 "$GNUPGHOME"
+          echo ci > "$RUNNER_TEMP/passphrase"
+          gpg --batch --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/passphrase" \
+            --quick-gen-key "Perci82 CI throwaway key" rsa3072 sign 1d
+          gpg --armor --export > "$RUNNER_TEMP/throwaway.asc"
+          for app in system dev; do
+            dir="$RUNNER_TEMP/packages/$app-v0.0.0"
+            mkdir -p "$dir"
+            cp "$RUNNER_TEMP"/dist/perci82-"$app"_0.0.0-1_amd64.deb "$RUNNER_TEMP"/dist/perci82-"$app"-0.0.0-1.x86_64.rpm "$dir"/
+            grep -E "  perci82-$app[_-]0\.0\.0-1" "$RUNNER_TEMP/dist/checksums.txt" > "$dir/checksums.txt"
+          done
+          REPO_PUBLIC_KEY="$RUNNER_TEMP/throwaway.asc" REPO_PASSPHRASE_FILE="$RUNNER_TEMP/passphrase" \
+            scripts/build-pages.sh "$RUNNER_TEMP/site" "$RUNNER_TEMP/packages"
+          find "$RUNNER_TEMP/site" -type f | sort
+
       # The runner's preinstalled Node — the suite needs nothing else.
       - name: Frontend smoke test
         run: |

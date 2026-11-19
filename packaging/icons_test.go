@@ -82,8 +82,8 @@ func TestMustIconPanicsForMissingIcon(t *testing.T) {
 
 func TestDesktopEntries(t *testing.T) {
 	for _, c := range []struct{ app, exec string }{
-		{AppSystem, "/usr/local/bin/perci82-system"},
-		{AppDev, "/usr/local/bin/perci82-dev"},
+		{AppSystem, "/usr/bin/perci82-system"},
+		{AppDev, "/usr/bin/perci82-dev"},
 	} {
 		name := IconName(c.app) + ".desktop"
 		data, err := os.ReadFile(name)

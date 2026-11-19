@@ -12,7 +12,7 @@
 	"settings.flatpakScope.system": "System (every user)",
 	"settings.flatpakScope.user": "User (only you)",
 	"settings.flatpakScopeSaveFailed": "Couldn't save the Flatpak scope: {error}",
-	"uninstall.binary": "Perci82 System will be removed: its binary, application menu entry and icons.",
+	"uninstall.binary": "Perci82 System removes what is its own and then shows the command that removes its package: the binary, the application menu entry and the icons.",
 	"uninstall.confirmTitle": "Uninstall Perci82 System?",
 	"uninstall.irreversible": "This can't be undone.",
 	"uninstall.removeConfigHint": "Language, theme, Flatpak scope and the post-install records. The Perci82 Dev settings are kept.",

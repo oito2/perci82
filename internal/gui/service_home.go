@@ -239,9 +239,9 @@ func (h *homeCore) GetAppVersion() string {
 	return version.Version
 }
 
-// SelfUpdateInfo is what "Home :: Atualizar Perci" needs to render: the
-// installed version, the latest one found on GitHub Releases, and whether
-// they differ — or Error when the check itself failed (e.g. no network).
+// SelfUpdateInfo is what Visão Geral's "Atualização" shows: the
+// installed version, the newest published one, and whether they differ —
+// or Error when the check itself failed (e.g. no network).
 type SelfUpdateInfo struct {
 	CurrentVersion  string `json:"currentVersion"`
 	LatestVersion   string `json:"latestVersion,omitempty"`
@@ -249,11 +249,9 @@ type SelfUpdateInfo struct {
 	Error           string `json:"error,omitempty"`
 }
 
-// selfUpdateInfo checks GitHub Releases for app's newest release
+// selfUpdateInfo looks up app's newest published version
 // (internal/selfupdate.LatestRelease) and compares it with the running
-// version; RunSelfUpdate redoes the lookup before applying, never trusting
-// this earlier check. A 10s timeout keeps a dead network from hanging the
-// screen open.
+// one. A 10s timeout keeps a dead network from hanging the screen open.
 func (h *homeCore) selfUpdateInfo(app string) SelfUpdateInfo {
 	info := SelfUpdateInfo{CurrentVersion: version.Version}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -270,15 +268,43 @@ func (h *homeCore) selfUpdateInfo(app string) SelfUpdateInfo {
 }
 
 // latestRelease finds an application's newest release — a variable so
-// tests never reach GitHub.
+// tests never reach the network.
 var latestRelease = selfupdate.LatestRelease
 
-// runSelfUpdate checks for and applies an update of app —
-// internal/selfupdate.Run, which redoes the release lookup itself.
-func (h *homeCore) runSelfUpdate(app string) error {
-	return h.runAction(func(stdout io.Writer) error {
-		return selfupdate.Run(context.Background(), h.exe, stdout, app)
-	})
+// PackageInfo tells how the running application was installed: Packaged
+// when its .deb or .rpm package put it in /usr/bin, with the package
+// manager commands that upgrade and remove that package ("" on a
+// distribution without apt or dnf).
+type PackageInfo struct {
+	Packaged       bool   `json:"packaged"`
+	UpgradeCommand string `json:"upgradeCommand,omitempty"`
+	RemoveCommand  string `json:"removeCommand,omitempty"`
+}
+
+// packaged reports whether app runs from its package — a variable so
+// tests never query the real package database.
+var packaged = selfupdate.Packaged
+
+// packageInfo returns app's PackageInfo, without network access.
+func (h *homeCore) packageInfo(app string) PackageInfo {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if !packaged(ctx, app) {
+		return PackageInfo{}
+	}
+	return PackageInfo{
+		Packaged:       true,
+		UpgradeCommand: selfupdate.UpgradeCommand(app),
+		RemoveCommand:  selfupdate.RemoveCommand(app),
+	}
+}
+
+// QuitApp closes the application, like the tray's "Sair" — the last step
+// of an uninstall, once the command that removes the package was shown.
+func (h *homeCore) QuitApp() {
+	if h.wailsApp != nil {
+		h.wailsApp.Quit()
+	}
 }
 
 // GetSelfUpdateInfo reports the running and newest published versions of
@@ -287,10 +313,10 @@ func (h *SystemHomeService) GetSelfUpdateInfo() SelfUpdateInfo {
 	return h.selfUpdateInfo(packaging.AppSystem)
 }
 
-// RunSelfUpdate updates Perci82 System to its newest release; the
-// "Atualizar" button click is itself the confirmation.
-func (h *SystemHomeService) RunSelfUpdate() error {
-	return h.runSelfUpdate(packaging.AppSystem)
+// GetPackageInfo reports whether Perci82 System runs from its package and
+// the commands that upgrade and remove it.
+func (h *SystemHomeService) GetPackageInfo() PackageInfo {
+	return h.packageInfo(packaging.AppSystem)
 }
 
 // GetSelfUpdateInfo reports the running and newest published versions of
@@ -299,10 +325,10 @@ func (h *DevHomeService) GetSelfUpdateInfo() SelfUpdateInfo {
 	return h.selfUpdateInfo(packaging.AppDev)
 }
 
-// RunSelfUpdate updates Perci82 Dev to its newest release; the
-// "Atualizar" button click is itself the confirmation.
-func (h *DevHomeService) RunSelfUpdate() error {
-	return h.runSelfUpdate(packaging.AppDev)
+// GetPackageInfo reports whether Perci82 Dev runs from its package and the
+// commands that upgrade and remove it.
+func (h *DevHomeService) GetPackageInfo() PackageInfo {
+	return h.packageInfo(packaging.AppDev)
 }
 
 // SystemInfo is the "Sistema" and "Ambiente" cards of Perci82 System's
@@ -349,38 +375,13 @@ func (h *SystemHomeService) SetFlatpakScope(scope string) error {
 	})
 }
 
-// RunSelfUninstall removes Perci82 System — its binary, menu entry and
-// icons and, with removeConfig, its settings (selfupdate.Uninstall) — in
-// the Execução tab; a successful uninstall then closes the window.
+// RunSelfUninstall removes, with removeConfig, Perci82 System's settings
+// (selfupdate.Uninstall) in the Execução tab; the package itself is removed
+// with the command the uninstall prints (PackageInfo.RemoveCommand).
 func (h *SystemHomeService) RunSelfUninstall(removeConfig bool) error {
-	return h.runUninstall(func(w io.Writer) error {
-		return uninstallApp(context.Background(), h.exe, w, packaging.AppSystem, selfupdate.UninstallOptions{RemoveConfig: removeConfig})
+	return h.runAction(func(w io.Writer) error {
+		return uninstallApp(w, packaging.AppSystem, selfupdate.UninstallOptions{RemoveConfig: removeConfig})
 	})
-}
-
-// runUninstall runs body, an uninstall, like runAction (runMu
-// serialization, action lock, panic recovery, "action-done") and closes
-// the application once body reports selfupdate.ErrUninstalled, which
-// counts as success: the window closes a short moment after the
-// "action-done" event, time enough to read the success line in the
-// terminal panel.
-func (h *homeCore) runUninstall(body func(w io.Writer) error) error {
-	quit := false
-	return h.runActionThen(body,
-		func(err error) error {
-			if errors.Is(err, selfupdate.ErrUninstalled) {
-				quit = true
-				return nil
-			}
-			return err
-		},
-		func() {
-			if quit {
-				time.Sleep(uninstallQuitDelay)
-				quitAllowed.Store(true)
-				h.wailsApp.Quit()
-			}
-		})
 }
 
 // GetWorkspacePath returns the persisted workspace folder, "" when unset
@@ -492,8 +493,9 @@ func (h *DevHomeService) PickUninstallAIContextsBackupPath() (string, error) {
 	}).PromptForSingleSelection()))
 }
 
-// RunSelfUninstall removes Perci82 Dev — its binary, menu entry and icons
-// (selfupdate.Uninstall). Four steps run first, all optional:
+// RunSelfUninstall cleans Perci82 Dev up before its package is removed
+// (selfupdate.Uninstall, which prints the command that removes it). Four
+// steps run first, all optional:
 //
 //   - backupPath != "": exports cfg.Docker and the Moodle plugin mounts to
 //     that path first (appstack.ExportConfig) — reimportable later via
@@ -515,11 +517,9 @@ func (h *DevHomeService) PickUninstallAIContextsBackupPath() (string, error) {
 // "nothing to export" is a warning.
 //
 // With removeConfig, Perci82 Dev's settings and its folders under ~/.perci
-// (devDataDirs) go too, and, once the binary is removed, the includeIf
-// rules, gitconfig files and API tokens of the Git accounts
-// (gitaccount.Forget); their SSH keys and repositories stay.
-//
-// A successful uninstall closes the window (runUninstall).
+// (devDataDirs) go too, and the includeIf rules, gitconfig files and API
+// tokens of the Git accounts (gitaccount.Forget); their SSH keys and
+// repositories stay.
 func (h *DevHomeService) RunSelfUninstall(removeConfig, removeDocker bool, backupPath, reposBackupPath, aiBackupPath string) error {
 	// A backup path not chosen in its picker refuses the whole uninstall —
 	// checked before anything destructive starts.
@@ -530,17 +530,13 @@ func (h *DevHomeService) RunSelfUninstall(removeConfig, removeDocker bool, backu
 			}
 		}
 	}
-	return h.runUninstall(func(w io.Writer) error {
+	return h.runAction(func(w io.Writer) error {
 		return h.selfUninstall(w, removeConfig, removeDocker, backupPath, reposBackupPath, aiBackupPath)
 	})
 }
 
-// uninstallQuitDelay leaves the success line readable in the terminal
-// panel before the window closes.
-const uninstallQuitDelay = 1500 * time.Millisecond
-
-// uninstallApp removes an application (selfupdate.Uninstall) — a variable
-// so tests never remove the test binary.
+// uninstallApp cleans an application up (selfupdate.Uninstall) — a
+// variable so tests never touch the real settings.
 var uninstallApp = selfupdate.Uninstall
 
 // devDataDirs returns the folders under ~/.perci, only Perci82 Dev
@@ -577,10 +573,9 @@ func devDataDirs(w io.Writer, removeDocker bool) []string {
 }
 
 // selfUninstall is RunSelfUninstall's body: optional backups, optional
-// Docker cleanup, then selfupdate.Uninstall (whose ErrUninstalled means
-// success). The tray's autostart entry — and, with removeConfig, the Git
-// accounts' rules and tokens — are removed only once the uninstall itself
-// succeeded.
+// Docker cleanup, then selfupdate.Uninstall. The tray's autostart entry —
+// and, with removeConfig, the Git accounts' rules and tokens — are removed
+// only once the uninstall itself succeeded.
 func (h *DevHomeService) selfUninstall(w io.Writer, removeConfig, removeDocker bool, backupPath, reposBackupPath, aiBackupPath string) error {
 	ctx := context.Background()
 
@@ -652,15 +647,14 @@ func (h *DevHomeService) selfUninstall(w io.Writer, removeConfig, removeDocker b
 	if removeConfig {
 		dataDirs = devDataDirs(w, removeDocker)
 	}
-	err := uninstallApp(ctx, h.exe, w, packaging.AppDev, selfupdate.UninstallOptions{RemoveConfig: removeConfig, DataDirs: dataDirs})
-	if errors.Is(err, selfupdate.ErrUninstalled) {
+	err := uninstallApp(w, packaging.AppDev, selfupdate.UninstallOptions{RemoveConfig: removeConfig, DataDirs: dataDirs})
+	if err == nil {
 		if fErr := gitaccount.Forget(ctx, h.exe, w, accounts); fErr != nil {
 			ui.Warning(w, i18n.Tr("devuninstall.forgetFailed", i18n.Args{"error": fErr.Error()}))
 		}
-		// Tray autostart (~/.config/autostart/io.github.oito2.perci82.dev.desktop) — removed regardless
-		// of TrayEnabled: with the binary gone, it would be a "ghost" autostart
-		// entry (same class of problem as the app-menu .desktop entry, handled
-		// inside selfupdate.Uninstall).
+		// Tray autostart (~/.config/autostart/io.github.oito2.perci82.dev.desktop)
+		// — removed regardless of TrayEnabled: once the package is removed, it
+		// would start a binary that no longer exists.
 		if rmErr := removeAutostartDesktopFile(); rmErr != nil {
 			ui.Warning(w, i18n.Tr("devuninstall.autostartFailed", i18n.Args{"error": rmErr.Error()}))
 		}

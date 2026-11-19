@@ -15,9 +15,21 @@ sudo apt install -y libgtk-4-1 libwebkitgtk-6.0-4
 sudo dnf install -y gtk4 webkitgtk6.0
 ```
 
-## The installer says "No Perci82 Dev release has been published yet."
+## The installer says "This release has no WebKitGTK 6.0"
 
-The script found no `dev-vX.Y.Z` release on GitHub (drafts and prereleases don't count). Build from source instead — see [Installing](installation.md#build-from-source).
+The distribution release is older than the supported ones (Debian 13, Ubuntu 24.04, Linux Mint 22 or newer): it has no `libwebkitgtk-6.0-4`, which Perci82 Dev needs. Upgrade the distribution.
+
+## The installer says the repository key "does not have the expected fingerprint"
+
+The key downloaded from `https://oito2.github.io/perci82/perci82.asc` isn't the one the script expects, so it stops before changing anything. Check the network (a proxy may be answering in its place) and run it again; if it keeps failing, report it in the repository's issues.
+
+## An older version still opens after installing the package
+
+Perci82 Dev 1.1 and older were installed as `/usr/local/bin/perci82-dev`, which comes before the package's `/usr/bin/perci82-dev` in `PATH`. Remove the old file:
+
+```bash
+sudo rm -f /usr/local/bin/perci82-dev
+```
 
 ## The installer kept the old Perci: "No terminal to ask on"
 
@@ -61,4 +73,4 @@ Folders and files that an action writes to must be chosen in the app's own file 
 
 ## "Couldn't check for updates"
 
-Overview reaches the GitHub API to look for a new release. Check the network connection and click **Check** again; the GitHub API also limits how often one address can ask.
+Overview reads the newest version from the package repository site and, when it can't, from the GitHub API, which limits how often one address can ask (60 times an hour without a login; more when the GitHub CLI is logged in). Check the network connection and click **Check** again.

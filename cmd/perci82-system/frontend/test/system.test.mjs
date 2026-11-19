@@ -106,20 +106,27 @@ test("Visão Geral names an unknown system and desktop as such", async () => {
   assert.equal(element("dashboard-desktop-label").textContent, "Não identificado");
 });
 
-test("the update check shows the version badge and Atualizar only for a newer release", async () => {
+test("the update check shows the version badge, and the upgrade command only for a newer packaged release", async () => {
   let info = { currentVersion: "v1.0.0", latestVersion: "v1.1.0", updateAvailable: true };
-  const { ctx, element } = load({ GetSelfUpdateInfo: () => info });
+  let pkg = { packaged: true, upgradeCommand: "sudo apt update && sudo apt install --only-upgrade perci82-system" };
+  const { ctx, element } = load({ GetSelfUpdateInfo: () => info, GetPackageInfo: () => pkg });
   ctx.loadSelfUpdateStatus(true);
   await tick();
   assert.match(element("su-status").textContent, /v1\.1\.0/);
   assert.equal(element("dashboard-version-badge").textContent, "nova versão");
-  assert.equal(element("btn-su-update").disabled, false);
+  assert.equal(element("su-upgrade-cmd").textContent, pkg.upgradeCommand);
+
+  pkg = { packaged: false };
+  ctx.loadSelfUpdateStatus(true);
+  await tick();
+  assert.equal(element("su-upgrade-cmd").textContent, "", "no command without the package");
 
   info = { currentVersion: "v1.1.0", latestVersion: "v1.1.0", updateAvailable: false };
+  pkg = { packaged: true, upgradeCommand: "x" };
   ctx.loadSelfUpdateStatus(true);
   await tick();
   assert.equal(element("dashboard-version-badge").textContent, "em dia");
-  assert.equal(element("btn-su-update").disabled, true);
+  assert.equal(element("su-upgrade-cmd").textContent, "");
 
   info = { currentVersion: "v1.1.0", error: "offline" };
   ctx.loadSelfUpdateStatus(true);
@@ -212,4 +219,30 @@ test("shell: System's sections show no side list", async () => {
   assert.equal(element("screen-title").textContent, "Gerenciar Fontes");
   assert.equal(element("tab-desc-label").textContent, "Itens");
   assert.equal(tabs[1].getAttribute("aria-selected"), "true");
+});
+
+test("a successful uninstall shows the command that removes the package, and Fechar quits", async () => {
+  const removeCommand = "sudo apt remove perci82-system";
+  const { ctx, element, calls } = load({ GetPackageInfo: { packaged: true, removeCommand } });
+  ctx.__selectedItem = { actionId: "dashboard" };
+  element("btn-su2-uninstall").listeners.click[0]();
+  element("btn-uninstall-confirm").listeners.click[0]();
+  await tick();
+  ctx.finishRun({ ok: true });
+  await tick();
+  assert.equal(element("uninstall-done-cmd").textContent, removeCommand);
+  assert.match(element("uninstall-done-text").textContent, /remova o pacote/);
+  element("btn-uninstall-done-quit").listeners.click[0]();
+  assert.ok(calls.some((c) => c.name === "QuitApp"));
+});
+
+test("a failed uninstall shows no package command", async () => {
+  const { ctx, element } = load({ GetPackageInfo: { packaged: true, removeCommand: "sudo apt remove perci82-system" } });
+  ctx.__selectedItem = { actionId: "dashboard" };
+  element("btn-su2-uninstall").listeners.click[0]();
+  element("btn-uninstall-confirm").listeners.click[0]();
+  await tick();
+  ctx.finishRun({ ok: false, error: "x" });
+  await tick();
+  assert.equal(element("uninstall-done-cmd").textContent, "");
 });

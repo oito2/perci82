@@ -85,13 +85,24 @@ jobs:
       - name: Install system dependencies (Wails/GUI — cgo, GTK4/WebKitGTK 6.0)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev rpm
 
-      - name: Build release artifacts
+      # The .deb and .rpm packages, built by nfpm at the version the
+      # Makefile pins.
+      - name: Build the packages
         env:
           APP: ${{ steps.tag.outputs.app }}
           VERSION: ${{ steps.tag.outputs.version }}
-        run: make "release-${APP#perci82-}" VERSION="$VERSION"
+        run: |
+          make install-nfpm
+          PATH="$(go env GOPATH)/bin:$PATH" make "release-${APP#perci82-}" VERSION="$VERSION"
+
+      - name: Show the packages
+        env:
+          APP: ${{ steps.tag.outputs.app }}
+        run: |
+          for f in dist/"$APP"_*.deb; do dpkg-deb --info "$f"; dpkg-deb --contents "$f"; done
+          for f in dist/"$APP"-[0-9]*.rpm; do rpm -qip "$f"; rpm -qp --requires "$f"; rpm -qlp "$f"; done
 
       # The release notes: the install instructions, then the CHANGELOG.md
       # section of this version ("## [System 1.2.3] - date" for
@@ -103,6 +114,7 @@ jobs:
           SHORT: ${{ steps.tag.outputs.short }}
           TITLE: ${{ steps.tag.outputs.title }}
           VERSION: ${{ steps.tag.outputs.version }}
+          PAGES_URL: https://oito2.github.io/perci82/
         run: |
           heading="## [${TITLE#Perci82 } ${VERSION#v}]"
           section=$(awk -v h="$heading" '
@@ -115,34 +127,39 @@ jobs:
             echo "::error::CHANGELOG.md has no '${heading}' section"
             exit 1
           fi
+          deb="${APP}_${VERSION#v}-1_amd64.deb"
+          rpm="${APP}-${VERSION#v}-1.x86_64.rpm"
           {
             echo "## ${TITLE} ${VERSION}"
             echo
-            echo "Linux amd64 only: the app uses Wails v3 with cgo (GTK 4/WebKitGTK 6.0)."
+            echo "Linux amd64 only (the app uses Wails v3 with GTK 4/WebKitGTK 6.0): Debian 13, Ubuntu 24.04, Linux Mint 22, Fedora 40 or newer."
             echo
             echo "### Install"
             echo
             echo '```bash'
-            echo "curl --proto '=https' --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 600 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install-${SHORT}.sh | bash"
+            echo "curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/oito2/perci82/main/install.sh | bash -s -- ${SHORT}"
             echo '```'
             echo
-            echo "The installer downloads the newest ${TITLE} release, checks its checksum (and its attestation, when the GitHub CLI is logged in), adds the application menu entry and offers to remove the old Perci, keeping the settings in \`~/.perci\`."
+            echo "The script adds the signed Perci82 package repository (apt or dnf, ${PAGES_URL}) and installs ${TITLE}; updates then come with \`apt upgrade\` or \`dnf upgrade\`. Without \`-s -- ${SHORT}\` it asks which apps to install."
             echo
             echo "### Manual install"
             echo
-            echo "Download \`${APP}-linux-amd64\` and \`checksums.txt\`, check the checksum and install:"
+            echo "Download the package and \`checksums.txt\`, check the checksum and install:"
             echo
             echo '```bash'
             echo "sha256sum --ignore-missing -c checksums.txt"
-            echo "sudo install -m 755 -o root -g root ${APP}-linux-amd64 /usr/local/bin/${APP}"
+            echo "sudo apt install ./${deb}   # Debian, Ubuntu, Linux Mint"
+            echo "sudo dnf install ./${rpm}   # Fedora"
             echo '```'
+            echo
+            echo "A package installed this way isn't updated by \`apt upgrade\`/\`dnf upgrade\`: add the repository for that."
             echo
             echo "### Verify the provenance"
             echo
             echo "The files of this release have a build provenance attestation (SLSA), made by this workflow:"
             echo
             echo '```bash'
-            echo "gh attestation verify ${APP}-linux-amd64 --repo oito2/perci82"
+            echo "gh attestation verify ${deb} --repo oito2/perci82"
             echo '```'
             echo
             echo "### Changes"
@@ -154,8 +171,8 @@ jobs:
         with:
           name: dist
           path: |
-            dist/${{ steps.tag.outputs.app }}-linux-amd64
-            dist/${{ steps.tag.outputs.app }}-menu.tar.gz
+            dist/${{ steps.tag.outputs.app }}_*.deb
+            dist/${{ steps.tag.outputs.app }}-[0-9]*.rpm
             dist/checksums.txt
             dist/release-notes.md
           if-no-files-found: error
@@ -180,8 +197,8 @@ jobs:
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
-            dist/${{ needs.build.outputs.app }}-linux-amd64
-            dist/${{ needs.build.outputs.app }}-menu.tar.gz
+            dist/${{ needs.build.outputs.app }}_*.deb
+            dist/${{ needs.build.outputs.app }}-[0-9]*.rpm
             dist/checksums.txt
 
       - name: Create GitHub Release
@@ -191,7 +208,77 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            dist/${{ needs.build.outputs.app }}-linux-amd64
-            dist/${{ needs.build.outputs.app }}-menu.tar.gz
+            dist/${{ needs.build.outputs.app }}_*.deb
+            dist/${{ needs.build.outputs.app }}-[0-9]*.rpm
             dist/checksums.txt
           body_path: dist/release-notes.md
+
+  # The apt/dnf package repository on GitHub Pages, rebuilt from the
+  # packages of the latest releases of both apps and signed with the
+  # repository key. Only this job, in the github-pages environment, gets
+  # the key; runs of different tags publish one after the other.
+  pages:
+    name: Publish the package repository
+    needs: publish
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      contents: read  # read the releases and check out the scripts
+      pages: write    # deploy the site
+      id-token: write # authenticate the deployment
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the repository tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils createrepo-c rpm
+
+      # The three newest releases of each app; releases without packages
+      # (before 1.2.0) are skipped by build-pages.sh.
+      - name: Download the packages of the latest releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tags=$(gh release list -R "$REPO" --limit 200 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName')
+          for app in system dev; do
+            for tag in $(grep -E "^${app}-v[0-9]+\.[0-9]+\.[0-9]+$" <<<"$tags" | sort -V | tail -n 3); do
+              gh release download "$tag" -R "$REPO" -D "$RUNNER_TEMP/packages/$tag" -p '*.deb' -p '*.rpm' -p checksums.txt
+            done
+          done
+
+      - name: Import the signing key
+        env:
+          REPO_SIGNING_KEY: ${{ secrets.REPO_SIGNING_KEY }}
+          REPO_SIGNING_PASSPHRASE: ${{ secrets.REPO_SIGNING_PASSPHRASE }}
+        run: |
+          gnupg="$RUNNER_TEMP/gnupg"
+          install -d -m 700 "$gnupg"
+          printf '%s\n' "$REPO_SIGNING_PASSPHRASE" | head -n 1 > "$RUNNER_TEMP/passphrase"
+          chmod 600 "$RUNNER_TEMP/passphrase"
+          printf '%s\n' "$REPO_SIGNING_KEY" | GNUPGHOME="$gnupg" gpg --batch --pinentry-mode loopback \
+            --passphrase-file "$RUNNER_TEMP/passphrase" --import
+          echo "GNUPGHOME=$gnupg" >> "$GITHUB_ENV"
+          echo "REPO_PASSPHRASE_FILE=$RUNNER_TEMP/passphrase" >> "$GITHUB_ENV"
+
+      - name: Build the site
+        run: scripts/build-pages.sh "$RUNNER_TEMP/site" "$RUNNER_TEMP/packages"
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

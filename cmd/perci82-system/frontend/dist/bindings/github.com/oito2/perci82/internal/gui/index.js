@@ -13,6 +13,7 @@ export {
     LanguageState,
     MenuItem,
     MultiSelectItemInfo,
+    PackageInfo,
     PostinstallActionInfo,
     PostinstallProfileInfo,
     Section,

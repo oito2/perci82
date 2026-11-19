@@ -27,12 +27,17 @@ Só uma ação roda por vez, e a janela não fecha enquanto uma está rodando. A
 
 ## Atualização
 
-O aplicativo procura uma versão mais nova quando a tela abre (de novo, no máximo a cada 10 minutos); **Verificar** procura na hora. Ele olha só as versões do próprio Perci82 System (tags `system-vX.Y.Z`) no GitHub.
+O aplicativo procura uma versão mais nova quando a tela abre (de novo, no máximo a cada 10 minutos); **Verificar** procura na hora. Ele lê a versão mais recente do Perci82 System no site do repositório de pacotes (`https://oito2.github.io/perci82/latest/system.json`) e, quando isso falha, nas releases do Perci82 System no GitHub (tags `system-vX.Y.Z`).
 
-Quando existe uma versão mais nova, aparece **Atualizar**. Ele baixa o novo binário, confere o SHA-256 pelo `checksums.txt` da release, substitui o binário instalado e mostra o andamento na aba **Execução**. Depois, reinicie o aplicativo.
+Quando existe uma versão mais nova e o aplicativo foi instalado pelo pacote, a tela mostra o comando que a instala, com **Copiar**. Rode-o num terminal:
 
-Uma compilação a partir do código-fonte informa a versão `dev` e não se atualiza sozinha.
+```bash
+sudo apt update && sudo apt install --only-upgrade perci82-system   # apt
+sudo dnf upgrade --refresh perci82-system                             # dnf
+```
+
+O `apt upgrade` e o `dnf upgrade` também o atualizam junto com o resto do sistema. O aplicativo nunca substitui os próprios arquivos. Uma compilação a partir do código-fonte informa a versão `dev` e não mostra comando.
 
 ## Desinstalar
 
-**Desinstalar Perci82 System** abre uma janela de confirmação. Ela remove o binário, a entrada no menu de aplicativos e os ícones; **Também remover as configurações do Perci82 System** (desmarcada sempre que a janela abre) remove também as configurações. Veja [Desinstalar](uninstallation.md).
+**Desinstalar Perci82 System** abre uma janela de confirmação. **Também remover as configurações do Perci82 System** (desmarcada sempre que a janela abre) remove as configurações; depois, uma janela mostra o comando que remove o pacote — o binário, a entrada no menu de aplicativos e os ícones. Veja [Desinstalar](uninstallation.md).

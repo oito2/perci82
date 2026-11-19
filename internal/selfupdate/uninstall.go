@@ -16,43 +16,20 @@
 package selfupdate
 
 import (
-	"context"
-	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/oito2/perci82/internal/config"
-	"github.com/oito2/perci82/internal/executor"
 	"github.com/oito2/perci82/internal/i18n"
 	"github.com/oito2/perci82/internal/ui"
-	"github.com/oito2/perci82/packaging"
 )
 
-// ErrUninstalled is returned by Uninstall after the binary is successfully removed.
-var ErrUninstalled = errors.New("application uninstalled")
-
-// applicationsDir is where the installers put the application menu
-// entries.
-const applicationsDir = "/usr/share/applications"
-
-// uninstallMenuPaths returns app's application menu entry and hicolor
-// icons — a variable so tests never touch the real system paths.
-var uninstallMenuPaths = func(app string) []string {
-	paths := []string{filepath.Join(applicationsDir, packaging.IconName(app)+".desktop")}
-	paths = append(paths, menuIconPaths(app)...)
-	return append(paths,
-		filepath.Join(hicolorDir, "scalable", "apps", packaging.IconName(app)+".svg"),
-		filepath.Join(hicolorDir, "symbolic", "apps", packaging.IconName(app)+"-symbolic.svg"),
-	)
-}
-
 // installDirs returns the folders where an installed Perci82 or Perci
-// binary is looked for: the one holding the running binary and
+// binary is looked for: the one holding the running binary, /usr/bin and
 // /usr/local/bin — a variable so tests never look at the real system.
 var installDirs = func(exeDir string) []string {
-	return []string{exeDir, "/usr/local/bin"}
+	return []string{exeDir, packagedBinDir, "/usr/local/bin"}
 }
 
 // UninstallOptions are the choices of an uninstall.
@@ -65,84 +42,33 @@ type UninstallOptions struct {
 	DataDirs []string
 }
 
-// Uninstall removes app's binary, its application menu entry and icons
-// and, with opts.RemoveConfig, its settings and data folders; ~/.perci
-// itself goes only when no Perci82 application nor the old Perci is
-// installed any more and no other setting is left. It returns
-// ErrUninstalled once the binary is removed.
-func Uninstall(ctx context.Context, exe *executor.Executor, stdout io.Writer, app string, opts UninstallOptions) error {
+// Uninstall removes, with opts.RemoveConfig, app's settings and data
+// folders; ~/.perci itself goes only when no other Perci82 application nor
+// the old Perci is installed and no other setting is left. The binary,
+// menu entry and icons belong to app's package: Uninstall ends by printing
+// the command that removes it (RemoveCommand).
+func Uninstall(stdout io.Writer, app string, opts UninstallOptions) error {
 	if err := checkApp(app); err != nil {
 		return err
 	}
-	currentExe, err := executablePath()
-	if err != nil {
-		return fmt.Errorf("locate binary: %w", err)
-	}
-
-	ui.Info(stdout, i18n.Tr("selfuninstall.removingBinary", i18n.Args{"path": currentExe}))
-
-	// Everything that cannot be removed without privilege is collected into
-	// ONE privileged batch, so the password is asked at most once: the binary
-	// (a failure there aborts the uninstall), then the menu entry/icons
-	// (Soft: a failure only warns).
-	var steps []executor.PrivilegedStep
-	binaryNeedsRoot := false
-	if err := os.Remove(currentExe); err != nil {
-		ui.Info(stdout, i18n.Tr("selfuninstall.needsAdmin", i18n.Args{"error": err.Error()}))
-		binaryNeedsRoot = true
-		steps = append(steps, executor.PrivilegedStep{Name: "rm", Args: []string{"-f", "--", currentExe}})
-	}
-
-	// Application menu entry + icons, so no .desktop entry pointing at the
-	// removed binary is left behind as a "ghost" in the menu. While the
-	// binary still needs the privileged batch, nothing is removed directly:
-	// a canceled password prompt then leaves the binary and its menu entry
-	// together.
-	var privileged []string
-	for _, path := range uninstallMenuPaths(app) {
-		if binaryNeedsRoot {
-			if _, statErr := os.Lstat(path); statErr == nil {
-				privileged = append(privileged, path)
-			}
-			continue
-		}
-		if rmErr := os.Remove(path); rmErr != nil && !os.IsNotExist(rmErr) {
-			privileged = append(privileged, path)
-		}
-	}
-	if len(privileged) > 0 {
-		steps = append(steps,
-			executor.PrivilegedStep{
-				Soft:        true,
-				WarnMessage: i18n.Tr("selfuninstall.menuFailed", nil),
-				Name:        "rm",
-				Args:        append([]string{"-f", "--"}, privileged...),
-			},
-			iconCacheStep(), // drop the removed icons from the cache in the same prompt
-		)
-	}
-
-	if len(steps) > 0 {
-		if sudoErr := exe.RunSudoSequence(ctx, executor.Options{Stdout: stdout, Stderr: stdout}, steps); sudoErr != nil {
-			if binaryNeedsRoot {
-				return fmt.Errorf("remove binary: %w", sudoErr)
-			}
-			ui.Warning(stdout, i18n.Tr("selfuninstall.privilegedFailed", i18n.Args{"error": sudoErr.Error()}))
-		}
-	}
-
 	if opts.RemoveConfig {
-		removeSettings(stdout, app, opts.DataDirs, filepath.Dir(currentExe))
+		exeDir := ""
+		if exe, err := executablePath(); err == nil {
+			exeDir = filepath.Dir(exe)
+		}
+		removeSettings(stdout, app, opts.DataDirs, exeDir)
 	}
-
 	ui.Success(stdout, i18n.Tr("selfuninstall.done", i18n.Args{"app": appName(app)}))
-	return ErrUninstalled
+	if cmd := RemoveCommand(app); cmd != "" {
+		ui.Info(stdout, i18n.Tr("selfuninstall.removePackage", i18n.Args{"command": cmd}))
+	}
+	return nil
 }
 
 // removeSettings removes app's keys from config.yaml and its data folders
 // under ~/.perci, then ~/.perci itself when the config is left empty and
 // no other Perci82 application nor the old Perci is installed. Failures
-// only warn: the binary is already gone.
+// only warn.
 func removeSettings(stdout io.Writer, app string, dataDirs []string, exeDir string) {
 	empty, err := config.RemoveOwnedKeys(config.App(app))
 	if err != nil {
@@ -195,6 +121,9 @@ func installedApp(app, exeDir string) string {
 	}
 	candidates = append(candidates, candidate{"prci", "Perci"})
 	for _, dir := range installDirs(exeDir) {
+		if dir == "" {
+			continue
+		}
 		for _, c := range candidates {
 			if _, err := os.Lstat(filepath.Join(dir, c.binary)); err == nil {
 				return c.name
