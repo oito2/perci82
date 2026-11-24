@@ -214,11 +214,14 @@ jobs:
           body_path: dist/release-notes.md
 
   # The apt/dnf package repository on GitHub Pages, rebuilt from the
-  # packages of the latest releases of both apps (pages.yml).
+  # packages of the latest releases of both apps (pages.yml). Its job reads
+  # the signing key from the github-pages environment's secrets, which a
+  # called workflow only receives when the caller inherits its secrets.
   pages:
     name: Package repository
     needs: publish
     uses: ./.github/workflows/pages.yml
+    secrets: inherit
     permissions:
       contents: read
       pages: write
