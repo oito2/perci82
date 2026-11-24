@@ -124,7 +124,7 @@ main() {
     rpmdb=$(mktemp -d)
     rpm --dbpath "$rpmdb" --import "$PUBLIC_KEY"
     for f in "$out"/rpm/*.rpm; do
-        rpm --dbpath "$rpmdb" --checksig -- "$f" | grep -q 'signatures OK' || die "bad RPM signature: $(basename -- "$f")"
+        [[ "$(rpm --dbpath "$rpmdb" --checksig -- "$f")" == *"signatures OK"* ]] || die "bad RPM signature: $(basename -- "$f")"
     done
     rm -rf -- "$rpmdb"
     createrepo_c --quiet "$out/rpm"

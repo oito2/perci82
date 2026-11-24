@@ -121,6 +121,33 @@ func TestMain_Arguments(t *testing.T) {
 	}
 }
 
+// has_webkitgtk6 reads apt-cache's whole answer: with an apt-cache that
+// keeps writing after the Candidate line (as the real one does with a long
+// version table), the check still passes, and a release without a
+// candidate fails it.
+func TestHasWebKitGTK6(t *testing.T) {
+	bin := t.TempDir()
+	script := `#!/bin/sh
+echo "libwebkitgtk-6.0-4:"
+echo "  Installed: (none)"
+echo "  Candidate: $CANDIDATE"
+sleep 0.3
+i=0
+while [ $i -lt 2000 ]; do echo "     2.52.6-0ubuntu0.24.04.$i 500"; i=$((i+1)); done
+`
+	if err := os.WriteFile(filepath.Join(bin, "apt-cache"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for candidate, want := range map[string]string{"2.52.6-0ubuntu0.24.04.2": "yes\n", "(none)": "no\n"} {
+		cmd := exec.CommandContext(t.Context(), "bash", "-c", `source "$1" && if has_webkitgtk6; then echo yes; else echo no; fi`, "bash", installer(t))
+		cmd.Env = []string{"HOME=" + t.TempDir(), "PATH=" + bin + ":" + os.Getenv("PATH"), "LC_ALL=C", "CANDIDATE=" + candidate}
+		out, err := cmd.CombinedOutput()
+		if err != nil || string(out) != want {
+			t.Errorf("candidate %q: got %q, %v; want %q", candidate, out, err, want)
+		}
+	}
+}
+
 // The fingerprint the installer requires is the published key's, and a
 // file without that key is refused.
 func TestVerifyKey(t *testing.T) {

@@ -135,6 +135,15 @@ package_manager() {
     fi
 }
 
+# Succeeds when apt can install WebKitGTK 6.0 (libwebkitgtk-6.0-4) on this
+# release. apt-cache's output is read whole before it is searched, so a
+# search that stops early never cuts the command off and fails the check.
+has_webkitgtk6() {
+    local policy
+    policy=$(LC_ALL=C apt-cache policy libwebkitgtk-6.0-4 2>/dev/null) || return 1
+    [[ "$policy" =~ Candidate:\ [0-9] ]]
+}
+
 # Succeeds when the key file $1 holds exactly one key, with fingerprint
 # KEY_FINGERPRINT. Uses a throwaway GnuPG home, never the user's keyring.
 verify_key() {
@@ -195,7 +204,7 @@ report_installed() {
     shift
     for pkg in "$@"; do
         if [[ "$pm" == apt ]]; then
-            dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' || continue
+            [[ "$(dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null || true)" == *"install ok installed"* ]] || continue
         else
             rpm -q "$pkg" &>/dev/null || continue
         fi
@@ -317,7 +326,7 @@ main() {
     for cmd in curl gpg; do
         command -v "$cmd" &>/dev/null || die "Required tool '$cmd' is not installed. Please install it first."
     done
-    if [[ "$pm" == apt ]] && ! LC_ALL=C apt-cache policy libwebkitgtk-6.0-4 2>/dev/null | grep -q 'Candidate: [0-9]'; then
+    if [[ "$pm" == apt ]] && ! has_webkitgtk6; then
         die "This release has no WebKitGTK 6.0 (libwebkitgtk-6.0-4): Perci82 needs Debian 13, Ubuntu 24.04, Linux Mint 22 or newer."
     fi
 
