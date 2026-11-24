@@ -214,71 +214,12 @@ jobs:
           body_path: dist/release-notes.md
 
   # The apt/dnf package repository on GitHub Pages, rebuilt from the
-  # packages of the latest releases of both apps and signed with the
-  # repository key. Only this job, in the github-pages environment, gets
-  # the key; runs of different tags publish one after the other.
+  # packages of the latest releases of both apps (pages.yml).
   pages:
-    name: Publish the package repository
+    name: Package repository
     needs: publish
-    runs-on: ubuntu-24.04
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+    uses: ./.github/workflows/pages.yml
     permissions:
-      contents: read  # read the releases and check out the scripts
-      pages: write    # deploy the site
-      id-token: write # authenticate the deployment
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Install the repository tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y apt-utils createrepo-c rpm
-
-      # The three newest releases of each app; releases without packages
-      # (before 1.2.0) are skipped by build-pages.sh.
-      - name: Download the packages of the latest releases
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-        run: |
-          tags=$(gh release list -R "$REPO" --limit 200 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName')
-          for app in system dev; do
-            for tag in $(grep -E "^${app}-v[0-9]+\.[0-9]+\.[0-9]+$" <<<"$tags" | sort -V | tail -n 3); do
-              gh release download "$tag" -R "$REPO" -D "$RUNNER_TEMP/packages/$tag" -p '*.deb' -p '*.rpm' -p checksums.txt
-            done
-          done
-
-      - name: Import the signing key
-        env:
-          REPO_SIGNING_KEY: ${{ secrets.REPO_SIGNING_KEY }}
-          REPO_SIGNING_PASSPHRASE: ${{ secrets.REPO_SIGNING_PASSPHRASE }}
-        run: |
-          gnupg="$RUNNER_TEMP/gnupg"
-          install -d -m 700 "$gnupg"
-          printf '%s\n' "$REPO_SIGNING_PASSPHRASE" | head -n 1 > "$RUNNER_TEMP/passphrase"
-          chmod 600 "$RUNNER_TEMP/passphrase"
-          printf '%s\n' "$REPO_SIGNING_KEY" | GNUPGHOME="$gnupg" gpg --batch --pinentry-mode loopback \
-            --passphrase-file "$RUNNER_TEMP/passphrase" --import
-          echo "GNUPGHOME=$gnupg" >> "$GITHUB_ENV"
-          echo "REPO_PASSPHRASE_FILE=$RUNNER_TEMP/passphrase" >> "$GITHUB_ENV"
-
-      - name: Build the site
-        run: scripts/build-pages.sh "$RUNNER_TEMP/site" "$RUNNER_TEMP/packages"
-
-      - name: Upload the site
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: ${{ runner.temp }}/site
-
-      - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      contents: read
+      pages: write
+      id-token: write

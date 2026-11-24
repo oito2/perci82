@@ -96,7 +96,7 @@ jobs:
             dir="$RUNNER_TEMP/packages/$app-v0.0.0"
             mkdir -p "$dir"
             cp "$RUNNER_TEMP"/dist/perci82-"$app"_0.0.0-1_amd64.deb "$RUNNER_TEMP"/dist/perci82-"$app"-0.0.0-1.x86_64.rpm "$dir"/
-            grep -E "  perci82-$app[_-]0\.0\.0-1" "$RUNNER_TEMP/dist/checksums.txt" > "$dir/checksums.txt"
+            grep -E "  perci82-${app}[_-]0\.0\.0-1" "$RUNNER_TEMP/dist/checksums.txt" > "$dir/checksums.txt"
           done
           REPO_PUBLIC_KEY="$RUNNER_TEMP/throwaway.asc" REPO_PASSPHRASE_FILE="$RUNNER_TEMP/passphrase" \
             scripts/build-pages.sh "$RUNNER_TEMP/site" "$RUNNER_TEMP/packages"

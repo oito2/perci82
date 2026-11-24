@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The package repository at `https://oito2.github.io/perci82/` lacked Perci82 Dev 1.2.0: when both apps are tagged on the same commit, GitHub Pages kept the first release's site. Each publication now deploys with its own build version, and the site can be rebuilt by hand (Actions → Pages → Run workflow).
+
 ## [Dev 1.2.0] - 2026-11-19
 
 ### Added
