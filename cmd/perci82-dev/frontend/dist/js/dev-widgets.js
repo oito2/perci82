@@ -140,8 +140,8 @@ function selectFieldHTML(id, label, options, selected) {
 }
 function checkboxFieldHTML(id, label, checked, disabled, hint) {
   return (
-    '<label class="label cursor-pointer justify-start gap-3">' +
-    '<input id="' + escAttr(id) + '" type="checkbox" class="checkbox"' + (checked ? " checked" : "") + (disabled ? " disabled" : "") + " />" +
+    '<label class="label cursor-pointer justify-start items-start gap-3 o2-wrap">' +
+    '<input id="' + escAttr(id) + '" type="checkbox" class="checkbox mt-0.5"' + (checked ? " checked" : "") + (disabled ? " disabled" : "") + " />" +
     '<span class="label-text">' + escHTML(label) + (hint ? '<br><span class="text-xs opacity-60">' + escHTML(hint) + "</span>" : "") + "</span>" +
     "</label>"
   );
@@ -197,14 +197,26 @@ function reconcileKeyedList(container, items, keyOf, signatureOf, buildNode) {
 // into prefix-scoped ids (ex. "dc-folder", "edit-folder") — reused by
 // both #dc-fields (Criar) and #edit-fields (Editar), values pre-fills
 // when editing.
+// noParamsNoteHTML wraps the explanation of a container kind without
+// parameters (body: trusted HTML) in an informative alert that spans the
+// whole form.
+function noParamsNoteHTML(body) {
+  return '<div role="note" class="alert alert-info alert-soft text-sm items-start dc-note"><div class="space-y-1">' + body + "</div></div>";
+}
+
 function buildContainerFieldsHTML(prefix, kind, catalog, values) {
   values = values || {};
   const p = prefix;
   if (kind === "nginx") {
-    return '<p class="opacity-70 text-sm">' + escHTML(t("docker.nginxNoParams")) + "</p>";
+    return noParamsNoteHTML("<p>" + escHTML(t("docker.nginxNoParams")) + "</p>");
   }
   if (kind === "selenium") {
-    return '<p class="opacity-70 text-sm">' + escHTML(t("docker.seleniumNoParams")) + "</p>";
+    return noParamsNoteHTML(
+      "<p>" + escHTML(t("docker.seleniumNoParams")) + "</p>" +
+      "<p>" + escHTML(t("docker.seleniumRestart")) + "</p>" +
+      "<p>" + escHTML(t("docker.seleniumWatch")) + " <code>http://localhost:7900</code> · " +
+      escHTML(t("docker.seleniumPassword")) + " <code>secret</code></p>"
+    );
   }
   if (kind === "mariadb") {
     return (

@@ -17,6 +17,45 @@ import * as gitaccount$0 from "../manager/gitaccount/models.js";
 import * as repofiles$0 from "../manager/repofiles/models.js";
 
 /**
+ * AICategory is one category of "Contextos de IA :: Categorias": its name
+ * and how many registered folders are filed under it.
+ */
+export class AICategory {
+    /**
+     * Creates a new AICategory instance.
+     * @param {Partial<AICategory>} [$$source = {}] - The source object to create the AICategory.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("uses" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["uses"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AICategory instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AICategory}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AICategory(/** @type {Partial<AICategory>} */($$parsedSource));
+    }
+}
+
+/**
  * AIContextAgent is one coding agent of "Dev Tools :: IA: Contextos";
  * Selected says the folder's context was generated for it (every agent
  * for a folder without an AGENTS.md yet).
@@ -380,6 +419,13 @@ export class AIContextRecord {
              */
             this["name"] = "";
         }
+        if (!("category" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["category"] = "";
+        }
         if (!("models" in $$source)) {
             /**
              * @member
@@ -404,14 +450,14 @@ export class AIContextRecord {
      * @returns {AIContextRecord}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType4;
         const $$createField4_0 = $$createType4;
+        const $$createField5_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
-            $$parsedSource["models"] = $$createField3_0($$parsedSource["models"]);
+            $$parsedSource["models"] = $$createField4_0($$parsedSource["models"]);
         }
         if ("agents" in $$parsedSource) {
-            $$parsedSource["agents"] = $$createField4_0($$parsedSource["agents"]);
+            $$parsedSource["agents"] = $$createField5_0($$parsedSource["agents"]);
         }
         return new AIContextRecord(/** @type {Partial<AIContextRecord>} */($$parsedSource));
     }
@@ -443,6 +489,13 @@ export class AIContextRow {
              * @type {string}
              */
             this["path"] = "";
+        }
+        if (!("category" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["category"] = "";
         }
         if (!("state" in $$source)) {
             /**
@@ -482,14 +535,14 @@ export class AIContextRow {
      * @returns {AIContextRow}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType4;
         const $$createField5_0 = $$createType4;
+        const $$createField6_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
-            $$parsedSource["models"] = $$createField4_0($$parsedSource["models"]);
+            $$parsedSource["models"] = $$createField5_0($$parsedSource["models"]);
         }
         if ("agents" in $$parsedSource) {
-            $$parsedSource["agents"] = $$createField5_0($$parsedSource["agents"]);
+            $$parsedSource["agents"] = $$createField6_0($$parsedSource["agents"]);
         }
         return new AIContextRow(/** @type {Partial<AIContextRow>} */($$parsedSource));
     }

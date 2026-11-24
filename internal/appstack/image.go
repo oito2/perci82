@@ -134,7 +134,7 @@ const (
 	redisVersion        = "6.3.0"
 	xdebugVersion       = "3.4.7"
 	xdebugVersionPHP74  = "3.1.6"
-	composerImage       = "2.10.3@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac"
+	composerImage       = "2.11.2@sha256:cd3a90dc5624c59a2f9ddf80dad08569f06416db31de519024f249d63bca554b"
 	downloadCurlOptions = nettimeout.CurlShellFlags
 )
 
@@ -144,9 +144,9 @@ const (
 // needs 8.2 and 12.5 needs 8.3.
 const phpunitSelect = `case "$PHP_VERSION" in \
       7.*|8.0.*) VER=9.6.39; HASH=4c744cafd21b1a1f85f2a05e764fadba001a7e0758e2369fff71748988aa2187;; \
-      8.1.*) VER=10.5.55; HASH=3a29d4dd24dad475b3c761758854bd3d7ecdd85645097ff0589d98b408b7f4ba;; \
-      8.2.*|8.3.*) VER=11.5.39; HASH=63601d96eca81db5ab675657f4a0b4056ff7b4acfe0d5767a1d74f50b626456d;; \
-      *) VER=12.5.30; HASH=2f6d24d19d1238d6b5332f85a12a1aa021c79cc9e704fbe25fca93181752cfe1;; \
+      8.1.*) VER=10.5.66; HASH=42bcac97bbf9fb1aecf5a7d6a1b37123a11e7e295458978f0e268999f6d9e50f;; \
+      8.2.*|8.3.*) VER=11.5.57; HASH=c704fdd37c6c6ab7adb386f31b4e186cd51156801fa9028b5ea8099a2cd7f106;; \
+      *) VER=12.5.43; HASH=55350db3736f8d42170d9f7989ccd8b8e19ab4ba6be96e8c1c9cbcad430cb6d5;; \
     esac;`
 
 // phpDockerfileBody is the Dockerfile every perci-php<version> image builds
@@ -189,11 +189,11 @@ COPY --from=composer:` + composerImage + ` /usr/bin/composer /usr/bin/composer
 
 RUN set -e; \
     cd /tmp; \
-    PHPCS_VERSION=3.13.5; \
+    PHPCS_VERSION=3.13.6; \
     curl ` + downloadCurlOptions + ` -fsSL "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/download/${PHPCS_VERSION}/phpcs.phar" -o phpcs.phar; \
-    echo "9ff3ddf1fcc6c9347a57bed63da10edfc6610e4339c6bee149e92537609c7939  phpcs.phar" | sha256sum -c -; \
+    echo "aed4148cee26285a73e694a98d4675b84f81ef86b2581f811d3c402c0d3d7d23  phpcs.phar" | sha256sum -c -; \
     curl ` + downloadCurlOptions + ` -fsSL "https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/download/${PHPCS_VERSION}/phpcbf.phar" -o phpcbf.phar; \
-    echo "a5b097357e78615a5509d569fda709c8751f30d4c1bf2a073b6e2df9884f349b  phpcbf.phar" | sha256sum -c -; \
+    echo "1ae3e93556cabb88b56f59b1facf3a607b8a2bef5ecc9002be8774deb021a791  phpcbf.phar" | sha256sum -c -; \
     mv phpcs.phar /usr/local/bin/phpcs; \
     mv phpcbf.phar /usr/local/bin/phpcbf; \
     chmod +x /usr/local/bin/phpcs /usr/local/bin/phpcbf
@@ -219,7 +219,7 @@ RUN set -e; \
         tar -xzf standard.tar.gz -C "/opt/phpcs-standards/$3" --strip-components=1 --no-same-owner; \
         rm standard.tar.gz; \
     }; \
-    fetch "https://github.com/moodlehq/moodle-cs/archive/refs/tags/v3.7.0.tar.gz" 9e4c4c111137f6630f97f82e37b348d2f2a1ed8db927c1ca5e7edb625e16fc6b moodle-cs; \
+    fetch "https://github.com/moodlehq/moodle-cs/archive/refs/tags/v3.9.0.tar.gz" 5b7118a3ad891591b8594299ae1822c2fe5c3dffe45dc65a0ad9a546f33d84f1 moodle-cs; \
     fetch "https://github.com/PHPCSStandards/PHPCSExtra/archive/refs/tags/1.5.1.tar.gz" ee20b0d5f1f295dba7f37b259283c6c7544b57803600c9b825d10806ad614c1c PHPCSExtra; \
     fetch "https://github.com/PHPCSStandards/PHPCSUtils/archive/refs/tags/1.2.3.tar.gz" 1bd2198fefb8e9081ce35332127aca50f01cd4106d6f7f6bd28c0d507041d6c9 PHPCSUtils; \
     chmod -R a+rX /opt/phpcs-standards

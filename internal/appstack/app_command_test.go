@@ -225,7 +225,7 @@ func TestValidateApp_Tools(t *testing.T) {
 
 func TestPHPImage_PinsTheMoodleStandards(t *testing.T) {
 	for _, want := range []string{
-		"moodle-cs/archive/refs/tags/v3.7.0.tar.gz\" 9e4c4c111137f6630f97f82e37b348d2f2a1ed8db927c1ca5e7edb625e16fc6b moodle-cs",
+		"moodle-cs/archive/refs/tags/v3.9.0.tar.gz\" 5b7118a3ad891591b8594299ae1822c2fe5c3dffe45dc65a0ad9a546f33d84f1 moodle-cs",
 		"PHPCSExtra/archive/refs/tags/1.5.1.tar.gz\" ee20b0d5f1f295dba7f37b259283c6c7544b57803600c9b825d10806ad614c1c PHPCSExtra",
 		"PHPCSUtils/archive/refs/tags/1.2.3.tar.gz\" 1bd2198fefb8e9081ce35332127aca50f01cd4106d6f7f6bd28c0d507041d6c9 PHPCSUtils",
 		"sha256sum -c -",

@@ -42,7 +42,8 @@ const (
 )
 
 // TransferFile is the AI contexts export file: the registered folders
-// with their standards and agents, and the custom contexts they use.
+// with their standards, agents and category, and the custom contexts they
+// use.
 type TransferFile struct {
 	Kind     string            `yaml:"kind" json:"kind"`
 	Version  int               `yaml:"version" json:"version"`
@@ -59,6 +60,7 @@ type TransferContext struct {
 	Relative bool     `yaml:"relative,omitempty" json:"relative"`
 	Models   []string `yaml:"models,omitempty" json:"models"`
 	Agents   []string `yaml:"agents" json:"agents"`
+	Category string   `yaml:"category,omitempty" json:"category"`
 }
 
 // ErrNothingToExport is returned when an export would hold no folder.
@@ -70,7 +72,7 @@ var ErrNothingToExport = i18n.NewError("aic.nothingToExport")
 func Exportable(contexts []config.AIContext, workspace string) TransferFile {
 	f := TransferFile{Kind: TransferKind, Version: TransferVersion, Contexts: []TransferContext{}}
 	for _, c := range contexts {
-		t := TransferContext{Name: c.Name, Path: c.Path, Models: c.Models, Agents: c.Agents}
+		t := TransferContext{Name: c.Name, Path: c.Path, Models: c.Models, Agents: c.Agents, Category: c.Category}
 		if workspace != "" {
 			if rel, err := filepath.Rel(filepath.Clean(workspace), c.Path); err == nil && rel != "." && filepath.IsLocal(rel) {
 				t.Path, t.Relative = filepath.ToSlash(rel), true
@@ -237,13 +239,14 @@ const (
 // version knows, Unknown the standards and agents it does not (left out),
 // Reason why it cannot be imported (State ImportInvalid).
 type ImportContext struct {
-	Name    string   `json:"name"`
-	Path    string   `json:"path"`
-	Models  []string `json:"models"`
-	Agents  []string `json:"agents"`
-	Unknown []string `json:"unknown"`
-	State   string   `json:"state"`
-	Reason  string   `json:"reason"`
+	Name     string   `json:"name"`
+	Path     string   `json:"path"`
+	Models   []string `json:"models"`
+	Agents   []string `json:"agents"`
+	Category string   `json:"category"`
+	Unknown  []string `json:"unknown"`
+	State    string   `json:"state"`
+	Reason   string   `json:"reason"`
 }
 
 // ImportPick names one folder of an export file (by its name in the file)
@@ -280,7 +283,7 @@ func knownSelection(t TransferContext, all []Model) (ms, ids, unknown []string) 
 // contexts; all holds the standards the import can use.
 func planOne(t TransferContext, path string, contexts []config.AIContext, all []Model) ImportContext {
 	ms, ids, unknown := knownSelection(t, all)
-	ic := ImportContext{Name: t.Name, Path: path, Models: ms, Agents: ids, Unknown: unknown}
+	ic := ImportContext{Name: t.Name, Path: path, Models: ms, Agents: ids, Category: strings.TrimSpace(t.Category), Unknown: unknown}
 	switch {
 	case len(ids) == 0:
 		ic.State, ic.Reason = ImportInvalid, i18n.Tr("aic.noKnownAgent", nil)
@@ -494,12 +497,30 @@ func Import(stdout io.Writer, f TransferFile, picks []ImportPick, workspace stri
 		if err := RecordContext(s.name, s.plan.Path, s.plan.Models, s.plan.Agents); err != nil {
 			ui.Err(stdout, s.plan.Path+": "+err.Error())
 			failed = true
+			continue
+		}
+		if err := importCategory(s.plan.Path, s.plan.Category); err != nil {
+			ui.Warning(stdout, i18n.Tr("aic.run.categoryFailed", i18n.Args{"path": s.plan.Path, "error": err.Error()}))
 		}
 	}
 	if failed {
 		return executor.ErrCompletedWithWarnings
 	}
 	return nil
+}
+
+// importCategory files the imported folder at path under category,
+// creating the category when this machine does not have it; "" leaves the
+// folder's category as it is.
+func importCategory(path, category string) error {
+	if category == "" {
+		return nil
+	}
+	saved, err := ensureCategory(category)
+	if err != nil {
+		return err
+	}
+	return SetContextCategory(path, saved)
 }
 
 // importCustom creates the custom contexts of f that the picked folders

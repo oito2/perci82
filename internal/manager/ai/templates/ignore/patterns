@@ -46,7 +46,6 @@ env/
 venv/
 
 # Build output and caches (build output stays readable where git tracks files in it)
-dist/
 build/
 out/
 .next/

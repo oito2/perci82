@@ -207,8 +207,8 @@ test("Criar/Editar: the app's command checklist follows the type and the saved c
     tools: { moodle: ["composer", "phpunit", "phpcs", "moodle-cs"], php: ["composer", "phpunit", "phpcs"] },
   };
   const html = ctx.buildContainerFieldsHTML("edit", "moodle", catalog, { moodleVersion: "5.1+", disabledTools: ["moodle-cs"] });
-  assert.match(html, /id="edit-tool-composer" type="checkbox" class="checkbox" checked/);
-  assert.match(html, /id="edit-tool-moodle-cs" type="checkbox" class="checkbox" \/>/);
+  assert.match(html, /id="edit-tool-composer" type="checkbox" class="checkbox mt-0.5" checked/);
+  assert.match(html, /id="edit-tool-moodle-cs" type="checkbox" class="checkbox mt-0.5" \/>/);
   assert.match(html, /moodle-cs \(padrão de código do Moodle no phpcs\)/);
   assert.doesNotMatch(ctx.buildContainerFieldsHTML("dc", "node", catalog, {}), /-tool-/);
 

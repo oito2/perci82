@@ -660,8 +660,14 @@ func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Mode
 			}
 			oldIgnores = append(oldIgnores, old)
 		}
+		oldAI, oldGemini, err := legacyPatternFiles(gitDir)
+		if err != nil {
+			return err
+		}
+		oldIgnores = append(oldIgnores, oldAI...)
+		oldGemini = append([]string{geminiignore}, oldGemini...)
 		removeIfPristine(filepath.Join(dir, ".aiexclude"), stdout, oldIgnores...)
-		removeIfPristine(filepath.Join(dir, ".geminiignore"), stdout, geminiignore)
+		removeIfPristine(filepath.Join(dir, ".geminiignore"), stdout, oldGemini...)
 	}
 
 	// OpenCode gets no read rules (its documented settings don't say how a

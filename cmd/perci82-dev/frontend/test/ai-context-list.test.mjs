@@ -29,21 +29,23 @@ const ITEMS = [
   { id: "Linux Bash", label: "Linux Bash", description: "Bash.", base: "", status: "" },
 ];
 const ROWS = [
-  { name: "Perci", path: "/ws/perci", state: "applied", divergent: false, models: ["Go"], agents: ["claude"] },
-  { name: "Velho", path: "/ws/velho", state: "outdated", divergent: true, models: [], agents: ["codex"] },
-  { name: "Mexido", path: "/ws/mexido", state: "edited", divergent: false, models: ["Go"], agents: ["claude", "codex"] },
-  { name: "Longe", path: "/ws/longe", state: "pending", divergent: false, models: ["Go"], agents: ["claude"] },
+  { name: "Perci", path: "/ws/perci", category: "Trabalho", state: "applied", divergent: false, models: ["Go"], agents: ["claude"] },
+  { name: "Velho", path: "/ws/velho", category: "", state: "outdated", divergent: true, models: [], agents: ["codex"] },
+  { name: "Mexido", path: "/ws/mexido", category: "Trabalho", state: "edited", divergent: false, models: ["Go"], agents: ["claude", "codex"] },
+  { name: "Longe", path: "/ws/longe", category: "", state: "pending", divergent: false, models: ["Go"], agents: ["claude"] },
 ];
+const CATEGORIES = [{ name: "Pessoal", uses: 0 }, { name: "Trabalho", uses: 2 }];
 
 async function screen(fixtures = {}) {
   const loaded = loadScripts(scriptOrder(), {
-    fixtures: { GetAIContextAgents: AGENTS, GetAIContextItems: ITEMS, GetAIContexts: ROWS, ...fixtures },
+    fixtures: { GetAIContextAgents: AGENTS, GetAIContextItems: ITEMS, GetAIContexts: ROWS, GetAICategories: CATEGORIES, ...fixtures },
   });
   await tick();
   loaded.ctx.loadAicRows();
+  loaded.ctx.loadAicCategories();
   await settle();
   const rows = () => loaded.element("aic-rows").children;
-  const actions = (tr) => tr.children[5].children[0].children; // [Atualizar, Alterar, Remover]
+  const actions = (tr) => tr.children[3].children[0].children; // [Atualizar, Alterar, +, Remover]
   const click = (el) => (el.listeners.click || []).forEach((fn) => fn({ preventDefault() {} }));
   const confirm = () => loaded.element("btn-confirm-ok").listeners.click.forEach((fn) => fn({}));
   const called = (name) => loaded.calls.filter((c) => c.name === name);
@@ -51,19 +53,20 @@ async function screen(fixtures = {}) {
   return { ...loaded, rows, actions, click, confirm, called, resetRun };
 }
 
-test("IA: Contextos: the list shows each folder with its agents, state and actions", async () => {
+test("IA: Contextos: the list shows each folder with its name, folder, state and actions", async () => {
   const { rows, actions, element } = await screen();
   assert.equal(rows().length, 4);
-  const cells = (tr) => tr.children.slice(0, 4).map((td) => td.textContent);
-  assert.deepEqual(cells(rows()[0]), ["Perci", "/ws/perci", "Go", "Claude Code"]);
-  assert.deepEqual(cells(rows()[1]), ["Velho", "/ws/velho", "—", "ChatGPT CLI (Codex)"]);
-  const badges = (tr) => tr.children[4].children.map((b) => b.textContent);
+  const cells = (tr) => tr.children.slice(0, 2).map((td) => td.textContent);
+  assert.deepEqual(cells(rows()[0]), ["Perci", "/ws/perci"]);
+  assert.deepEqual(cells(rows()[1]), ["Velho", "/ws/velho"]);
+  assert.equal(rows()[0].children.length, 4, "Nome | Pasta | Estado | Ações");
+  const badges = (tr) => tr.children[2].children.map((b) => b.textContent);
   assert.deepEqual(badges(rows()[0]), ["em dia"]);
   assert.deepEqual(badges(rows()[1]), ["desatualizado", "seleção diferente"]);
   assert.deepEqual(badges(rows()[2]), ["editado"]);
   assert.deepEqual(badges(rows()[3]), ["pendente"]);
-  assert.deepEqual(actions(rows()[3]).map((b) => b.disabled === true), [true, true, false], "a pending folder can only be removed");
-  assert.deepEqual(actions(rows()[0]).map((b) => b.disabled === true), [false, false, false]);
+  assert.deepEqual(actions(rows()[3]).map((b) => b.disabled === true), [true, true, false, false], "a pending folder can only be viewed and removed");
+  assert.deepEqual(actions(rows()[0]).map((b) => b.disabled === true), [false, false, false, false]);
   assert.equal(element("btn-aic-update-all").disabled, false);
 });
 
@@ -103,7 +106,7 @@ test("IA: Contextos: Remover previews the files and removes after the confirmati
   const { rows, actions, click, confirm, element, called } = await screen({
     PreviewAIContextRemove: [{ path: "AGENTS.md", action: "remove" }],
   });
-  click(actions(rows()[1])[2]);
+  click(actions(rows()[1])[3]);
   await settle();
   assert.match(element("confirm-modal-message").textContent, /• remover: AGENTS\.md[\s\S]*PROJECT\.md são mantidos[\s\S]*Remover "Velho" da lista\?/);
   confirm();
@@ -140,7 +143,7 @@ test("IA: Contextos: a folder with an unregistered context offers Registrar, whi
   element("aic-name").value = " Antigo ";
   click(element("btn-aic-register"));
   await settle();
-  assert.deepEqual(called("RegisterAIContext")[0].args, ["/ws/antigo", "Antigo"]);
+  assert.deepEqual(called("RegisterAIContext")[0].args, ["/ws/antigo", "Antigo", ""]);
 });
 
 test("IA: Contextos: Aplicar sends the name; renaming without file changes asks to update only the record", async () => {
@@ -159,7 +162,7 @@ test("IA: Contextos: Aplicar sends the name; renaming without file changes asks 
   assert.match(element("confirm-modal-message").textContent, /só o registro de "Perci 2"/);
   confirm();
   const apply = called("ApplyAIContext")[0];
-  assert.deepEqual(JSON.parse(JSON.stringify(apply.args)), ["/ws/perci", "Perci 2", ["Go"], ["claude"]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(apply.args)), ["/ws/perci", "Perci 2", "", ["Go"], ["claude"]]);
 });
 
 test("IA: Contextos: Exportar saves the checked folders", async () => {
@@ -250,4 +253,97 @@ test("IA: Contextos: Alterar keeps the folder when the menu item renders Aplicar
   click(actions(rows()[0])[1]);
   await settle();
   assert.equal(evalIn(ctx, "aicFolder"), "/ws/perci");
+});
+
+test("IA: Contextos: Filtrar shows a category's folders, and Atualizar todos covers only those", async () => {
+  const { rows, element, click, called } = await screen({ PreviewAIContextUpdate: [] });
+  const options = element("aic-filter").children.map((o) => o.textContent);
+  assert.deepEqual(options, ["Todas", "Sem categoria", "Pessoal", "Trabalho"]);
+  const pick = (value) => { element("aic-filter").value = value; element("aic-filter").listeners.change.forEach((fn) => fn()); };
+
+  pick("Trabalho");
+  assert.deepEqual(rows().map((tr) => tr.children[0].textContent), ["Perci", "Mexido"]);
+  click(element("btn-aic-update-all"));
+  await settle();
+  assert.deepEqual(JSON.parse(JSON.stringify(called("PreviewAIContextUpdate")[0].args[0])), ["/ws/mexido"]);
+
+  pick(element("aic-filter").children[1].value); // Sem categoria
+  assert.deepEqual(rows().map((tr) => tr.children[0].textContent), ["Velho", "Longe"]);
+
+  pick("Pessoal");
+  assert.equal(rows().length, 0);
+  assert.equal(element("btn-aic-update-all").disabled, true);
+});
+
+test("IA: Contextos: + shows the folder's category, standards and agents as badges", async () => {
+  const { rows, actions, click, element } = await screen();
+  click(actions(rows()[2])[2]);
+  assert.equal(element("aic-details-title").textContent, "Mexido");
+  assert.equal(element("aic-details-category").textContent, "Trabalho");
+  const badges = (id) => element(id).children[0].children.map((b) => b.textContent);
+  assert.deepEqual(badges("aic-details-models"), ["Go"]);
+  assert.deepEqual(badges("aic-details-agents"), ["Claude Code", "ChatGPT CLI (Codex)"]);
+  click(actions(rows()[1])[2]);
+  assert.equal(element("aic-details-category").textContent, "Sem categoria");
+});
+
+test("IA: Contextos: Categorias adds, renames and deletes, telling how many projects lose it", async () => {
+  const { element, click, confirm, called } = await screen();
+  const catRows = element("aic-cat-rows").children;
+  assert.deepEqual(catRows.map((tr) => [tr.children[0].textContent, tr.children[1].textContent]), [["Pessoal", "0"], ["Trabalho", "2"]]);
+
+  element("aic-cat-new").value = "  ";
+  click(element("btn-aic-cat-add"));
+  assert.match(element("error-modal-message").textContent, /Informe o nome/);
+  element("aic-cat-new").value = " Clientes ";
+  click(element("btn-aic-cat-add"));
+  await settle();
+  assert.deepEqual(called("AddAICategory")[0].args, ["Clientes"]);
+
+  const act = (i) => catRows[i].children[2].children[0].children; // [Renomear, Apagar]
+  click(act(1)[0]);
+  assert.equal(element("aic-cat-name").value, "Trabalho");
+  element("aic-cat-name").value = "Empresa";
+  click(element("btn-aic-cat-save"));
+  await settle();
+  assert.deepEqual(called("RenameAICategory")[0].args, ["Trabalho", "Empresa"]);
+
+  click(act(1)[1]);
+  assert.match(element("confirm-modal-message").textContent, /2 projeto\(s\) ficarão sem categoria/);
+  confirm();
+  await settle();
+  assert.deepEqual(called("DeleteAICategory")[0].args, ["Trabalho"]);
+});
+
+test("IA: Contextos: the form shows the agents disabled until a folder is chosen, and sends the category", async () => {
+  const record = { registered: true, hasContext: true, name: "Perci", category: "Trabalho", models: ["Go"], agents: ["claude"] };
+  const { element, ctx, called, confirm } = await screen({ GetAIContextRecord: record, PreviewAIContext: [] });
+  evalIn(ctx, 'aicFolder = ""; renderAicItems();');
+  await settle();
+  const boxes = () => element("aic-agents").children.map((l) => l.children[0]);
+  assert.equal(boxes().length, 2);
+  assert.ok(boxes().every((b) => b.disabled), "agents disabled without a folder");
+  assert.equal(element("aic-category").disabled, true);
+  assert.deepEqual(element("aic-category").children.map((o) => o.textContent), ["Sem categoria", "Pessoal", "Trabalho"]);
+
+  evalIn(ctx, 'aicFolder = "/ws/perci"; renderAicItems();');
+  await settle();
+  assert.ok(boxes().every((b) => !b.disabled));
+  assert.equal(element("aic-category").value, "Trabalho");
+  element("aic-category").value = "Pessoal";
+  element("btn-aic-apply").onclick();
+  await settle();
+  confirm();
+  assert.equal(called("ApplyAIContext")[0].args[2], "Pessoal");
+});
+
+test("IA: Contextos: each Exportar row shows the name, folder, agents and contexts as badges", async () => {
+  const { element } = await screen();
+  const row = element("aic-export-list").children[2];
+  const text = row.children[1];
+  assert.equal(text.children[0].textContent, "Mexido");
+  assert.equal(text.children[1].textContent, "/ws/mexido");
+  const badgeLine = (i) => [text.children[i].children[0].textContent, text.children[i].children[1].children.map((b) => b.textContent)];
+  assert.deepEqual(badgeLine(2), ["Agentes aplicados:", ["Claude Code", "ChatGPT CLI (Codex)"]]);
+  assert.deepEqual(badgeLine(3), ["Contextos aplicados:", ["Go"]]);
 });

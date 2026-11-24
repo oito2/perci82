@@ -22,6 +22,15 @@ import * as ai$0 from "../manager/ai/models.js";
 import * as $models from "./models.js";
 
 /**
+ * AddAICategory adds the category name and returns it as saved.
+ * @param {string} name
+ * @returns {$CancellablePromise<string>}
+ */
+export function AddAICategory(name) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.AddAICategory", name);
+}
+
+/**
  * AddDevFolder mounts dev into the app in folder (one password prompt): as
  * the plugin ptype_name in a Moodle app, at relPath in the other apps.
  * @param {string} dev
@@ -40,18 +49,19 @@ export function AddDevFolder(dev, folder, ptype, name, relPath) {
  * .instructions/*.md and the files of each checked agent, and removes what
  * Perci wrote for unchecked models and agents (see GenerateSharedFiles'
  * own doc comment), then registers folder as name with that selection
- * (managerai.RecordContext). The name is checked before anything is
- * written. "Aplicar" always overwrites (overwrite=true) with no extra
+ * (managerai.RecordContext), filed under category ("" for none). The name
+ * and the category are checked before anything is written. "Aplicar" always overwrites (overwrite=true) with no extra
  * confirmation — the button click is itself the confirmation, same
  * convention as every non-interactive GUI action.
  * @param {string} folder
  * @param {string} name
+ * @param {string} category
  * @param {string[]} selectedNames
  * @param {string[]} agentIDs
  * @returns {$CancellablePromise<void>}
  */
-export function ApplyAIContext(folder, name, selectedNames, agentIDs) {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.ApplyAIContext", folder, name, selectedNames, agentIDs);
+export function ApplyAIContext(folder, name, category, selectedNames, agentIDs) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.ApplyAIContext", folder, name, category, selectedNames, agentIDs);
 }
 
 /**
@@ -62,6 +72,16 @@ export function ApplyAIContext(folder, name, selectedNames, agentIDs) {
  */
 export function ApplyDevFolders(folder) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.ApplyDevFolders", folder);
+}
+
+/**
+ * DeleteAICategory removes the category name; the folders filed under it
+ * are left without a category.
+ * @param {string} name
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteAICategory(name) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.DeleteAICategory", name);
 }
 
 /**
@@ -87,6 +107,17 @@ export function ExportAIContexts(path, paths) {
 }
 
 /**
+ * GetAICategories lists the categories, in alphabetical order, with their
+ * use counts.
+ * @returns {$CancellablePromise<$models.AICategory[]>}
+ */
+export function GetAICategories() {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetAICategories").then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType1($result);
+    }));
+}
+
+/**
  * GetAIContextAgents lists the supported agents, marking the ones the
  * context in folder was generated for.
  * @param {string} folder
@@ -94,7 +125,7 @@ export function ExportAIContexts(path, paths) {
  */
 export function GetAIContextAgents(folder) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetAIContextAgents", folder).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
+        return $$createType3($result);
     }));
 }
 
@@ -106,7 +137,7 @@ export function GetAIContextAgents(folder) {
  */
 export function GetAIContextItems(folder) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetAIContextItems", folder).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
+        return $$createType5($result);
     }));
 }
 
@@ -116,7 +147,7 @@ export function GetAIContextItems(folder) {
  */
 export function GetAIContextPresets() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetAIContextPresets").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType7($result);
     }));
 }
 
@@ -128,7 +159,7 @@ export function GetAIContextPresets() {
  */
 export function GetAIContextRecord(folder) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetAIContextRecord", folder).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType6($result);
+        return $$createType8($result);
     }));
 }
 
@@ -160,7 +191,7 @@ export function GetAIContextSuggestedPreset(folder) {
  */
 export function GetAIContexts() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetAIContexts").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType8($result);
+        return $$createType10($result);
     }));
 }
 
@@ -173,7 +204,7 @@ export function GetAIContexts() {
  */
 export function GetAgentSkillsRows(global, folder) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetAgentSkillsRows", global, folder).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType10($result);
+        return $$createType12($result);
     }));
 }
 
@@ -183,7 +214,7 @@ export function GetAgentSkillsRows(global, folder) {
  */
 export function GetCustomContexts() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetCustomContexts").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType12($result);
+        return $$createType14($result);
     }));
 }
 
@@ -194,7 +225,7 @@ export function GetCustomContexts() {
  */
 export function GetDevFolders() {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetDevFolders").then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType13($result);
+        return $$createType15($result);
     }));
 }
 
@@ -207,7 +238,7 @@ export function GetDevFolders() {
  */
 export function GetMCPServerRows(global, folder) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetMCPServerRows", global, folder).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType15($result);
+        return $$createType17($result);
     }));
 }
 
@@ -219,7 +250,7 @@ export function GetMCPServerRows(global, folder) {
  */
 export function GetMoodlePluginTypes(folder) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.GetMoodlePluginTypes", folder).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType16($result);
+        return $$createType18($result);
     }));
 }
 
@@ -249,7 +280,7 @@ export function ImportAIContexts(path, picks) {
  */
 export function InspectDevFolder(dev, folder, ptype, name, relPath) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.InspectDevFolder", dev, folder, ptype, name, relPath).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType17($result);
+        return $$createType19($result);
     }));
 }
 
@@ -356,7 +387,7 @@ export function PickMCPServerParam(slug) {
  */
 export function PreviewAIContext(folder, selectedNames, agentIDs) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.PreviewAIContext", folder, selectedNames, agentIDs).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType19($result);
+        return $$createType21($result);
     }));
 }
 
@@ -371,7 +402,7 @@ export function PreviewAIContext(folder, selectedNames, agentIDs) {
  */
 export function PreviewAIContextImport(path, paths) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.PreviewAIContextImport", path, paths).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType20($result);
+        return $$createType22($result);
     }));
 }
 
@@ -385,7 +416,7 @@ export function PreviewAIContextImport(path, paths) {
  */
 export function PreviewAIContextImportChanges(path, picks) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.PreviewAIContextImportChanges", path, picks).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType22($result);
+        return $$createType24($result);
     }));
 }
 
@@ -398,7 +429,7 @@ export function PreviewAIContextImportChanges(path, picks) {
  */
 export function PreviewAIContextRemove(path) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.PreviewAIContextRemove", path).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType19($result);
+        return $$createType21($result);
     }));
 }
 
@@ -410,20 +441,21 @@ export function PreviewAIContextRemove(path) {
  */
 export function PreviewAIContextUpdate(paths) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.PreviewAIContextUpdate", paths).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType22($result);
+        return $$createType24($result);
     }));
 }
 
 /**
  * RegisterAIContext adds folder, whose files hold a context Perci
- * generated, to the list as name with the standards and agents they hold;
- * no file is written.
+ * generated, to the list as name with the standards and agents they hold,
+ * filed under category ("" for none); no file is written.
  * @param {string} folder
  * @param {string} name
+ * @param {string} category
  * @returns {$CancellablePromise<void>}
  */
-export function RegisterAIContext(folder, name) {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.RegisterAIContext", folder, name);
+export function RegisterAIContext(folder, name, category) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.RegisterAIContext", folder, name, category);
 }
 
 /**
@@ -476,6 +508,17 @@ export function RemoveMCPServer(slug, global, folder) {
 }
 
 /**
+ * RenameAICategory renames the category from to name, also in the folders
+ * filed under it.
+ * @param {string} $from
+ * @param {string} name
+ * @returns {$CancellablePromise<void>}
+ */
+export function RenameAICategory($from, name) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.RenameAICategory", $from, name);
+}
+
+/**
  * SaveCustomContext creates (empty ID) or replaces a custom context and
  * returns it as saved.
  * @param {ai$0.CustomContext} c
@@ -483,7 +526,7 @@ export function RemoveMCPServer(slug, global, folder) {
  */
 export function SaveCustomContext(c) {
     return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.SaveCustomContext", c).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType11($result);
+        return $$createType13($result);
     }));
 }
 
@@ -537,26 +580,28 @@ export function UpdateMCPServer(slug, global, folder, param) {
 }
 
 // Private type creation functions
-const $$createType0 = $models.AIContextAgent.createFrom;
+const $$createType0 = $models.AICategory.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.AIContextItem.createFrom;
+const $$createType2 = $models.AIContextAgent.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $models.AIContextPreset.createFrom;
+const $$createType4 = $models.AIContextItem.createFrom;
 const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $models.AIContextRecord.createFrom;
-const $$createType7 = $models.AIContextRow.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $models.AgentSkillRow.createFrom;
+const $$createType6 = $models.AIContextPreset.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $models.AIContextRecord.createFrom;
+const $$createType9 = $models.AIContextRow.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = ai$0.CustomContext.createFrom;
+const $$createType11 = $models.AgentSkillRow.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $models.DevFoldersScreen.createFrom;
-const $$createType14 = $models.MCPServerRow.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $Create.Array($Create.Any);
-const $$createType17 = $models.DevFolderCheck.createFrom;
-const $$createType18 = $models.AIContextChange.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = $models.AIContextImportPreview.createFrom;
-const $$createType21 = $models.AIContextFolderChanges.createFrom;
-const $$createType22 = $Create.Array($$createType21);
+const $$createType13 = ai$0.CustomContext.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = $models.DevFoldersScreen.createFrom;
+const $$createType16 = $models.MCPServerRow.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = $Create.Array($Create.Any);
+const $$createType19 = $models.DevFolderCheck.createFrom;
+const $$createType20 = $models.AIContextChange.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = $models.AIContextImportPreview.createFrom;
+const $$createType23 = $models.AIContextFolderChanges.createFrom;
+const $$createType24 = $Create.Array($$createType23);

@@ -20,8 +20,9 @@
 "use strict";
 
 // ===========================================================================
-// "Contextos de IA": Aplicar Contexto (#aicdefine-container, plus the
-// "Contextos aplicados" tab with the registered folders), Gerenciar
+// "Contextos de IA": Gerenciar Projetos (#aicdefine-container, plus the
+// "Contextos aplicados" tab with the registered folders and the
+// "Categorias" tab), Gerenciar
 // Contextos (#aiclibrary-container, plus the "Contextos personalizados"
 // tab) and Exportar/Importar (#aictransfer-container, plus the "Importar"
 // tab).
@@ -64,6 +65,23 @@ const aicImportList = document.getElementById("aic-import-list");
 const aicImportNote = document.getElementById("aic-import-note");
 const aicImportNoteText = document.getElementById("aic-import-note-text");
 const btnAicImport = document.getElementById("btn-aic-import");
+const tabLabelAicCategories = document.getElementById("tab-label-aic-categories");
+const aicCategory = document.getElementById("aic-category");
+const aicFilter = document.getElementById("aic-filter");
+const aicFilterEmpty = document.getElementById("aic-filter-empty");
+const aicCatNew = document.getElementById("aic-cat-new");
+const btnAicCatAdd = document.getElementById("btn-aic-cat-add");
+const aicCatRows = document.getElementById("aic-cat-rows");
+const aicCatEmpty = document.getElementById("aic-cat-empty");
+const aicCatModal = document.getElementById("aic-cat-modal");
+const aicCatName = document.getElementById("aic-cat-name");
+const btnAicCatSave = document.getElementById("btn-aic-cat-save");
+const aicDetailsModal = document.getElementById("aic-details-modal");
+const aicDetailsTitle = document.getElementById("aic-details-title");
+const aicDetailsPath = document.getElementById("aic-details-path");
+const aicDetailsCategory = document.getElementById("aic-details-category");
+const aicDetailsModels = document.getElementById("aic-details-models");
+const aicDetailsAgents = document.getElementById("aic-details-agents");
 
 // aicFolder is the folder "Definir Contexto" works on; aicContexts the
 // rows of the "Contextos" tab last loaded (GetAIContexts); aicAgentLabels
@@ -71,9 +89,19 @@ const btnAicImport = document.getElementById("btn-aic-import");
 let aicFolder = "";
 let aicContexts = [];
 let aicAgentLabels = {};
+// aicAgentList is every agent ({id, label}), shown disabled before a folder
+// is chosen.
+let aicAgentList = [];
+// aicCategories is the categories ({name, uses}) last loaded; aicFilterValue
+// the "Filtrar" choice: AIC_FILTER_ALL, AIC_FILTER_NONE or a category.
+let aicCategories = [];
+const AIC_FILTER_ALL = "";
+const AIC_FILTER_NONE = "\u0000none";
+let aicFilterValue = AIC_FILTER_ALL;
 
 const aicAgentLabelsReady = App.GetAIContextAgents("").then(function (agents) {
-  (agents || []).forEach(function (a) { aicAgentLabels[a.id] = a.label; });
+  aicAgentList = (agents || []).map(function (a) { return { id: a.id, label: a.label }; });
+  aicAgentList.forEach(function (a) { aicAgentLabels[a.id] = a.label; });
 }).catch(function () {});
 
 // aicModelLabels is the label of each standard ID, in the language of the
@@ -100,6 +128,33 @@ function aicAgentsText(ids) {
 // aicModelsText names the standards of models, "—" for none.
 function aicModelsText(models) {
   return (models || []).map(function (m) { return aicModelLabels[m] || m; }).join(", ") || "—";
+}
+
+// aicBadges returns a wrapping list of small badges, one per text, or "—"
+// when there is none.
+function aicBadges(texts) {
+  const wrap = document.createElement("div");
+  wrap.className = "flex flex-wrap gap-1";
+  if (!texts.length) {
+    wrap.textContent = "—";
+    return wrap;
+  }
+  texts.forEach(function (text) {
+    const b = document.createElement("span");
+    b.className = "badge badge-sm badge-soft";
+    b.textContent = text;
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+
+// aicModelLabelList and aicAgentLabelList name the standards and agents of
+// a folder.
+function aicModelLabelList(models) {
+  return (models || []).map(function (m) { return aicModelLabels[m] || m; });
+}
+function aicAgentLabelList(ids) {
+  return (ids || []).map(function (id) { return aicAgentLabels[id] || id; });
 }
 
 // aicNameError tells what is wrong with name for the folder at path
@@ -201,6 +256,19 @@ function aicRemove(row) {
   }).catch(function (err) { openError(t("aic.previewFailed", { error: err })); });
 }
 
+// aicShowDetails opens the "+" window of row: its category, standards and
+// agents.
+function aicShowDetails(row) {
+  aicDetailsTitle.textContent = row.name;
+  aicDetailsPath.textContent = row.path;
+  aicDetailsCategory.textContent = row.category || t("aic.noCategory");
+  aicDetailsModels.innerHTML = "";
+  aicDetailsModels.appendChild(aicBadges(aicModelLabelList(row.models)));
+  aicDetailsAgents.innerHTML = "";
+  aicDetailsAgents.appendChild(aicBadges(aicAgentLabelList(row.agents)));
+  showDialog(aicDetailsModal);
+}
+
 // buildAicRow builds the table row of one registered folder.
 function buildAicRow(row) {
   const tr = document.createElement("tr");
@@ -213,8 +281,6 @@ function buildAicRow(row) {
   };
   cell(row.name, "font-medium");
   cell(row.path, "break-all text-sm");
-  cell(aicModelsText(row.models), "text-sm");
-  cell(aicAgentsText(row.agents), "text-sm");
 
   const tdState = document.createElement("td");
   const st = AIC_ROW_STATE[row.state] || { label: row.state, cls: "badge-ghost", title: "" };
@@ -247,6 +313,10 @@ function buildAicRow(row) {
   btnEdit.addEventListener("click", function () { aicEdit(row); });
   wrap.appendChild(btnEdit);
 
+  const btnDetails = iconButton("plus", t("aic.details"));
+  btnDetails.addEventListener("click", function () { aicShowDetails(row); });
+  wrap.appendChild(btnDetails);
+
   const btnRemove = iconButton("trash2", t("docker.remove"));
   btnRemove.addEventListener("click", function () { aicRemove(row); });
   wrap.appendChild(btnRemove);
@@ -256,14 +326,29 @@ function buildAicRow(row) {
   return tr;
 }
 
+// aicVisibleRows lists the registered folders the "Filtrar" choice shows.
+function aicVisibleRows() {
+  if (aicFilterValue === AIC_FILTER_ALL) return aicContexts;
+  const want = aicFilterValue === AIC_FILTER_NONE ? "" : aicFilterValue;
+  return aicContexts.filter(function (c) { return (c.category || "") === want; });
+}
+
+// renderAicTable fills the "Contextos aplicados" table with the folders the
+// filter shows; Atualizar todos covers only those.
+function renderAicTable() {
+  const visible = aicVisibleRows();
+  aicRowsEl.innerHTML = "";
+  visible.forEach(function (row) { aicRowsEl.appendChild(buildAicRow(row)); });
+  aicEmpty.classList.toggle("hidden", aicContexts.length > 0);
+  aicFilterEmpty.classList.toggle("hidden", aicContexts.length === 0 || visible.length > 0);
+  btnAicUpdateAll.disabled = !visible.some(aicNeedsUpdate);
+}
+
 // renderAicRows fills the "Contextos aplicados" table and the Exportar checklist
 // with rows (AIContextRow).
 function renderAicRows(rows) {
   aicContexts = rows || [];
-  aicRowsEl.innerHTML = "";
-  aicContexts.forEach(function (row) { aicRowsEl.appendChild(buildAicRow(row)); });
-  aicEmpty.classList.toggle("hidden", aicContexts.length > 0);
-  btnAicUpdateAll.disabled = !aicContexts.some(aicNeedsUpdate);
+  renderAicTable();
   renderAicExport();
 }
 
@@ -274,8 +359,139 @@ function loadAicRows() {
 }
 
 btnAicUpdateAll.addEventListener("click", function () {
-  const paths = aicContexts.filter(aicNeedsUpdate).map(function (c) { return c.path; });
+  const paths = aicVisibleRows().filter(aicNeedsUpdate).map(function (c) { return c.path; });
   if (paths.length) aicUpdate(paths);
+});
+
+aicFilter.addEventListener("change", function () {
+  aicFilterValue = aicFilter.value;
+  renderAicTable();
+});
+
+// ===========================================================================
+// Categories: the "Categoria" select of "Aplicar contexto", the "Filtrar"
+// select of "Contextos aplicados" and the "Categorias" tab.
+// ===========================================================================
+
+// aicOption builds one <option>.
+function aicOption(value, text) {
+  const opt = document.createElement("option");
+  opt.value = value;
+  opt.textContent = text;
+  return opt;
+}
+
+// renderAicCategorySelect fills the "Categoria" select, keeping its value
+// when it still exists.
+function renderAicCategorySelect() {
+  const keep = aicCategory.value;
+  aicCategory.innerHTML = "";
+  aicCategory.appendChild(aicOption("", t("aic.noCategory")));
+  aicCategories.forEach(function (c) { aicCategory.appendChild(aicOption(c.name, c.name)); });
+  aicCategory.value = aicCategories.some(function (c) { return c.name === keep; }) ? keep : "";
+}
+
+// renderAicFilterSelect fills the "Filtrar" select; a filter on a category
+// that no longer exists goes back to "Todas".
+function renderAicFilterSelect() {
+  aicFilter.innerHTML = "";
+  aicFilter.appendChild(aicOption(AIC_FILTER_ALL, t("aic.filterAll")));
+  aicFilter.appendChild(aicOption(AIC_FILTER_NONE, t("aic.noCategory")));
+  aicCategories.forEach(function (c) { aicFilter.appendChild(aicOption(c.name, c.name)); });
+  if (aicFilterValue !== AIC_FILTER_ALL && aicFilterValue !== AIC_FILTER_NONE &&
+      !aicCategories.some(function (c) { return c.name === aicFilterValue; })) {
+    aicFilterValue = AIC_FILTER_ALL;
+  }
+  aicFilter.value = aicFilterValue;
+}
+
+// aicCatRenaming is the category the Renomear window works on.
+let aicCatRenaming = "";
+
+// buildAicCatRow builds the row of one category of the "Categorias" tab.
+function buildAicCatRow(cat) {
+  const tr = document.createElement("tr");
+  const tdName = document.createElement("td");
+  tdName.className = "font-medium";
+  tdName.textContent = cat.name;
+  tr.appendChild(tdName);
+  const tdUses = document.createElement("td");
+  tdUses.textContent = String(cat.uses);
+  tr.appendChild(tdUses);
+  const tdActions = document.createElement("td");
+  const wrap = document.createElement("div");
+  wrap.className = "flex gap-1";
+  const btnRename = iconButton("pencil", t("aic.cat.rename"));
+  btnRename.addEventListener("click", function () {
+    aicCatRenaming = cat.name;
+    aicCatName.value = cat.name;
+    showDialog(aicCatModal);
+  });
+  wrap.appendChild(btnRename);
+  const btnDelete = iconButton("trash2", t("aic.cat.delete"));
+  btnDelete.addEventListener("click", function () {
+    const msg = cat.uses
+      ? t("aic.cat.deleteUsed", { name: cat.name, count: cat.uses })
+      : t("aic.cat.deleteConfirm", { name: cat.name });
+    openConfirm(t("aic.cat.deleteTitle"), msg, function () {
+      App.DeleteAICategory(cat.name).then(aicCategoriesChanged)
+        .catch(function (err) { openError(String(err)); });
+    });
+  });
+  wrap.appendChild(btnDelete);
+  tdActions.appendChild(wrap);
+  tr.appendChild(tdActions);
+  return tr;
+}
+
+// renderAicCatRows fills the "Categorias" tab.
+function renderAicCatRows() {
+  aicCatRows.innerHTML = "";
+  aicCategories.forEach(function (c) { aicCatRows.appendChild(buildAicCatRow(c)); });
+  aicCatEmpty.classList.toggle("hidden", aicCategories.length > 0);
+}
+
+// loadAicCategories reads the categories and refreshes everything that
+// shows them.
+function loadAicCategories() {
+  return App.GetAICategories().then(latestOnly("aic-categories", function (cats) {
+    aicCategories = Array.isArray(cats) ? cats : [];
+    renderAicCategorySelect();
+    renderAicFilterSelect();
+    renderAicCatRows();
+    renderAicTable();
+  })).catch(function (err) { openError(t("aic.listFailed", { error: err })); });
+}
+
+// aicCategoriesChanged reloads the categories and the registered folders
+// after a category was added, renamed or deleted.
+function aicCategoriesChanged() {
+  loadAicCategories();
+  loadAicRows();
+}
+
+btnAicCatAdd.addEventListener("click", function () {
+  const name = aicCatNew.value.trim();
+  if (!name) {
+    openError(t("aic.cat.emptyName"));
+    return;
+  }
+  App.AddAICategory(name).then(function () {
+    aicCatNew.value = "";
+    aicCategoriesChanged();
+  }).catch(function (err) { openError(String(err)); });
+});
+
+btnAicCatSave.addEventListener("click", function () {
+  const name = aicCatName.value.trim();
+  if (!name) {
+    openError(t("aic.cat.emptyName"));
+    return;
+  }
+  App.RenameAICategory(aicCatRenaming, name).then(function () {
+    aicCatModal.close();
+    aicCategoriesChanged();
+  }).catch(function (err) { openError(String(err)); });
 });
 
 // ===========================================================================
@@ -339,8 +555,8 @@ Promise.all([App.GetAIContextPresets(), i18nReady]).then(function (res) {
 });
 
 // renderAicAgents fills the agent checkboxes from agents
-// ({id,label,selected}).
-function renderAicAgents(agents) {
+// ({id,label,selected}); disabled shows them without letting them change.
+function renderAicAgents(agents, disabled) {
   aicAgents.innerHTML = "";
   (agents || []).forEach(function (a) {
     const label = document.createElement("label");
@@ -350,6 +566,7 @@ function renderAicAgents(agents) {
     box.className = "checkbox checkbox-sm";
     box.dataset.agent = a.id;
     box.checked = !!a.selected;
+    box.disabled = !!disabled;
     label.appendChild(box);
     const text = document.createElement("span");
     text.className = "label-text";
@@ -396,7 +613,7 @@ function aicPreviewMessage(folder, changes) {
 // aicRecordOf is the AIContextRecord of rec, or an unregistered folder
 // without context when the backend sent none.
 function aicRecordOf(rec) {
-  if (!rec || Array.isArray(rec)) return { registered: false, hasContext: false, name: "", models: [], agents: [] };
+  if (!rec || Array.isArray(rec)) return { registered: false, hasContext: false, name: "", category: "", models: [], agents: [] };
   return rec;
 }
 
@@ -410,7 +627,9 @@ function resetAicDefine() {
   aicItems.innerHTML = "";
   aicCustomItems.innerHTML = "";
   aicCustomSection.classList.add("hidden");
-  aicAgents.innerHTML = "";
+  renderAicAgents(aicAgentList, true);
+  aicCategory.value = "";
+  aicCategory.disabled = true;
   btnAicApply.disabled = true;
   btnAicApply.onclick = null;
   aicPreset.disabled = true;
@@ -444,6 +663,8 @@ function renderAicItems() {
 function renderAicDefine(folder, rec, agents, items) {
   aicName.disabled = false;
   aicName.value = rec.registered ? rec.name : "";
+  aicCategory.disabled = false;
+  aicCategory.value = rec.registered && aicCategories.some(function (c) { return c.name === rec.category; }) ? rec.category : "";
   aicUnregistered.classList.toggle("hidden", rec.registered || !rec.hasContext);
   if (!rec.registered && rec.hasContext) {
     aicUnregisteredDesc.textContent = t("aic.unregistered", { models: aicModelsText(rec.models), agents: aicAgentsText(rec.agents) });
@@ -510,8 +731,9 @@ function renderAicDefine(folder, rec, agents, items) {
       openError(t("aic.err.noAgent"));
       return;
     }
+    const category = aicCategory.value;
     const apply = function () {
-      beginRun(t("aic.applyTitle"), function () { return App.ApplyAIContext(folder, name, selected, agentIDs); });
+      beginRun(t("aic.applyTitle"), function () { return App.ApplyAIContext(folder, name, category, selected, agentIDs); });
     };
     App.PreviewAIContext(folder, selected, agentIDs).then(function (changes) {
       changes = changes || [];
@@ -519,7 +741,8 @@ function renderAicDefine(folder, rec, agents, items) {
         openConfirm(t("aic.applyTitle"), aicPreviewMessage(folder, changes), apply);
         return;
       }
-      if (rec.registered && rec.name === name && aicSameSet(rec.models, selected) && aicSameSet(rec.agents, agentIDs)) {
+      if (rec.registered && rec.name === name && (rec.category || "") === category &&
+          aicSameSet(rec.models, selected) && aicSameSet(rec.agents, agentIDs)) {
         openMessage(t("aic.nothingTitle"), t("aic.nothingSelection", { path: folder }), false);
         return;
       }
@@ -537,7 +760,7 @@ btnAicRegister.addEventListener("click", function () {
     openError(nameErr);
     return;
   }
-  App.RegisterAIContext(folder, name).then(function () {
+  App.RegisterAIContext(folder, name, aicCategory.value).then(function () {
     openMessage(t("aic.registered"), t("aic.registeredText", { name: name }), false);
     loadAicRows();
     if (folder === aicFolder) renderAicItems();
@@ -577,13 +800,27 @@ function aicCheckRow(title, detail, disabled) {
 
 // ---- Exportar ---------------------------------------------------------------
 
+// aicExportBadges adds to an Exportar row a labelled line of badges.
+function aicExportBadges(parent, labelKey, texts) {
+  const line = document.createElement("div");
+  line.className = "flex flex-wrap items-center gap-1 mt-1 text-xs";
+  const label = document.createElement("span");
+  label.className = "opacity-70 mr-1";
+  label.textContent = t(labelKey);
+  line.appendChild(label);
+  line.appendChild(aicBadges(texts));
+  parent.appendChild(line);
+}
+
 // aicExportRows is the Exportar checklist: { path, box } per folder.
 let aicExportRows = [];
 
 function renderAicExport() {
   aicExportList.innerHTML = "";
   aicExportRows = aicContexts.map(function (c) {
-    const built = aicCheckRow(c.name, c.path + " · " + aicModelsText(c.models) + " · " + aicAgentsText(c.agents), false);
+    const built = aicCheckRow(c.name, c.path, false);
+    aicExportBadges(built.text, "aic.exp.agents", aicAgentLabelList(c.agents));
+    aicExportBadges(built.text, "aic.exp.contexts", aicModelLabelList(c.models));
     built.box.addEventListener("change", updateAicExport);
     aicExportList.appendChild(built.row);
     return { path: c.path, box: built.box };
@@ -796,7 +1033,9 @@ function renderAicDefineScreen() {
   aicKeepFolder = false;
   renderAicPresetOptions();
   renderAicAlert();
-  renderAicItems();
+  // The category select needs the categories before the folder's record
+  // picks its value.
+  loadAicCategories().then(renderAicItems);
   loadAicRows();
 }
 

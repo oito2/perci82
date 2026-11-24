@@ -6,8 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [Dev 1.3.0] - 2026-11-24
+
+### Added
+
+- Perci82 Dev: AI Contexts projects can be filed under **categories**. The new **Categories** tab adds, renames and deletes them (a deleted category leaves its projects without one; no project file changes). **Apply context** gets a **Category** select, and **Applied contexts** a **Filter** by category; **Update all** then covers only the folders shown. Export and import carry each folder's category, creating the missing ones.
+- Perci82 Dev: a **+** button in **Applied contexts** shows a folder's category, standards and agents as badges.
+- A weekly workflow checks the tool versions the PHP images pin (Composer, PHPUnit, PHP_CodeSniffer, moodle-cs, PHPCSExtra, PHPCSUtils) against their newest releases at least 14 days old.
+
+### Changed
+
+- Perci82 Dev: **AI Contexts → Apply Context** is now **Manage Projects**. In its **Apply context** tab the folder alert reads "Choose the project folder", the category comes before the name, separators set off **AI agents** (shown disabled until a folder is chosen) and **Project type**. **Applied contexts** shows only **Name**, **Folder**, **State** and the actions; the **Export** list shows each folder's name, path, and applied agents and contexts as badges.
+- Perci82 Dev: AI contexts no longer keep `dist/` out of the agents' reach (`.aiexclude`, `.geminiignore` and Claude Code's read rules); `build/`, `out/` and `.next/` still are. Use **Update** on a project to regenerate its files.
+- Perci82 Dev: the PHP images pin Composer 2.11.2, PHPUnit 10.5.66, 11.5.57 and 12.5.43, PHP_CodeSniffer 3.13.6 and moodle-cs 3.9.0; **Update image** rebuilds an image with them.
+- Perci82 Dev: icon buttons of the tables have no background in any state; the icon takes the theme's accent color on hover (red for a removal).
+
 ### Fixed
 
+- Perci82 Dev: in Docker → Create Container, the Nginx and Selenium explanations and the Behat test site hint no longer widen the form with a horizontal scroll bar; the Nginx and Selenium ones are now an information alert, with the noVNC address and password set apart.
 - The package repository at `https://oito2.github.io/perci82/` lacked Perci82 Dev 1.2.0: when both apps are tagged on the same commit, GitHub Pages kept the first release's site. Now only the release run that finds every release of its commit published deploys the site, and the site can be rebuilt by hand from a new commit (Actions → Pages → Run workflow).
 - `install.sh` stopped with "This release has no WebKitGTK 6.0" on releases that have it (Ubuntu 24.04 and its derivatives among them): its check failed whenever `apt-cache` kept writing after the line it looked for.
 
@@ -229,7 +245,8 @@ First release of Perci82 System, split from Perci 1.9.0.
 
 - `install-system.sh` checks, when the GitHub CLI is logged in, that `checksums.txt` was attested by the release workflow (covering the binary and the menu entry archive), and extracts only menu entries and icons from the archive.
 
-[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.2.0...HEAD
+[Unreleased]: https://github.com/oito2/perci82/compare/dev-v1.3.0...HEAD
+[Dev 1.3.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.3.0
 [Dev 1.2.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.2.0
 [System 1.2.0]: https://github.com/oito2/perci82/releases/tag/system-v1.2.0
 [Dev 1.1.0]: https://github.com/oito2/perci82/releases/tag/dev-v1.1.0

@@ -168,7 +168,7 @@ func FindContext(path string) (config.AIContext, error) {
 // standards and agents, or updates its record: the standards a selected
 // complement requires are added, unknown standards are left out, both
 // lists are kept in catalog order, and at least one known agent is
-// required.
+// required. Updating a record keeps its notes folder and category.
 func RecordContext(name, path string, modelNamesIn, agentIDs []string) error {
 	path, err := cleanContextPath(path)
 	if err != nil {
@@ -187,6 +187,7 @@ func RecordContext(name, path string, modelNamesIn, agentIDs []string) error {
 		for i, c := range cfg.AIContexts {
 			if c.Path == path {
 				rec.Notes = c.Notes
+				rec.Category = c.Category
 				cfg.AIContexts[i] = rec
 				FreezeNotes(cfg)
 				return nil

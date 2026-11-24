@@ -95,10 +95,13 @@ btnDcCreate.addEventListener("click", function () {
 
 // --- "Docker :: Gerenciar Containers" --------------------------------------
 
+// iconButton builds a table row's icon-only action button: no background
+// in any state, the icon takes the theme's accent color on hover (the
+// error color for the trash icon).
 function iconButton(name, title) {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "btn btn-ghost btn-xs";
+  btn.className = "btn btn-xs o2-icon-btn" + (name === "trash2" ? " o2-icon-danger" : "");
   btn.title = title;
   btn.setAttribute("aria-label", title); // icon only: title alone isn't announced reliably
   btn.innerHTML = LUCIDE.svg(name, { size: 16 });

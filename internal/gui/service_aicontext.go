@@ -165,11 +165,11 @@ func (t *DevToolsService) GetAIContextPresets() []AIContextPreset {
 // .instructions/*.md and the files of each checked agent, and removes what
 // Perci wrote for unchecked models and agents (see GenerateSharedFiles'
 // own doc comment), then registers folder as name with that selection
-// (managerai.RecordContext). The name is checked before anything is
-// written. "Aplicar" always overwrites (overwrite=true) with no extra
+// (managerai.RecordContext), filed under category ("" for none). The name
+// and the category are checked before anything is written. "Aplicar" always overwrites (overwrite=true) with no extra
 // confirmation — the button click is itself the confirmation, same
 // convention as every non-interactive GUI action.
-func (t *DevToolsService) ApplyAIContext(folder, name string, selectedNames, agentIDs []string) error {
+func (t *DevToolsService) ApplyAIContext(folder, name, category string, selectedNames, agentIDs []string) error {
 	if err := requireKnownFolder(folder); err != nil {
 		return err
 	}
@@ -179,11 +179,17 @@ func (t *DevToolsService) ApplyAIContext(folder, name string, selectedNames, age
 	if _, err := managerai.ValidateContextName(name, folder); err != nil {
 		return err
 	}
+	if err := managerai.CheckCategory(category); err != nil {
+		return err
+	}
 	return t.runAction(func(stdout io.Writer) error {
 		if err := managerai.GenerateSharedFiles(folder, selectedModels(selectedNames), agentIDs, true, stdout); err != nil {
 			return err
 		}
 		if err := managerai.RecordContext(name, folder, selectedNames, agentIDs); err != nil {
+			return fmt.Errorf("%s: %w", i18n.Tr("aic.registerFailed", nil), err)
+		}
+		if err := managerai.SetContextCategory(folder, category); err != nil {
 			return fmt.Errorf("%s: %w", i18n.Tr("aic.registerFailed", nil), err)
 		}
 		ui.Success(stdout, i18n.Tr("aic.run.registered", i18n.Args{"name": strings.TrimSpace(name)}))
@@ -199,6 +205,7 @@ func (t *DevToolsService) ApplyAIContext(folder, name string, selectedNames, age
 type AIContextRow struct {
 	Name      string   `json:"name"`
 	Path      string   `json:"path"`
+	Category  string   `json:"category"`
 	State     string   `json:"state"`
 	Divergent bool     `json:"divergent"`
 	Models    []string `json:"models"`
@@ -218,7 +225,7 @@ func (t *DevToolsService) GetAIContexts() ([]AIContextRow, error) {
 		if err != nil {
 			return nil, err
 		}
-		rows[i] = AIContextRow{Name: c.Name, Path: c.Path, State: st.State, Divergent: st.Divergent,
+		rows[i] = AIContextRow{Name: c.Name, Path: c.Path, Category: c.Category, State: st.State, Divergent: st.Divergent,
 			Models: nonNil(c.Models), Agents: nonNil(c.Agents)}
 	}
 	return rows, nil
@@ -242,6 +249,7 @@ type AIContextRecord struct {
 	Registered bool     `json:"registered"`
 	HasContext bool     `json:"hasContext"`
 	Name       string   `json:"name"`
+	Category   string   `json:"category"`
 	Models     []string `json:"models"`
 	Agents     []string `json:"agents"`
 }
@@ -255,7 +263,7 @@ func (t *DevToolsService) GetAIContextRecord(folder string) (AIContextRecord, er
 	rec, err := managerai.FindContext(folder)
 	switch {
 	case err == nil:
-		return AIContextRecord{Registered: true, HasContext: managerai.HasContext(folder), Name: rec.Name,
+		return AIContextRecord{Registered: true, HasContext: managerai.HasContext(folder), Name: rec.Name, Category: rec.Category,
 			Models: nonNil(rec.Models), Agents: nonNil(rec.Agents)}, nil
 	case !errors.Is(err, managerai.ErrContextNotFound):
 		return AIContextRecord{}, err
@@ -269,13 +277,69 @@ func (t *DevToolsService) GetAIContextRecord(folder string) (AIContextRecord, er
 }
 
 // RegisterAIContext adds folder, whose files hold a context Perci
-// generated, to the list as name with the standards and agents they hold;
-// no file is written.
-func (t *DevToolsService) RegisterAIContext(folder, name string) error {
+// generated, to the list as name with the standards and agents they hold,
+// filed under category ("" for none); no file is written.
+func (t *DevToolsService) RegisterAIContext(folder, name, category string) error {
 	if err := requireKnownFolder(folder); err != nil {
 		return err
 	}
-	return runExclusive(func() error { return managerai.RegisterDetected(name, folder) })
+	if err := managerai.CheckCategory(category); err != nil {
+		return err
+	}
+	return runExclusive(func() error {
+		if err := managerai.RegisterDetected(name, folder); err != nil {
+			return err
+		}
+		return managerai.SetContextCategory(folder, category)
+	})
+}
+
+// AICategory is one category of "Contextos de IA :: Categorias": its name
+// and how many registered folders are filed under it.
+type AICategory struct {
+	Name string `json:"name"`
+	Uses int    `json:"uses"`
+}
+
+// GetAICategories lists the categories, in alphabetical order, with their
+// use counts.
+func (t *DevToolsService) GetAICategories() ([]AICategory, error) {
+	names, err := managerai.Categories()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AICategory, len(names))
+	for i, n := range names {
+		uses, err := managerai.CategoryUses(n)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = AICategory{Name: n, Uses: uses}
+	}
+	return out, nil
+}
+
+// AddAICategory adds the category name and returns it as saved.
+func (t *DevToolsService) AddAICategory(name string) (string, error) {
+	var saved string
+	err := runExclusive(func() error {
+		var err error
+		saved, err = managerai.AddCategory(name)
+		return err
+	})
+	return saved, err
+}
+
+// RenameAICategory renames the category from to name, also in the folders
+// filed under it.
+func (t *DevToolsService) RenameAICategory(from, name string) error {
+	return runExclusive(func() error { return managerai.RenameCategory(from, name) })
+}
+
+// DeleteAICategory removes the category name; the folders filed under it
+// are left without a category.
+func (t *DevToolsService) DeleteAICategory(name string) error {
+	return runExclusive(func() error { return managerai.DeleteCategory(name) })
 }
 
 // requireRegisteredContext accepts only the path of a registered folder,

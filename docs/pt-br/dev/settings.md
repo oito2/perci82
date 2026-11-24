@@ -35,7 +35,7 @@ A pasta que guarda os arquivos dos apps do [Docker](docker.md) (`<workspace>/loc
 
 Uma pasta fora dos repositórios com uma subpasta por projeto que tem contexto de IA: `PROJECT.md` (as regras do projeto), `notes/`, `plans/` e `references/`. Os agentes de programação recebem acesso a ela quando um contexto é aplicado ou atualizado. Veja [Contextos de IA](ai-contexts.md).
 
-**Selecionar pasta** salva a pasta na hora (só uma pasta escolhida nessa janela, não uma escolhida para outra configuração); **Desativar** a remove, e cada projeto volta a guardar as regras no próprio `.instructions/PROJECT.md`. Depois de mudar esta pasta, use **Atualizar** em **Contextos de IA → Aplicar Contexto → Contextos aplicados**.
+**Selecionar pasta** salva a pasta na hora (só uma pasta escolhida nessa janela, não uma escolhida para outra configuração); **Desativar** a remove, e cada projeto volta a guardar as regras no próprio `.instructions/PROJECT.md`. Depois de mudar esta pasta, use **Atualizar** em **Contextos de IA → Gerenciar Projetos → Contextos aplicados**.
 
 ## Bandeja do sistema
 
@@ -61,6 +61,7 @@ No `~/.perci/config.yaml`, compartilhado com o Perci82 System. Cada aplicativo g
 | `moodle_plugins` | As pastas de desenvolvimento montadas nos apps |
 | `git_accounts` | As contas Git e as configurações dos repositórios delas |
 | `ai_contexts` | As pastas com contexto de IA |
+| `ai_context_categories` | As categorias das pastas com contexto de IA |
 | `agent_skills` | As skills instaladas, por escopo |
 | `mcp_servers` | Os servidores MCP registrados, por escopo |
 | `mcp_binaries` | Os binários de servidores MCP que o Perci82 Dev instalou, com versão e SHA-256 |

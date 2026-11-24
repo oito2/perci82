@@ -18,6 +18,7 @@ package ai
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -294,20 +295,20 @@ func TestMergeDenyRules_RemovesRulesPerciNoLongerGenerates(t *testing.T) {
 }
 
 func TestWithoutTrackedSource_KeepsVersionedSourceReadable(t *testing.T) {
-	ignore := "dist/\nbuild/\nenv/\nnode_modules/\n.env\n*.pem\n"
-	tracked := []string{"cmd/app/frontend/dist/index.html", "node_modules/x/index.js", ".env", "certs/a.pem"}
+	ignore := "build/\nout/\nenv/\nnode_modules/\n.env\n*.pem\n"
+	tracked := []string{"cmd/app/frontend/build/index.html", "node_modules/x/index.js", ".env", "certs/a.pem"}
 	rules := denyRules(withoutTrackedSource(ignore, tracked))
-	for _, gone := range []string{"Read(dist/**)"} {
+	for _, gone := range []string{"Read(build/**)"} {
 		if slices.Contains(rules, gone) {
 			t.Errorf("%s hides tracked files: %v", gone, rules)
 		}
 	}
-	for _, kept := range []string{"Read(build/**)", "Read(env/**)", "Read(node_modules/**)", "Read(.env)", "Read(*.pem)"} {
+	for _, kept := range []string{"Read(out/**)", "Read(env/**)", "Read(node_modules/**)", "Read(.env)", "Read(*.pem)"} {
 		if !slices.Contains(rules, kept) {
 			t.Errorf("missing %s in %v", kept, rules)
 		}
 	}
-	if got := denyRules(withoutTrackedSource(ignore, nil)); !slices.Contains(got, "Read(dist/**)") {
+	if got := denyRules(withoutTrackedSource(ignore, nil)); !slices.Contains(got, "Read(build/**)") {
 		t.Errorf("without a git listing every rule stays: %v", got)
 	}
 }
@@ -332,13 +333,13 @@ func TestClaudeDenyRules_ReadsTheGitListing(t *testing.T) {
 	t.Setenv("HOME", dir)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, ".config"))
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
-	if err := os.MkdirAll(filepath.Join(dir, "web", "dist"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "web", "build"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "web", "dist", "app.js"), []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "web", "build", "app.js"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, args := range [][]string{{"init", "-q"}, {"add", "web/dist/app.js"}} {
+	for _, args := range [][]string{{"init", "-q"}, {"add", "web/build/app.js"}} {
 		if out, err := exec.CommandContext(t.Context(), "git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v: %s", args, err, out)
 		}
@@ -348,7 +349,7 @@ func TestClaudeDenyRules_ReadsTheGitListing(t *testing.T) {
 		t.Fatal(err)
 	}
 	rules := denyRules(patterns)
-	if slices.Contains(rules, "Read(dist/**)") || !slices.Contains(rules, "Read(build/**)") || slices.Contains(rules, "Read(vendor/**)") {
+	if slices.Contains(rules, "Read(build/**)") || !slices.Contains(rules, "Read(out/**)") || slices.Contains(rules, "Read(vendor/**)") {
 		t.Errorf("rules = %v", rules)
 	}
 }
@@ -377,5 +378,42 @@ func TestGenerateSharedFiles_SettingsKeepModeWithoutBackup(t *testing.T) {
 	}
 	if _, err := os.Stat(settings + ".perci-bak"); !os.IsNotExist(err) {
 		t.Error("settings.json got a backup")
+	}
+}
+
+// The agents may read dist/: the patterns, and so the read rules and the
+// Gemini ignore files, leave it out, while build/ stays out of reach. A
+// Gemini ignore file an earlier version wrote, with dist/, is still
+// recognized as Perci's and goes when Gemini is unchecked.
+func TestDistIsReadable(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	dir := t.TempDir()
+	patterns, err := ignorePatterns(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules := denyRules(patterns)
+	if slices.Contains(rules, "Read(dist/**)") || !slices.Contains(rules, "Read(build/**)") {
+		t.Errorf("rules = %v", rules)
+	}
+	old, err := readTpl("templates/legacy/patterns-1.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldGemini, err := ignoreFile("templates/ignore/geminiignore-header", old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(oldGemini, "\ndist/\n") {
+		t.Fatal("the 1.2 patterns must hold dist/")
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".geminiignore"), []byte(oldGemini), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := GenerateSharedFiles(dir, nil, []string{AgentCodex}, true, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".geminiignore")); !os.IsNotExist(err) {
+		t.Errorf("the earlier .geminiignore was kept: %v", err)
 	}
 }

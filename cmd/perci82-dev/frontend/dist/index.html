@@ -114,9 +114,28 @@
      just spans both full columns instead of getting stuck in the label
      column (the selector is by tag+class, it doesn't match the
      <div class="label"> from the other rules). */
-  .dc-form-grid label.label.cursor-pointer {
+  .dc-form-grid label.label.cursor-pointer,
+  .dc-form-grid .dc-note {
     grid-column: 1 / -1;
   }
+  /* Icon-only action buttons of the tables (iconButton): no background
+     or border in any state; the icon is neutral and takes the theme's
+     accent color on hover and keyboard focus — the error color for a
+     removal. */
+  .btn.o2-icon-btn,
+  .btn.o2-icon-btn:hover,
+  .btn.o2-icon-btn:active,
+  .btn.o2-icon-btn:focus-visible,
+  .btn.o2-icon-btn:disabled {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  .btn.o2-icon-btn { color: var(--color-base-content); }
+  .btn.o2-icon-btn:hover:not(:disabled),
+  .btn.o2-icon-btn:focus-visible { color: var(--color-primary); }
+  .btn.o2-icon-btn.o2-icon-danger:hover:not(:disabled),
+  .btn.o2-icon-btn.o2-icon-danger:focus-visible { color: var(--color-error); }
 </style>
 </head>
 <body class="h-screen">
@@ -724,9 +743,11 @@
             </div>
           </div>
 
-          <!-- "Contextos de IA :: Aplicar Contexto": the folder, name,
-               agents and contexts of one project, and Aplicar. The
-               registered folders are the top-level tab #panel-aic-applied. -->
+          <!-- "Contextos de IA :: Gerenciar Projetos", tab "Aplicar
+               contexto": the folder, category, name, agents and contexts of
+               one project, and Aplicar. The registered folders are the
+               top-level tab #panel-aic-applied; the categories,
+               #panel-aic-categories. -->
           <div id="aicdefine-container" class="hidden">
             <div role="alert" class="alert mb-6 flex-wrap">
               <div>
@@ -735,6 +756,12 @@
               </div>
               <button id="btn-aic-pick-folder" class="btn btn-sm ml-auto">Selecionar Pasta</button>
             </div>
+
+            <!-- The project's category, optional ("Sem categoria"). -->
+            <label class="form-control max-w-md mb-4">
+              <div class="label"><span class="label-text" data-i18n="aic.category">Categoria</span></div>
+              <select id="aic-category" class="select select-bordered" disabled></select>
+            </label>
 
             <!-- Unique name of the folder in the Contextos aplicados list. -->
             <label class="form-control max-w-md mb-6">
@@ -752,12 +779,17 @@
               <button id="btn-aic-register" class="btn btn-sm ml-auto" data-i18n="aic.register">Registrar</button>
             </div>
 
+            <div class="divider"></div>
+
             <!-- The coding agents the context is generated for: only the
-                 checked agents' files are written. -->
+                 checked agents' files are written. Shown, disabled, until a
+                 folder is chosen. -->
             <div class="mb-6">
-              <div class="label"><span class="label-text" data-i18n="aic.agents">Agentes de IA</span></div>
+              <h4 class="font-semibold mb-6" data-i18n="aic.agents">Agentes de IA</h4>
               <div id="aic-agents" class="flex flex-wrap gap-x-6 gap-y-2"></div>
             </div>
+
+            <div class="divider"></div>
 
             <!-- Project type: checks the standards of one project kind at
                  once; the checkboxes below stay editable. -->
@@ -925,8 +957,14 @@
         </label>
         <div id="panel-aic-applied" class="tab-content o2-panel overflow-y-auto">
           <p class="opacity-80 mb-4" data-i18n="aic.intro">Contextos de IA são regras para direcionar o seu agente na realização de tarefas. Aqui ficam as pastas onde o Perci82 Dev aplicou um contexto.</p>
-          <div class="flex gap-2 mb-4 flex-wrap">
-            <button id="btn-aic-update-all" class="btn btn-sm" disabled data-i18n="aic.updateAll">Atualizar todos</button>
+          <!-- Filtrar by category, and Atualizar todos for the folders
+               shown. -->
+          <div class="flex items-end gap-2 mb-4 flex-wrap">
+            <label class="form-control">
+              <div class="label"><span class="label-text" data-i18n="aic.filter">Filtrar</span></div>
+              <select id="aic-filter" class="select select-bordered select-sm"></select>
+            </label>
+            <button id="btn-aic-update-all" class="btn btn-sm ml-auto" disabled data-i18n="aic.updateAll">Atualizar todos</button>
           </div>
           <div class="overflow-x-auto">
             <table class="table">
@@ -934,8 +972,6 @@
                 <tr>
                   <th data-i18n="aic.col.name">Nome</th>
                   <th data-i18n="ga.sum.folder">Pasta</th>
-                  <th data-i18n="aic.col.models">Padrões</th>
-                  <th data-i18n="aic.col.agents">Agentes</th>
                   <th data-i18n="aic.col.state">Estado</th>
                   <th class="w-px" data-i18n="itemTable.actions">Ações</th>
                 </tr>
@@ -944,6 +980,36 @@
             </table>
           </div>
           <p id="aic-empty" class="opacity-70 mt-2 hidden" data-i18n="aic.empty">Nenhuma pasta com contexto registrada ainda. Defina o contexto de uma pasta na aba Aplicar contexto.</p>
+          <p id="aic-filter-empty" class="opacity-70 mt-2 hidden" data-i18n="aic.filterEmpty">Nenhuma pasta nesta categoria.</p>
+        </div>
+
+        <!-- Own top-level tab for "Contextos de IA :: Gerenciar Projetos":
+             the categories the projects are filed under, with Adicionar
+             and, per category, Renomear / Apagar. Only visible when the
+             selected item is "aicontext-define". -->
+        <label id="tab-label-aic-categories" class="tab flex-none hidden">
+          <input type="radio" name="content-tabs" id="tab-radio-aic-categories" />
+          <span class="mr-1">🏷️</span> <span data-i18n="aic.catTab">Categorias</span>
+        </label>
+        <div id="panel-aic-categories" class="tab-content o2-panel overflow-y-auto">
+          <p class="opacity-80 mb-4" data-i18n="aic.cat.intro">As categorias organizam os projetos de Contextos aplicados. Cada projeto pode ter uma categoria, escolhida na aba Aplicar contexto.</p>
+          <div class="flex gap-2 mb-4 max-w-md">
+            <input id="aic-cat-new" type="text" class="input input-bordered input-sm flex-1" maxlength="40" placeholder="Nova categoria" data-i18n-placeholder="aic.cat.newPlaceholder" />
+            <button id="btn-aic-cat-add" class="btn btn-sm btn-primary" data-i18n="aic.cat.add">Adicionar</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th data-i18n="aic.category">Categoria</th>
+                  <th data-i18n="aic.cat.projects">Projetos</th>
+                  <th class="w-px" data-i18n="itemTable.actions">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="aic-cat-rows"></tbody>
+            </table>
+          </div>
+          <p id="aic-cat-empty" class="opacity-70 mt-2 hidden" data-i18n="aic.cat.none">Nenhuma categoria cadastrada.</p>
         </div>
 
         <!-- Own top-level tab for "Contextos de IA :: Gerenciar Contextos":
@@ -1117,6 +1183,38 @@
 
 <!-- "Contextos de IA :: Gerenciar Contextos": the text of one context,
      read only. -->
+<!-- The details of one registered folder (the "+" of Contextos
+     aplicados): its category, and its standards and agents as badges. -->
+<dialog id="aic-details-modal" class="modal">
+  <div class="modal-box">
+    <h3 id="aic-details-title" class="font-bold text-lg mb-1"></h3>
+    <p id="aic-details-path" class="text-sm opacity-70 break-all mb-4"></p>
+    <div class="label"><span class="label-text font-medium" data-i18n="aic.category">Categoria</span></div>
+    <p id="aic-details-category" class="mb-4"></p>
+    <div class="label"><span class="label-text font-medium" data-i18n="aic.col.models">Padrões</span></div>
+    <div id="aic-details-models" class="flex flex-wrap gap-1 mb-4"></div>
+    <div class="label"><span class="label-text font-medium" data-i18n="aic.col.agents">Agentes</span></div>
+    <div id="aic-details-agents" class="flex flex-wrap gap-1"></div>
+    <div class="modal-action">
+      <form method="dialog"><button class="btn" data-i18n="oito2.close">Fechar</button></form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button data-i18n="oito2.close">fechar</button></form>
+</dialog>
+
+<!-- Renomear of a category (Contextos de IA :: Categorias). -->
+<dialog id="aic-cat-modal" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg mb-4" data-i18n="aic.cat.renameTitle">Renomear categoria</h3>
+    <input id="aic-cat-name" type="text" class="input input-bordered w-full" maxlength="40" />
+    <div class="modal-action">
+      <form method="dialog"><button class="btn" data-i18n="oito2.cancel">Cancelar</button></form>
+      <button id="btn-aic-cat-save" type="button" class="btn btn-primary" data-i18n="field.save">Salvar</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button data-i18n="oito2.close">fechar</button></form>
+</dialog>
+
 <dialog id="aic-view-modal" class="modal">
   <div class="modal-box max-w-3xl">
     <h3 id="aic-view-title" class="font-bold text-lg mb-2"></h3>

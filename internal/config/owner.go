@@ -63,6 +63,7 @@ var ownedKeys = map[App][]string{
 		"mcp_binaries",
 		"moodle_plugins",
 		"ai_contexts",
+		"ai_context_categories",
 		"tray_enabled",
 		"gui_theme",
 		"language",

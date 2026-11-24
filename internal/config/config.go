@@ -95,6 +95,10 @@ type Config struct {
 	// registered through the GUI, in registration order.
 	AIContexts []AIContext `yaml:"ai_contexts,omitempty"`
 
+	// AIContextCategories lists the categories a registered folder can be
+	// filed under, in alphabetical order.
+	AIContextCategories []string `yaml:"ai_context_categories,omitempty"`
+
 	// PostinstallApplied lists, per post-install profile ID, the IDs of the
 	// post-install actions without a detectable system state that finished
 	// successfully.
@@ -138,6 +142,8 @@ type AIContext struct {
 	// the project folder's name, with a -2, -3... suffix when another
 	// context already has that name. Empty until a notes folder is set.
 	Notes string `yaml:"notes,omitempty"`
+	// Category is one of Config.AIContextCategories, or empty.
+	Category string `yaml:"category,omitempty"`
 }
 
 // GitAccount is one registered Git hosting account: its identity and SSH

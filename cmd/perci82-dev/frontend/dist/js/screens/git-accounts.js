@@ -696,12 +696,7 @@ function buildGacRow(st) {
   const btnPull = iconButton("download", t("gac.pullOne", { path: st.path }));
   btnPull.disabled = !canNet;
   btnPull.addEventListener("click", function () { gacRun("pull", st); });
-  const btnMore = document.createElement("button");
-  btnMore.type = "button";
-  btnMore.className = "btn btn-ghost btn-xs";
-  btnMore.title = t("gac.more", { path: st.path });
-  btnMore.setAttribute("aria-label", btnMore.title);
-  btnMore.innerHTML = LUCIDE.svg("plus", { size: 16 });
+  const btnMore = iconButton("plus", t("gac.more", { path: st.path }));
   btnMore.disabled = !!st.error;
   btnMore.addEventListener("click", function () { openRepoActions(st); });
   tdActions.appendChild(btnVerify);

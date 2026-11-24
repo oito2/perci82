@@ -38,9 +38,10 @@ function buttons(el) {
 
 test("Criar/Editar: only a Moodle app offers the Behat test site, saved in the request", () => {
   const { ctx, element } = loadScripts(scriptOrder());
-  assert.match(ctx.buildContainerFieldsHTML("dc", "moodle", CATALOG, { moodleVersion: "5.1+" }), /id="dc-behat" type="checkbox" class="checkbox" \/>/);
-  assert.match(ctx.buildContainerFieldsHTML("edit", "moodle", CATALOG, { moodleVersion: "5.1+", behat: true }), /id="edit-behat" type="checkbox" class="checkbox" checked/);
+  assert.match(ctx.buildContainerFieldsHTML("dc", "moodle", CATALOG, { moodleVersion: "5.1+" }), /id="dc-behat" type="checkbox" class="checkbox mt-0.5" \/>/);
+  assert.match(ctx.buildContainerFieldsHTML("edit", "moodle", CATALOG, { moodleVersion: "5.1+", behat: true }), /id="edit-behat" type="checkbox" class="checkbox mt-0.5" checked/);
   assert.doesNotMatch(ctx.buildContainerFieldsHTML("dc", "php", CATALOG, {}), /-behat/);
+  assert.match(ctx.buildContainerFieldsHTML("dc", "moodle", CATALOG, { moodleVersion: "5.1+" }), /<label class="label[^"]*o2-wrap"><input id="dc-behat"/, "the Behat hint wraps");
 
   element("t2-behat").checked = true;
   assert.equal(ctx.readContainerFieldsValues("t2", "moodle", CATALOG).behat, true);
@@ -51,7 +52,12 @@ test("Criar: Selenium has no parameters and the screen renders with it already c
   const { ctx, element } = loadScripts(scriptOrder(), {
     fixtures: { GetDockerCreateCatalog: { ...CATALOG, nginxExists: true, mariadbExists: true, seleniumExists: true, mkcertReady: true } },
   });
-  assert.match(ctx.buildContainerFieldsHTML("dc", "selenium", CATALOG, {}), /Selenium não tem parâmetros/);
+  const selenium = ctx.buildContainerFieldsHTML("dc", "selenium", CATALOG, {});
+  assert.match(selenium, /Selenium não tem parâmetros/);
+  assert.match(selenium, /class="alert alert-info alert-soft[^"]*dc-note"/, "an alert spanning the form");
+  assert.match(selenium, /<code>http:\/\/localhost:7900<\/code>/);
+  assert.match(selenium, /<code>secret<\/code>/);
+  assert.match(ctx.buildContainerFieldsHTML("dc", "nginx", CATALOG, {}), /dc-note"[\s\S]*Nginx não tem parâmetros/);
   assert.deepEqual({ ...ctx.readContainerFieldsValues("dc", "selenium", CATALOG) }, { kind: "selenium" });
   element("dc-kind").value = "nginx";
   element("dc-apptype").value = "moodle";
@@ -90,4 +96,12 @@ test("Exportar/Importar: Selenium is listed and selected like the other stack co
   assert.equal(sel.selenium, true);
   assert.equal(ctx.selectionCount(sel), 1);
   assert.match(ctx.importConfirmMessage({ commands: [] }, sel), /Selenium/);
+});
+
+test("icon buttons have no background and colour only the icon, red for a removal", () => {
+  const { ctx } = loadScripts(scriptOrder());
+  const edit = ctx.iconButton("pencil", "Editar");
+  assert.equal(edit.className, "btn btn-xs o2-icon-btn");
+  assert.equal(ctx.iconButton("trash2", "Remover").className, "btn btn-xs o2-icon-btn o2-icon-danger");
+  assert.doesNotMatch(edit.className, /btn-ghost/);
 });

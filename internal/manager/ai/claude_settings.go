@@ -63,8 +63,8 @@ func denyRules(ignoreFile string) []string {
 
 // sourceAmbiguous lists the ignore patterns that name build output or
 // dependencies in most projects but may hold versioned source in others
-// (e.g. a frontend committed under dist/).
-var sourceAmbiguous = []string{"dist/", "build/", "out/", "env/", ".next/"}
+// (e.g. a frontend committed under build/).
+var sourceAmbiguous = []string{"build/", "out/", "env/", ".next/"}
 
 // gitTrackedFiles lists the files git tracks in dir, as slash-separated
 // paths relative to the repository root. It returns nil when git is
@@ -147,12 +147,43 @@ func ignorePatterns(dir string) (string, error) {
 // legacyIgnoreFiles are the .aiexclude files earlier versions wrote.
 var legacyIgnoreFiles = []string{"templates/legacy/aiexclude-1.0", "templates/legacy/aiexclude-1.2"}
 
+// legacyPatterns are the earlier versions of templates/ignore/patterns, from
+// which they wrote .aiexclude, .geminiignore and the Claude Code read rules.
+var legacyPatterns = []string{"templates/legacy/patterns-1.2"}
+
+// legacyPatternFiles returns the .aiexclude and .geminiignore files the
+// earlier pattern lists (legacyPatterns) produced for the project at dir,
+// so the ones still as Perci wrote them are recognized.
+func legacyPatternFiles(dir string) (aiexcludes, geminiignores []string, err error) {
+	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
+	defer cancel()
+	tracked := gitTrackedFiles(ctx, dir)
+	for _, path := range legacyPatterns {
+		old, err := readTpl(path)
+		if err != nil {
+			return nil, nil, err
+		}
+		old = withoutTrackedSource(old, tracked)
+		a, err := ignoreFile("templates/ignore/aiexclude-header", old)
+		if err != nil {
+			return nil, nil, err
+		}
+		g, err := ignoreFile("templates/ignore/geminiignore-header", old)
+		if err != nil {
+			return nil, nil, err
+		}
+		aiexcludes, geminiignores = append(aiexcludes, a), append(geminiignores, g)
+	}
+	return aiexcludes, geminiignores, nil
+}
+
 // managedDenyRules returns every read rule any Perci version generated:
 // the ones a run no longer generates are removed from settings.json, while
 // rules the user added stay.
 func managedDenyRules() ([]string, error) {
 	var rules []string
-	for _, path := range append([]string{"templates/ignore/patterns"}, legacyIgnoreFiles...) {
+	sources := append([]string{"templates/ignore/patterns"}, legacyIgnoreFiles...)
+	for _, path := range append(sources, legacyPatterns...) {
 		tpl, err := readTpl(path)
 		if err != nil {
 			return nil, err

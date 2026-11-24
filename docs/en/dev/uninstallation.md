@@ -43,7 +43,7 @@ sudo apt remove perci82-dev   # or: sudo dnf remove perci82-dev
 rm -f ~/.config/autostart/io.github.oito2.perci82.dev.desktop
 ```
 
-To remove the settings, delete the keys `workspace_path`, `docker`, `git_accounts`, `agent_skills`, `mcp_servers`, `mcp_binaries`, `moodle_plugins`, `ai_contexts`, `tray_enabled`, `gui_theme`, `language` and `project_notes_path` from `~/.perci/config.yaml`, and the folders `~/.perci/appstack` and `~/.perci/git`. Delete the whole `~/.perci` folder only when Perci82 System isn't installed: it keeps its own settings there.
+To remove the settings, delete the keys `workspace_path`, `docker`, `git_accounts`, `agent_skills`, `mcp_servers`, `mcp_binaries`, `moodle_plugins`, `ai_contexts`, `ai_context_categories`, `tray_enabled`, `gui_theme`, `language` and `project_notes_path` from `~/.perci/config.yaml`, and the folders `~/.perci/appstack` and `~/.perci/git`. Delete the whole `~/.perci` folder only when Perci82 System isn't installed: it keeps its own settings there.
 
 ## Removing the package repository
 

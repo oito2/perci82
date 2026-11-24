@@ -73,12 +73,12 @@ func TestApplyAIContext_RegistersTheFolder(t *testing.T) {
 	bash := []string{"Linux Bash"}
 	codex := []string{managerai.AgentCodex}
 
-	refusedAIC(t, "empty name", func(d *DevToolsService) error { return d.ApplyAIContext(a, " ", bash, codex) })
+	refusedAIC(t, "empty name", func(d *DevToolsService) error { return d.ApplyAIContext(a, " ", "", bash, codex) })
 	if _, err := os.Stat(filepath.Join(a, "AGENTS.md")); err == nil {
 		t.Error("refused Aplicar wrote AGENTS.md")
 	}
 
-	if _, done := runAIC(t, func(d *DevToolsService) error { return d.ApplyAIContext(a, " Projeto A ", bash, codex) }); done["ok"] != true {
+	if _, done := runAIC(t, func(d *DevToolsService) error { return d.ApplyAIContext(a, " Projeto A ", "", bash, codex) }); done["ok"] != true {
 		t.Fatalf("action-done = %v", done)
 	}
 	rows := aicRows(t)
@@ -87,11 +87,11 @@ func TestApplyAIContext_RegistersTheFolder(t *testing.T) {
 		t.Fatalf("rows = %+v", rows)
 	}
 
-	refusedAIC(t, "name in use", func(d *DevToolsService) error { return d.ApplyAIContext(b, "projeto a", bash, codex) })
+	refusedAIC(t, "name in use", func(d *DevToolsService) error { return d.ApplyAIContext(b, "projeto a", "", bash, codex) })
 
 	// Applying again to the same folder updates its record.
 	if _, done := runAIC(t, func(d *DevToolsService) error {
-		return d.ApplyAIContext(a, "Renomeado", nil, []string{managerai.AgentGemini})
+		return d.ApplyAIContext(a, "Renomeado", "", nil, []string{managerai.AgentGemini})
 	}); done["ok"] != true {
 		t.Fatalf("action-done = %v", done)
 	}
@@ -113,7 +113,7 @@ func TestAIContextRecordAndRegister(t *testing.T) {
 	if err != nil || got.Registered || got.HasContext || got.Models == nil {
 		t.Fatalf("empty folder: %+v, %v", got, err)
 	}
-	if err := d.RegisterAIContext(folder, "X"); err == nil {
+	if err := d.RegisterAIContext(folder, "X", ""); err == nil {
 		t.Error("registered a folder without context")
 	}
 
@@ -124,7 +124,7 @@ func TestAIContextRecordAndRegister(t *testing.T) {
 	if err != nil || got.Registered || !got.HasContext || !slices.Equal(got.Models, []string{"Linux Bash"}) || !slices.Equal(got.Agents, []string{managerai.AgentClaude}) {
 		t.Fatalf("unregistered context: %+v, %v", got, err)
 	}
-	if err := d.RegisterAIContext(folder, "Antigo"); err != nil {
+	if err := d.RegisterAIContext(folder, "Antigo", ""); err != nil {
 		t.Fatal(err)
 	}
 	if got, err = d.GetAIContextRecord(folder); err != nil || !got.Registered || got.Name != "Antigo" {
@@ -328,5 +328,49 @@ func TestAIContextExportImport(t *testing.T) {
 	prev, err = d.PreviewAIContextImport(file, nil)
 	if err != nil || prev.Items[0].State != managerai.ImportRegistered || !slices.Equal(prev.Taken, []string{"App", "Gone"}) {
 		t.Errorf("preview after import = %+v, %v", prev, err)
+	}
+}
+
+// Categories are added, renamed and deleted through the service; Aplicar
+// files the folder under a known category and refuses an unknown one
+// before writing anything.
+func TestAICategories_Service(t *testing.T) {
+	isolateActions(t)
+	a, _ := approvePath(t.TempDir(), nil)
+	d := &DevToolsService{}
+	if saved, err := d.AddAICategory("  Clientes "); err != nil || saved != "Clientes" {
+		t.Fatalf("AddAICategory = %q, %v", saved, err)
+	}
+	refusedAIC(t, "unknown category", func(d *DevToolsService) error {
+		return d.ApplyAIContext(a, "A", "Nope", []string{"Linux Bash"}, []string{managerai.AgentCodex})
+	})
+	if _, err := os.Stat(filepath.Join(a, "AGENTS.md")); err == nil {
+		t.Error("a refused Aplicar wrote AGENTS.md")
+	}
+	if _, done := runAIC(t, func(d *DevToolsService) error {
+		return d.ApplyAIContext(a, "A", "Clientes", []string{"Linux Bash"}, []string{managerai.AgentCodex})
+	}); done["ok"] != true {
+		t.Fatalf("action-done = %v", done)
+	}
+	if rows := aicRows(t); len(rows) != 1 || rows[0].Category != "Clientes" {
+		t.Fatalf("rows = %+v", rows)
+	}
+	if cats, err := d.GetAICategories(); err != nil || len(cats) != 1 || cats[0] != (AICategory{Name: "Clientes", Uses: 1}) {
+		t.Errorf("GetAICategories = %+v, %v", cats, err)
+	}
+	if rec, err := d.GetAIContextRecord(a); err != nil || rec.Category != "Clientes" {
+		t.Errorf("GetAIContextRecord = %+v, %v", rec, err)
+	}
+	if err := d.RenameAICategory("Clientes", "Parceiros"); err != nil {
+		t.Fatal(err)
+	}
+	if rows := aicRows(t); rows[0].Category != "Parceiros" {
+		t.Errorf("category after rename = %q", rows[0].Category)
+	}
+	if err := d.DeleteAICategory("Parceiros"); err != nil {
+		t.Fatal(err)
+	}
+	if rows := aicRows(t); rows[0].Category != "" {
+		t.Errorf("category after delete = %q", rows[0].Category)
 	}
 }

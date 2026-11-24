@@ -35,7 +35,7 @@ The folder that holds the [Docker](docker.md) apps' files (`<workspace>/localhos
 
 A folder outside the repositories with one subfolder per project that has an AI context: `PROJECT.md` (the project's rules), `notes/`, `plans/` and `references/`. The coding agents get access to it when a context is applied or updated. See [AI Contexts](ai-contexts.md).
 
-**Choose folder** saves the folder at once (only a folder chosen in this dialog, not one chosen for another setting); **Turn off** clears it, and each project keeps its rules in its own `.instructions/PROJECT.md`. After changing this folder, use **Update** in **AI Contexts → Apply Context → Applied contexts**.
+**Choose folder** saves the folder at once (only a folder chosen in this dialog, not one chosen for another setting); **Turn off** clears it, and each project keeps its rules in its own `.instructions/PROJECT.md`. After changing this folder, use **Update** in **AI Contexts → Manage Projects → Applied contexts**.
 
 ## System tray
 
@@ -61,6 +61,7 @@ In `~/.perci/config.yaml`, shared with Perci82 System. Each app writes only its 
 | `moodle_plugins` | The development folders mounted into the apps |
 | `git_accounts` | The Git accounts and their repository settings |
 | `ai_contexts` | The folders with an AI context |
+| `ai_context_categories` | The categories of the folders with an AI context |
 | `agent_skills` | The skills installed, per scope |
 | `mcp_servers` | The MCP servers registered, per scope |
 | `mcp_binaries` | The MCP server binaries Perci82 Dev installed, with their version and SHA-256 |

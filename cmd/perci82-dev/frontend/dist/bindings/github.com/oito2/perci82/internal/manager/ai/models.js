@@ -100,6 +100,13 @@ export class ImportContext {
              */
             this["agents"] = [];
         }
+        if (!("category" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["category"] = "";
+        }
         if (!("unknown" in $$source)) {
             /**
              * @member
@@ -133,7 +140,7 @@ export class ImportContext {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
-        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
             $$parsedSource["models"] = $$createField2_0($$parsedSource["models"]);
@@ -142,7 +149,7 @@ export class ImportContext {
             $$parsedSource["agents"] = $$createField3_0($$parsedSource["agents"]);
         }
         if ("unknown" in $$parsedSource) {
-            $$parsedSource["unknown"] = $$createField4_0($$parsedSource["unknown"]);
+            $$parsedSource["unknown"] = $$createField5_0($$parsedSource["unknown"]);
         }
         return new ImportContext(/** @type {Partial<ImportContext>} */($$parsedSource));
     }

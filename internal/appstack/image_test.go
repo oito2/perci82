@@ -215,7 +215,7 @@ func TestEnsureImage_LabelsTheBuild(t *testing.T) {
 // supported PHP version and checks the chosen PHPUnit release supports it.
 func TestPHPUnitSelect_RunsOnEverySupportedPHP(t *testing.T) {
 	// minPHP is each PHPUnit release's minimum PHP (minor * 100 + patch).
-	minPHP := map[string]int{"9.6.39": 703, "10.5.55": 801, "11.5.39": 802, "12.5.30": 803}
+	minPHP := map[string]int{"9.6.39": 703, "10.5.66": 801, "11.5.57": 802, "12.5.43": 803}
 	for _, v := range SupportedPHPVersions {
 		full := v + ".12"
 		cmd := exec.CommandContext(t.Context(), "sh", "-c", phpunitSelect+` printf '%s %s' "$VER" "$HASH"`)

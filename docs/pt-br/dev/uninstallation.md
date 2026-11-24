@@ -43,7 +43,7 @@ sudo apt remove perci82-dev   # ou: sudo dnf remove perci82-dev
 rm -f ~/.config/autostart/io.github.oito2.perci82.dev.desktop
 ```
 
-Para remover as configurações, apague as chaves `workspace_path`, `docker`, `git_accounts`, `agent_skills`, `mcp_servers`, `mcp_binaries`, `moodle_plugins`, `ai_contexts`, `tray_enabled`, `gui_theme`, `language` e `project_notes_path` do `~/.perci/config.yaml`, e as pastas `~/.perci/appstack` e `~/.perci/git`. Apague a pasta `~/.perci` inteira só quando o Perci82 System não estiver instalado: ele guarda as configurações dele lá.
+Para remover as configurações, apague as chaves `workspace_path`, `docker`, `git_accounts`, `agent_skills`, `mcp_servers`, `mcp_binaries`, `moodle_plugins`, `ai_contexts`, `ai_context_categories`, `tray_enabled`, `gui_theme`, `language` e `project_notes_path` do `~/.perci/config.yaml`, e as pastas `~/.perci/appstack` e `~/.perci/git`. Apague a pasta `~/.perci` inteira só quando o Perci82 System não estiver instalado: ele guarda as configurações dele lá.
 
 ## Remover o repositório de pacotes
 

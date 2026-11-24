@@ -4,9 +4,9 @@
 
 # Contextos de IA
 
-Um contexto de IA é o conjunto de arquivos de regras que o Perci82 Dev grava na pasta de um projeto para os agentes de programação: as regras comuns no `AGENTS.md`, um padrão por tecnologia em `.instructions/` e os arquivos próprios de cada agente. A lista lateral tem três telas: **Aplicar Contexto**, **Gerenciar Contextos** e **Exportar/Importar**.
+Um contexto de IA é o conjunto de arquivos de regras que o Perci82 Dev grava na pasta de um projeto para os agentes de programação: as regras comuns no `AGENTS.md`, um padrão por tecnologia em `.instructions/` e os arquivos próprios de cada agente. A lista lateral tem três telas: **Gerenciar Projetos**, **Gerenciar Contextos** e **Exportar/Importar**.
 
-![Contextos de IA → Aplicar Contexto](../../img/dev-ai-contexts.png)
+![Contextos de IA → Gerenciar Projetos](../../img/dev-ai-contexts.png)
 
 ## O que um contexto grava
 
@@ -25,19 +25,20 @@ Um contexto de IA é o conjunto de arquivos de regras que o Perci82 Dev grava na
 | `.codex/config.toml` / `.codex/rules/perci.rules` | ChatGPT CLI (Codex) | Os acessos do agente |
 | `opencode.json` | OpenCode | Uma entrada em `instructions` que carrega as regras do projeto, mais os acessos do agente |
 
-O Codex e o Antigravity leem o `AGENTS.md` como está. Os arquivos mantidos fora são credenciais (`.env`, `*.pem`, `*.key`, `config.php`, `wp-config.php`, `auth.json`…), pastas de dependências e de dados (`node_modules/`, `moodledata/`, `.git/`…), pastas de IDE e saídas de teste e de profiling; `dist/`, `build/`, `out/`, `env/` e `.next/` continuam legíveis quando o git rastreia arquivos nelas.
+O Codex e o Antigravity leem o `AGENTS.md` como está. Os arquivos mantidos fora são credenciais (`.env`, `*.pem`, `*.key`, `config.php`, `wp-config.php`, `auth.json`…), pastas de dependências e de dados (`node_modules/`, `moodledata/`, `.git/`…), pastas de IDE e saídas de teste e de profiling; `build/`, `out/`, `env/` e `.next/` continuam legíveis quando o git rastreia arquivos nelas. O `dist/` é sempre legível. Um projeto cujo contexto foi aplicado por uma versão anterior continua deixando o `dist/` de fora até você usar **Atualizar** nele.
 
 Um arquivo substituído fica com uma cópia com o sufixo `.perci-bak`, menos os arquivos de configuração dos agentes em que o Perci82 Dev só mescla as chaves dele (`.claude/settings.json`, `.gemini/settings.json`, `opencode.json`): eles podem guardar tokens, então não ganham cópia e mantêm as permissões. Um `CLAUDE.md` ou `GEMINI.md` que é um link para o `AGENTS.md` é mantido. O Perci82 Dev não altera o `opencode.jsonc`; ele informa qual entrada adicionar manualmente.
 
-## Aplicar Contexto
+## Gerenciar Projetos
 
-A tela tem duas abas: **Aplicar contexto** configura uma pasta, e [Contextos aplicados](#contextos-aplicados) lista as pastas registradas.
+A tela tem três abas: **Aplicar contexto** configura uma pasta, [Contextos aplicados](#contextos-aplicados) lista as pastas registradas, e [Categorias](#categorias) as organiza.
 
-1. Clique em **Selecionar pasta** e escolha a pasta do projeto (**Trocar pasta** escolhe outra).
-2. Informe o **Nome**: até 80 caracteres, único entre as pastas registradas (sem diferenciar maiúsculas).
-3. Marque os **Agentes de IA**: ao menos um.
-4. Escolha um **Tipo de projeto** ou marque os padrões um a um, mais os [contextos personalizados](#contextos-personalizados) que quiser.
-5. Clique em **Aplicar**. Uma confirmação lista cada arquivo que será criado, atualizado ou removido; arquivos substituídos ficam com uma cópia `.perci-bak`.
+1. Clique em **Selecionar pasta**, em **Selecione a pasta do projeto**, e escolha a pasta do projeto (**Trocar pasta** escolhe outra).
+2. Se quiser, escolha uma **Categoria** (**Sem categoria** por padrão).
+3. Informe o **Nome**: até 80 caracteres, único entre as pastas registradas (sem diferenciar maiúsculas).
+4. Marque os **Agentes de IA**: ao menos um. A lista fica desabilitada até a pasta ser escolhida.
+5. Escolha um **Tipo de projeto** ou marque os padrões um a um, mais os [contextos personalizados](#contextos-personalizados) que quiser.
+6. Clique em **Aplicar**. Uma confirmação lista cada arquivo que será criado, atualizado ou removido; arquivos substituídos ficam com uma cópia `.perci-bak`.
 
 Aplicar grava os arquivos dos agentes e padrões marcados, remove os que o Perci gravou para os desmarcados (só enquanto não foram editados) e registra a pasta em **Contextos aplicados**. Quando nenhum arquivo muda, só o registro é atualizado.
 
@@ -119,11 +120,11 @@ Quando há [contextos personalizados](#contextos-personalizados-1), uma seção 
 
 ### Registrar um contexto existente
 
-Uma pasta cujos arquivos já têm um contexto gerado pelo Perci, mas que não está em **Contextos aplicados**, mostra **Contexto não registrado** com os padrões e agentes encontrados. Informe o nome e clique em **Registrar**: a pasta entra na lista e nenhum arquivo é alterado.
+Uma pasta cujos arquivos já têm um contexto gerado pelo Perci, mas que não está em **Contextos aplicados**, mostra **Contexto não registrado** com os padrões e agentes encontrados. Informe o nome, escolha a categoria se quiser e clique em **Registrar**: a pasta entra na lista e nenhum arquivo é alterado.
 
 ### Contextos aplicados
 
-A tabela lista as pastas registradas com **Nome**, **Pasta**, **Padrões**, **Agentes** e **Estado**.
+A tabela lista as pastas registradas com **Nome**, **Pasta** e **Estado**. **Filtrar** mostra todas, as **Sem categoria** ou as de uma categoria.
 
 | Estado | Significado |
 |---|---|
@@ -137,11 +138,16 @@ Um selo **seleção diferente** indica que os arquivos da pasta têm outros padr
 | Ação | O que faz |
 |---|---|
 | **Atualizar** | Regera os padrões e agentes registrados, depois de uma confirmação com as mudanças; arquivos editados são substituídos, guardando um `.perci-bak` |
-| **Atualizar todos** | O mesmo para todas as pastas desatualizadas ou editadas; uma pasta que não existe é pulada |
-| **Alterar** | Abre a pasta na aba **Aplicar contexto** com o nome, os agentes e os padrões registrados |
+| **Atualizar todos** | O mesmo para todas as pastas desatualizadas ou editadas que o filtro mostra; uma pasta que não existe é pulada |
+| **Alterar** | Abre a pasta na aba **Aplicar contexto** com a categoria, o nome, os agentes e os padrões registrados |
+| **+** | Mostra a categoria da pasta e os padrões e agentes dela como selos |
 | **Remover** | Remove os arquivos do Perci ainda não editados e tira a pasta da lista; arquivos editados e o `.instructions/PROJECT.md` ficam. Uma pasta que não existe só sai da lista |
 
 **Atualizar** e **Alterar** ficam desligados para uma pasta pendente.
+
+### Categorias
+
+As categorias organizam as pastas registradas. Digite um nome (até 40 caracteres, único, sem diferenciar maiúsculas) e clique em **Adicionar**; cada categoria mostra quantos projetos a usam. **Renomear** também renomeia a categoria nesses projetos. **Apagar** pede confirmação, dizendo quantos projetos ficarão sem categoria; nenhum arquivo dos projetos muda. As categorias ficam salvas como `ai_context_categories` no `~/.perci/config.yaml`, e a de cada pasta como `category` em `ai_contexts`.
 
 ## Gerenciar Contextos
 
@@ -171,7 +177,7 @@ Num projeto, o contexto personalizado é gravado em `.instructions/CUSTOM-<ID>.m
 
 A tela tem duas abas, **Exportar** e **Importar**.
 
-**Exportar** grava as pastas marcadas, com nomes, padrões e agentes, num arquivo YAML (`perci-contextos-ia.yaml` por padrão) legível só por você; `.yaml` é acrescentado quando o nome digitado não termina em `.yaml` nem `.yml`. O arquivo também leva o texto dos contextos personalizados que essas pastas usam. Uma pasta dentro do workspace (`workspace_path`, ou `~/workspace` quando não definido) é gravada com o caminho relativo a ele; as demais mantêm o caminho absoluto.
+**Exportar** lista cada pasta com o nome, o caminho e os agentes e contextos aplicados como selos. Grava as pastas marcadas, com nomes, categorias, padrões e agentes, num arquivo YAML (`perci-contextos-ia.yaml` por padrão) legível só por você; `.yaml` é acrescentado quando o nome digitado não termina em `.yaml` nem `.yml`. O arquivo também leva o texto dos contextos personalizados que essas pastas usam. Uma pasta dentro do workspace (`workspace_path`, ou `~/workspace` quando não definido) é gravada com o caminho relativo a ele; as demais mantêm o caminho absoluto.
 
 **Importar** lê esse arquivo (**Selecionar arquivo**) e lista cada pasta:
 
