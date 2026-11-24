@@ -32,9 +32,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
+      # Pages deploys a commit only once: a later deployment of the same
+      # commit is ignored. When several releases are tagged on this commit,
+      # only the run that finds all of them published deploys, so the site
+      # holds every app.
+      - name: Check the other releases of this commit
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          pending=""
+          for tag in $(git tag --points-at HEAD | grep -E '^(system|dev)-v[0-9]+\.[0-9]+\.[0-9]+$' || true); do
+            gh release view "$tag" -R "$REPO" >/dev/null 2>&1 || pending="$pending $tag"
+          done
+          if [ -n "$pending" ]; then
+            echo "::notice::Not deploying: the release of$pending, tagged on this commit, isn't published yet; its run deploys the site."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install the repository tools
+        if: steps.check.outputs.skip != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y apt-utils createrepo-c rpm
@@ -42,6 +63,7 @@ jobs:
       # The three newest releases of each app; releases without packages
       # (before 1.2.0) are skipped by build-pages.sh.
       - name: Download the packages of the latest releases
+        if: steps.check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -54,6 +76,7 @@ jobs:
           done
 
       - name: Import the signing key
+        if: steps.check.outputs.skip != 'true'
         env:
           REPO_SIGNING_KEY: ${{ secrets.REPO_SIGNING_KEY }}
           REPO_SIGNING_PASSPHRASE: ${{ secrets.REPO_SIGNING_PASSPHRASE }}
@@ -68,40 +91,15 @@ jobs:
           echo "REPO_PASSPHRASE_FILE=$RUNNER_TEMP/passphrase" >> "$GITHUB_ENV"
 
       - name: Build the site
+        if: steps.check.outputs.skip != 'true'
         run: scripts/build-pages.sh "$RUNNER_TEMP/site" "$RUNNER_TEMP/packages"
 
       - name: Upload the site
-        id: upload
+        if: steps.check.outputs.skip != 'true'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: ${{ runner.temp }}/site
 
-      # Pages keeps the first deployment of a build version and ignores the
-      # next ones, and deploy-pages always uses the commit SHA, which two
-      # releases tagged on the same commit share. Each run deploys with its
-      # own build version through the Pages API instead.
       - name: Deploy to GitHub Pages
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          ARTIFACT_ID: ${{ steps.upload.outputs.artifact_id }}
-          BUILD_VERSION: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-        run: |
-          oidc=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
-          echo "::add-mask::$oidc"
-          id=$(jq -n --arg a "$ARTIFACT_ID" --arg v "$BUILD_VERSION" --arg t "$oidc" \
-            '{artifact_id: ($a | tonumber), pages_build_version: $v, oidc_token: $t}' |
-            gh api -X POST "repos/$REPO/pages/deployments" --input - --jq '.id // (.status_url | split("/") | last)')
-          echo "Deployment $id of $BUILD_VERSION"
-          for _ in $(seq 1 120); do
-            sleep 5
-            status=$(gh api "repos/$REPO/pages/deployments/$id" --jq .status) || continue
-            echo "Status: $status"
-            case "$status" in
-              succeed) exit 0 ;;
-              deployment_failed | deployment_content_failed | deployment_cancelled | deployment_lost) exit 1 ;;
-            esac
-          done
-          echo "::error::The Pages deployment didn't finish in 10 minutes"
-          gh api -X POST "repos/$REPO/pages/deployments/$id/cancel" || true
-          exit 1
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
