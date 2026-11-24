@@ -82,6 +82,12 @@ const aicDetailsPath = document.getElementById("aic-details-path");
 const aicDetailsCategory = document.getElementById("aic-details-category");
 const aicDetailsModels = document.getElementById("aic-details-models");
 const aicDetailsAgents = document.getElementById("aic-details-agents");
+const aicConfirmModal = document.getElementById("aic-confirm-modal");
+const aicConfirmTitle = document.getElementById("aic-confirm-title");
+const aicConfirmMessage = document.getElementById("aic-confirm-message");
+const aicConfirmBackupWrap = document.getElementById("aic-confirm-backup-wrap");
+const aicConfirmBackup = document.getElementById("aic-confirm-backup");
+const btnAicConfirmOk = document.getElementById("btn-aic-confirm-ok");
 
 // aicFolder is the folder "Definir Contexto" works on; aicContexts the
 // rows of the "Contextos" tab last loaded (GetAIContexts); aicAgentLabels
@@ -166,6 +172,36 @@ function aicNameError(name, path) {
   return other ? t("aic.err.nameTaken", { name: name, path: other.path }) : "";
 }
 
+// aicConfirmCallback is what the open AI Contexts confirmation runs on
+// "Sim", with the backup choice.
+let aicConfirmCallback = null;
+
+btnAicConfirmOk.addEventListener("click", function () {
+  aicConfirmModal.close();
+  const cb = aicConfirmCallback;
+  aicConfirmCallback = null;
+  if (cb) cb(!!aicConfirmBackup.checked);
+});
+
+// aicConfirmReplace asks to confirm an Aplicar, Atualizar or Importar:
+// message lists the changes; when replaces (an existing file is updated)
+// a box, unchecked each time, offers a .perci-bak copy of the replaced
+// files. onConfirm receives whether it is checked.
+function aicConfirmReplace(title, message, replaces, onConfirm) {
+  aicConfirmTitle.textContent = title;
+  aicConfirmMessage.textContent = message;
+  aicConfirmBackup.checked = false;
+  aicConfirmBackupWrap.classList.toggle("hidden", !replaces);
+  aicConfirmCallback = onConfirm;
+  showDialog(aicConfirmModal);
+}
+
+// aicReplaces reports whether changes ({path, action}) update an existing
+// file.
+function aicReplaces(changes) {
+  return (changes || []).some(function (c) { return c.action === "update"; });
+}
+
 // AIC_ACTIONS maps a change's action to the message key of its verb.
 const AIC_ACTIONS = { create: "aic.act.create", update: "aic.act.update", remove: "aic.act.remove", skip: "aic.act.skip" };
 
@@ -220,9 +256,10 @@ function aicUpdate(paths) {
     const edited = {};
     aicContexts.forEach(function (c) { if (c.state === "edited") edited[c.path] = true; });
     const msg = aicFolderChangesText(previews, edited, t("aic.skippedMissing")) + "\n\n" + t("aic.backupContinue");
-    openConfirm(t("aic.updateTitle"), msg, function () {
+    const replaces = todo.some(function (p) { return aicReplaces(p.changes); });
+    aicConfirmReplace(t("aic.updateTitle"), msg, replaces, function (backup) {
       beginRun(t("aic.updateTitle"), function () {
-        return App.UpdateAIContexts(todo.map(function (p) { return p.path; }));
+        return App.UpdateAIContexts(todo.map(function (p) { return p.path; }), backup);
       }, { buttons: [btnAicUpdateAll] });
     });
   }).catch(function (err) { openError(t("aic.previewFailed", { error: err })); });
@@ -732,13 +769,13 @@ function renderAicDefine(folder, rec, agents, items) {
       return;
     }
     const category = aicCategory.value;
-    const apply = function () {
-      beginRun(t("aic.applyTitle"), function () { return App.ApplyAIContext(folder, name, category, selected, agentIDs); });
+    const apply = function (backup) {
+      beginRun(t("aic.applyTitle"), function () { return App.ApplyAIContext(folder, name, category, selected, agentIDs, !!backup); });
     };
     App.PreviewAIContext(folder, selected, agentIDs).then(function (changes) {
       changes = changes || [];
       if (changes.length) {
-        openConfirm(t("aic.applyTitle"), aicPreviewMessage(folder, changes), apply);
+        aicConfirmReplace(t("aic.applyTitle"), aicPreviewMessage(folder, changes), aicReplaces(changes), apply);
         return;
       }
       if (rec.registered && rec.name === name && (rec.category || "") === category &&
@@ -746,7 +783,7 @@ function renderAicDefine(folder, rec, agents, items) {
         openMessage(t("aic.nothingTitle"), t("aic.nothingSelection", { path: folder }), false);
         return;
       }
-      openConfirm(t("aic.applyTitle"), t("aic.recordOnly", { path: folder, name: name }), apply);
+      openConfirm(t("aic.applyTitle"), t("aic.recordOnly", { path: folder, name: name }), function () { apply(false); });
     }).catch(function (err) { openError(t("aic.previewFailed", { error: err })); });
   };
 }
@@ -1016,9 +1053,10 @@ btnAicImport.addEventListener("click", function () {
   App.PreviewAIContextImportChanges(file, picks).then(function (previews) {
     const msg = t("aic.importWhat", { count: picks.length }) + "\n\n" +
       aicFolderChangesText(previews || [], null, t("aic.imp.pendingNote")) + "\n\n" + t("aic.backupContinue");
-    openConfirm(t("aic.importTitle"), msg, function () {
+    const replaces = (previews || []).some(function (p) { return aicReplaces(p.changes); });
+    aicConfirmReplace(t("aic.importTitle"), msg, replaces, function (backup) {
       beginRun(t("aic.importTitle"), function () {
-        return App.ImportAIContexts(file, picks);
+        return App.ImportAIContexts(file, picks, backup);
       }, { buttons: [btnAicImport] });
     });
   }).catch(function (err) { openError(t("aic.previewFailed", { error: err })); });

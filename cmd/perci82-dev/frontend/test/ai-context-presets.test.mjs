@@ -85,10 +85,12 @@ test("IA: Contextos: Aplicar sends the checked agents and needs at least one", a
   boxes[1].checked = true;
   element("btn-aic-apply").onclick();
   await tick();
-  assert.match(element("confirm-modal-message").textContent, /atualizar: AGENTS\.md/);
-  element("btn-confirm-ok").listeners.click.forEach((fn) => fn({}));
+  assert.match(element("aic-confirm-message").textContent, /atualizar: AGENTS\.md/);
+  element("aic-confirm-backup").checked = true;
+  element("btn-aic-confirm-ok").listeners.click.forEach((fn) => fn({}));
   const apply = calls.find((c) => c.name === "ApplyAIContext");
   assert.deepEqual(JSON.parse(JSON.stringify(apply.args[4])), ["claude", "codex"]);
+  assert.equal(apply.args[5], true, "the checked box asks for the backup");
 
   evalIn(ctx, "running = false; activeRun = null");
   boxes.forEach((b) => { b.checked = false; });

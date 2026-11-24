@@ -166,10 +166,11 @@ func (t *DevToolsService) GetAIContextPresets() []AIContextPreset {
 // Perci wrote for unchecked models and agents (see GenerateSharedFiles'
 // own doc comment), then registers folder as name with that selection
 // (managerai.RecordContext), filed under category ("" for none). The name
-// and the category are checked before anything is written. "Aplicar" always overwrites (overwrite=true) with no extra
-// confirmation — the button click is itself the confirmation, same
-// convention as every non-interactive GUI action.
-func (t *DevToolsService) ApplyAIContext(folder, name, category string, selectedNames, agentIDs []string) error {
+// and the category are checked before anything is written. "Aplicar"
+// always replaces the existing files, saving each one that differs as
+// <file>.perci-bak only with backup; the confirmation the frontend shows
+// before calling it is where the user chooses.
+func (t *DevToolsService) ApplyAIContext(folder, name, category string, selectedNames, agentIDs []string, backup bool) error {
 	if err := requireKnownFolder(folder); err != nil {
 		return err
 	}
@@ -183,7 +184,7 @@ func (t *DevToolsService) ApplyAIContext(folder, name, category string, selected
 		return err
 	}
 	return t.runAction(func(stdout io.Writer) error {
-		if err := managerai.GenerateSharedFiles(folder, selectedModels(selectedNames), agentIDs, true, stdout); err != nil {
+		if err := managerai.RegenerateSharedFiles(folder, selectedModels(selectedNames), agentIDs, backup, stdout); err != nil {
 			return err
 		}
 		if err := managerai.RecordContext(name, folder, selectedNames, agentIDs); err != nil {
@@ -425,8 +426,9 @@ func (t *DevToolsService) PreviewAIContextUpdate(paths []string) ([]AIContextFol
 // context of its record (standards and agents), one folder after the
 // other. A missing folder or a failing generation is reported and the
 // next folder still runs; the action then ends with
-// executor.ErrCompletedWithWarnings.
-func (t *DevToolsService) UpdateAIContexts(paths []string) error {
+// executor.ErrCompletedWithWarnings. A replaced file that differs is saved
+// as <file>.perci-bak only with backup.
+func (t *DevToolsService) UpdateAIContexts(paths []string, backup bool) error {
 	recs, err := requireRegisteredContexts(paths)
 	if err != nil {
 		return err
@@ -440,7 +442,7 @@ func (t *DevToolsService) UpdateAIContexts(paths []string) error {
 				failed = true
 				continue
 			}
-			if err := managerai.GenerateSharedFiles(rec.Path, managerai.ModelsNamed(rec.Models), rec.Agents, true, stdout); err != nil {
+			if err := managerai.RegenerateSharedFiles(rec.Path, managerai.ModelsNamed(rec.Models), rec.Agents, backup, stdout); err != nil {
 				ui.Err(stdout, rec.Path+": "+err.Error())
 				failed = true
 			}
@@ -638,8 +640,9 @@ func (t *DevToolsService) PreviewAIContextImportChanges(path string, picks []man
 // ImportAIContexts imports the picks of the export file at path
 // (managerai.Import), on the Execução tab: existing folders get their
 // context and are registered, missing ones are registered as pending. The
-// picks are checked before the action starts.
-func (t *DevToolsService) ImportAIContexts(path string, picks []managerai.ImportPick) error {
+// picks are checked before the action starts. A replaced file that differs
+// is saved as <file>.perci-bak only with backup.
+func (t *DevToolsService) ImportAIContexts(path string, picks []managerai.ImportPick, backup bool) error {
 	file, err := loadAIContextImport(path, pickPaths(picks))
 	if err != nil {
 		return err
@@ -656,7 +659,7 @@ func (t *DevToolsService) ImportAIContexts(path string, picks []managerai.Import
 		return err
 	}
 	return t.runAction(func(stdout io.Writer) error {
-		return managerai.Import(stdout, file, picks, ws)
+		return managerai.Import(stdout, file, picks, ws, backup)
 	})
 }
 

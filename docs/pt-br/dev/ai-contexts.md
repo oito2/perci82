@@ -27,7 +27,7 @@ Um contexto de IA é o conjunto de arquivos de regras que o Perci82 Dev grava na
 
 O Codex e o Antigravity leem o `AGENTS.md` como está. Os arquivos mantidos fora são credenciais (`.env`, `*.pem`, `*.key`, `config.php`, `wp-config.php`, `auth.json`…), pastas de dependências e de dados (`node_modules/`, `moodledata/`, `.git/`…), pastas de IDE e saídas de teste e de profiling; `build/`, `out/`, `env/` e `.next/` continuam legíveis quando o git rastreia arquivos nelas. O `dist/` é sempre legível. Um projeto cujo contexto foi aplicado por uma versão anterior continua deixando o `dist/` de fora até você usar **Atualizar** nele.
 
-Um arquivo substituído fica com uma cópia com o sufixo `.perci-bak`, menos os arquivos de configuração dos agentes em que o Perci82 Dev só mescla as chaves dele (`.claude/settings.json`, `.gemini/settings.json`, `opencode.json`): eles podem guardar tokens, então não ganham cópia e mantêm as permissões. Um `CLAUDE.md` ou `GEMINI.md` que é um link para o `AGENTS.md` é mantido. O Perci82 Dev não altera o `opencode.jsonc`; ele informa qual entrada adicionar manualmente.
+Quando **Aplicar**, **Atualizar**, **Atualizar todos** ou **Importar** substitui arquivos existentes, a confirmação oferece **Criar uma cópia .perci-bak dos arquivos substituídos** (desmarcada sempre): marcada, cada arquivo substituído que muda fica com uma cópia com o sufixo `.perci-bak`; desmarcada, ele é substituído sem cópia. Os arquivos de configuração dos agentes em que o Perci82 Dev só mescla as chaves dele (`.claude/settings.json`, `.gemini/settings.json`, `opencode.json`): eles podem guardar tokens, então não ganham cópia e mantêm as permissões. Um `CLAUDE.md` ou `GEMINI.md` que é um link para o `AGENTS.md` é mantido. O Perci82 Dev não altera o `opencode.jsonc`; ele informa qual entrada adicionar manualmente.
 
 ## Gerenciar Projetos
 
@@ -38,7 +38,7 @@ A tela tem três abas: **Aplicar contexto** configura uma pasta, [Contextos apli
 3. Informe o **Nome**: até 80 caracteres, único entre as pastas registradas (sem diferenciar maiúsculas).
 4. Marque os **Agentes de IA**: ao menos um. A lista fica desabilitada até a pasta ser escolhida.
 5. Escolha um **Tipo de projeto** ou marque os padrões um a um, mais os [contextos personalizados](#contextos-personalizados) que quiser.
-6. Clique em **Aplicar**. Uma confirmação lista cada arquivo que será criado, atualizado ou removido; arquivos substituídos ficam com uma cópia `.perci-bak`.
+6. Clique em **Aplicar**. Uma confirmação lista cada arquivo que será criado, atualizado ou removido e, quando arquivos existentes são substituídos, oferece uma cópia `.perci-bak` deles.
 
 Aplicar grava os arquivos dos agentes e padrões marcados, remove os que o Perci gravou para os desmarcados (só enquanto não foram editados) e registra a pasta em **Contextos aplicados**. Quando nenhum arquivo muda, só o registro é atualizado.
 
@@ -112,7 +112,7 @@ Cada padrão que já está na pasta mostra um selo:
 |---|---|
 | **aplicado** | Igual ao que esta versão do Perci82 Dev gera |
 | **desatualizado** | Gerado por uma versão anterior do Perci: Aplicar atualiza |
-| **editado** | Editado à mão: Aplicar substitui, guardando um `.perci-bak` |
+| **editado** | Editado à mão: Aplicar substitui, com uma cópia `.perci-bak` se você pedir |
 
 ### Contextos personalizados
 
@@ -137,7 +137,7 @@ Um selo **seleção diferente** indica que os arquivos da pasta têm outros padr
 
 | Ação | O que faz |
 |---|---|
-| **Atualizar** | Regera os padrões e agentes registrados, depois de uma confirmação com as mudanças; arquivos editados são substituídos, guardando um `.perci-bak` |
+| **Atualizar** | Regera os padrões e agentes registrados, depois de uma confirmação com as mudanças; arquivos editados são substituídos, com uma cópia `.perci-bak` se você pedir |
 | **Atualizar todos** | O mesmo para todas as pastas desatualizadas ou editadas que o filtro mostra; uma pasta que não existe é pulada |
 | **Alterar** | Abre a pasta na aba **Aplicar contexto** com a categoria, o nome, os agentes e os padrões registrados |
 | **+** | Mostra a categoria da pasta e os padrões e agentes dela como selos |

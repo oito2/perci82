@@ -73,12 +73,12 @@ func TestApplyAIContext_RegistersTheFolder(t *testing.T) {
 	bash := []string{"Linux Bash"}
 	codex := []string{managerai.AgentCodex}
 
-	refusedAIC(t, "empty name", func(d *DevToolsService) error { return d.ApplyAIContext(a, " ", "", bash, codex) })
+	refusedAIC(t, "empty name", func(d *DevToolsService) error { return d.ApplyAIContext(a, " ", "", bash, codex, true) })
 	if _, err := os.Stat(filepath.Join(a, "AGENTS.md")); err == nil {
 		t.Error("refused Aplicar wrote AGENTS.md")
 	}
 
-	if _, done := runAIC(t, func(d *DevToolsService) error { return d.ApplyAIContext(a, " Projeto A ", "", bash, codex) }); done["ok"] != true {
+	if _, done := runAIC(t, func(d *DevToolsService) error { return d.ApplyAIContext(a, " Projeto A ", "", bash, codex, true) }); done["ok"] != true {
 		t.Fatalf("action-done = %v", done)
 	}
 	rows := aicRows(t)
@@ -87,11 +87,11 @@ func TestApplyAIContext_RegistersTheFolder(t *testing.T) {
 		t.Fatalf("rows = %+v", rows)
 	}
 
-	refusedAIC(t, "name in use", func(d *DevToolsService) error { return d.ApplyAIContext(b, "projeto a", "", bash, codex) })
+	refusedAIC(t, "name in use", func(d *DevToolsService) error { return d.ApplyAIContext(b, "projeto a", "", bash, codex, true) })
 
 	// Applying again to the same folder updates its record.
 	if _, done := runAIC(t, func(d *DevToolsService) error {
-		return d.ApplyAIContext(a, "Renomeado", "", nil, []string{managerai.AgentGemini})
+		return d.ApplyAIContext(a, "Renomeado", "", nil, []string{managerai.AgentGemini}, true)
 	}); done["ok"] != true {
 		t.Fatalf("action-done = %v", done)
 	}
@@ -183,7 +183,7 @@ func TestUpdateAIContexts(t *testing.T) {
 		t.Error("the preview changed the folder")
 	}
 
-	logs, done := runAIC(t, func(d *DevToolsService) error { return d.UpdateAIContexts([]string{a, missing}) })
+	logs, done := runAIC(t, func(d *DevToolsService) error { return d.UpdateAIContexts([]string{a, missing}, true) })
 	if done["ok"] != false || !strings.Contains(logs, "Pasta não encontrada") {
 		t.Errorf("action-done = %v, logs %q", done, logs)
 	}
@@ -191,7 +191,7 @@ func TestUpdateAIContexts(t *testing.T) {
 		t.Error("the existing folder was not regenerated")
 	}
 
-	if _, done := runAIC(t, func(d *DevToolsService) error { return d.UpdateAIContexts([]string{a}) }); done["ok"] != true {
+	if _, done := runAIC(t, func(d *DevToolsService) error { return d.UpdateAIContexts([]string{a}, true) }); done["ok"] != true {
 		t.Errorf("update of an existing folder: %v", done)
 	}
 }
@@ -247,7 +247,7 @@ func TestAIContextListActions_RefuseUnregistered(t *testing.T) {
 	}
 	picked, _ := approvePath(t.TempDir(), nil)
 	for _, paths := range [][]string{nil, {picked}, {"relative"}, {a, a}} {
-		refusedAIC(t, "UpdateAIContexts "+strings.Join(paths, ","), func(d *DevToolsService) error { return d.UpdateAIContexts(paths) })
+		refusedAIC(t, "UpdateAIContexts "+strings.Join(paths, ","), func(d *DevToolsService) error { return d.UpdateAIContexts(paths, true) })
 		if _, err := (&DevToolsService{}).PreviewAIContextUpdate(paths); err == nil {
 			t.Errorf("PreviewAIContextUpdate %v accepted", paths)
 		}
@@ -316,9 +316,9 @@ func TestAIContextExportImport(t *testing.T) {
 		t.Fatalf("changes = %+v, %v", changes, err)
 	}
 	refusedAIC(t, "repeated name", func(d *DevToolsService) error {
-		return d.ImportAIContexts(file, []managerai.ImportPick{{Source: "App", Name: "X"}, {Source: "Gone", Name: "x"}})
+		return d.ImportAIContexts(file, []managerai.ImportPick{{Source: "App", Name: "X"}, {Source: "Gone", Name: "x"}}, true)
 	})
-	if _, done := runAIC(t, func(d *DevToolsService) error { return d.ImportAIContexts(file, picks) }); done["ok"] != true {
+	if _, done := runAIC(t, func(d *DevToolsService) error { return d.ImportAIContexts(file, picks, true) }); done["ok"] != true {
 		t.Fatalf("action-done = %v", done)
 	}
 	rows := aicRows(t)
@@ -342,13 +342,13 @@ func TestAICategories_Service(t *testing.T) {
 		t.Fatalf("AddAICategory = %q, %v", saved, err)
 	}
 	refusedAIC(t, "unknown category", func(d *DevToolsService) error {
-		return d.ApplyAIContext(a, "A", "Nope", []string{"Linux Bash"}, []string{managerai.AgentCodex})
+		return d.ApplyAIContext(a, "A", "Nope", []string{"Linux Bash"}, []string{managerai.AgentCodex}, true)
 	})
 	if _, err := os.Stat(filepath.Join(a, "AGENTS.md")); err == nil {
 		t.Error("a refused Aplicar wrote AGENTS.md")
 	}
 	if _, done := runAIC(t, func(d *DevToolsService) error {
-		return d.ApplyAIContext(a, "A", "Clientes", []string{"Linux Bash"}, []string{managerai.AgentCodex})
+		return d.ApplyAIContext(a, "A", "Clientes", []string{"Linux Bash"}, []string{managerai.AgentCodex}, true)
 	}); done["ok"] != true {
 		t.Fatalf("action-done = %v", done)
 	}

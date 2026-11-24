@@ -75,7 +75,7 @@ func removeContext(dir, gitDir string, stdout io.Writer) error {
 		}
 	}
 
-	if err := writeAgentFiles(dir, gitDir, map[string]bool{}, nil, nil, grants{}, true, stdout); err != nil {
+	if err := writeAgentFiles(dir, gitDir, map[string]bool{}, nil, nil, grants{}, writeOpts{overwrite: true, backup: true}, stdout); err != nil {
 		return err
 	}
 	// Only an empty folder goes; PROJECT.md keeps it.

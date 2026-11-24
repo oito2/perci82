@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Perci82 Dev: **AI Contexts → Apply Context** is now **Manage Projects**. In its **Apply context** tab the folder alert reads "Choose the project folder", the category comes before the name, separators set off **AI agents** (shown disabled until a folder is chosen) and **Project type**. **Applied contexts** shows only **Name**, **Folder**, **State** and the actions; the **Export** list shows each folder's name, path, and applied agents and contexts as badges.
 - Perci82 Dev: AI contexts no longer keep `dist/` out of the agents' reach (`.aiexclude`, `.geminiignore` and Claude Code's read rules); `build/`, `out/` and `.next/` still are. Use **Update** on a project to regenerate its files.
 - Perci82 Dev: the PHP images pin Composer 2.11.2, PHPUnit 10.5.66, 11.5.57 and 12.5.43, PHP_CodeSniffer 3.13.6 and moodle-cs 3.9.0; **Update image** rebuilds an image with them.
+- Perci82 Dev: AI Contexts' **Apply**, **Update**, **Update all** and **Import** no longer keep a `.perci-bak` copy of each replaced file on their own: when existing files would be replaced, the confirmation offers **Keep a .perci-bak copy of the replaced files**, unchecked each time.
 - Perci82 Dev: icon buttons of the tables have no background in any state; the icon takes the theme's accent color on hover (red for a removal).
 
 ### Fixed

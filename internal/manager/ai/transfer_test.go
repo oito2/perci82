@@ -204,7 +204,7 @@ func TestPreviewImportAndImport(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	if err := Import(&out, fx.file, picks, fx.ws); err != nil {
+	if err := Import(&out, fx.file, picks, fx.ws, true); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "Future Std, future") {
@@ -226,7 +226,7 @@ func TestPreviewImportAndImport(t *testing.T) {
 	}
 
 	// Picks already imported are refused before anything is written.
-	if err := Import(&out, fx.file, picks, fx.ws); err == nil {
+	if err := Import(&out, fx.file, picks, fx.ws, true); err == nil {
 		t.Error("second import accepted")
 	}
 }
@@ -237,7 +237,7 @@ func TestImport_FailingFolderDoesNotStopTheOthers(t *testing.T) {
 	// .instructions as a file makes the generation fail.
 	write(t, filepath.Join(fx.exists, ".instructions"), "x")
 	picks := []ImportPick{{Source: "Exists", Name: "E"}, {Source: "Missing", Name: "M"}}
-	err := Import(&bytes.Buffer{}, fx.file, picks, fx.ws)
+	err := Import(&bytes.Buffer{}, fx.file, picks, fx.ws, true)
 	if !errors.Is(err, executor.ErrCompletedWithWarnings) {
 		t.Fatalf("Import = %v", err)
 	}

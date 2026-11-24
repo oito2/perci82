@@ -462,12 +462,13 @@ func PreviewImport(f TransferFile, picks []ImportPick, contexts []config.AIConte
 }
 
 // Import registers each picked folder of f under its new name: an existing
-// folder first gets its context generated (GenerateSharedFiles), a missing
+// folder first gets its context generated (RegenerateSharedFiles, saving
+// replaced files that differ as .perci-bak only with backup), a missing
 // one is registered as pending. Folders already registered here are never
 // picked (planPicks refuses them). Picks are checked before anything is
 // written; a folder that then fails is reported and the next one still
 // runs, the import ending with executor.ErrCompletedWithWarnings.
-func Import(stdout io.Writer, f TransferFile, picks []ImportPick, workspace string) error {
+func Import(stdout io.Writer, f TransferFile, picks []ImportPick, workspace string, backup bool) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -486,7 +487,7 @@ func Import(stdout io.Writer, f TransferFile, picks []ImportPick, workspace stri
 			ui.Warning(stdout, i18n.Tr("aic.run.unknownLeftOut", i18n.Args{"names": strings.Join(s.plan.Unknown, ", ")}))
 		}
 		if s.plan.State == ImportApply {
-			if err := GenerateSharedFiles(s.plan.Path, ModelsNamed(s.plan.Models), s.plan.Agents, true, stdout); err != nil {
+			if err := RegenerateSharedFiles(s.plan.Path, ModelsNamed(s.plan.Models), s.plan.Agents, backup, stdout); err != nil {
 				ui.Err(stdout, s.plan.Path+": "+err.Error())
 				failed = true
 				continue

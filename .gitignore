@@ -21,6 +21,8 @@ coverage.html
 /.claude/settings.json
 /.sync82.json
 /.agents/mcp_config.json
+/.codex/
+/.gemini/
 
 # AI agent rules and context files (kept locally, not versioned)
 /AGENTS.md

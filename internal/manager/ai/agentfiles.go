@@ -59,7 +59,7 @@ func claudeRule(model Model, content string) string {
 // still exactly what Perci wrote (an edited rule is kept, with a warning).
 // rendered holds each active model's standard as written to .instructions/.
 // With active nil every rule Perci wrote is removed.
-func syncClaudeRules(dir string, active []Model, rendered map[string]string, overwrite bool, stdout io.Writer) error {
+func syncClaudeRules(dir string, active []Model, rendered map[string]string, o writeOpts, stdout io.Writer) error {
 	rulesDir := filepath.Join(dir, claudeRulesDir)
 	keep := map[string]bool{}
 	for _, m := range active {
@@ -71,7 +71,7 @@ func syncClaudeRules(dir string, active []Model, rendered map[string]string, ove
 		if err := os.MkdirAll(rulesDir, 0o755); err != nil {
 			return err
 		}
-		if err := WriteFile(filepath.Join(rulesDir, name), claudeRule(m, rendered[m.Name]), overwrite, stdout); err != nil {
+		if err := writeGenerated(filepath.Join(rulesDir, name), claudeRule(m, rendered[m.Name]), o, stdout); err != nil {
 			return err
 		}
 	}
@@ -174,12 +174,12 @@ func removeIfPristine(path string, stdout io.Writer, generated ...string) {
 // writeStub writes the stub at name (CLAUDE.md, GEMINI.md) unless it
 // already resolves to AGENTS.md, which gives the agent the rules as is —
 // writing the stub through it would replace AGENTS.md.
-func writeStub(dir, name, content string, overwrite bool, stdout io.Writer) error {
+func writeStub(dir, name, content string, o writeOpts, stdout io.Writer) error {
 	if sameFile(filepath.Join(dir, name), filepath.Join(dir, "AGENTS.md")) {
 		ui.Info(stdout, i18n.Tr("aic.run.symlinkKept", i18n.Args{"name": name}))
 		return nil
 	}
-	return WriteFile(filepath.Join(dir, name), content, overwrite, stdout)
+	return writeGenerated(filepath.Join(dir, name), content, o, stdout)
 }
 
 // openCodeConfig is OpenCode's project configuration file and

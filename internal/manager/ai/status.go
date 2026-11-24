@@ -152,7 +152,7 @@ func Preview(dir string, active []Model, agentIDs []string) ([]Change, error) {
 		return nil, err
 	}
 	changes, err := previewRun(dir, func(tmp string) error {
-		return generate(tmp, dir, active, agentIDs, true, io.Discard)
+		return generate(tmp, dir, active, agentIDs, writeOpts{overwrite: true, backup: true}, io.Discard)
 	})
 	if err != nil {
 		return nil, err

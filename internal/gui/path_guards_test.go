@@ -80,7 +80,7 @@ func TestBoundMethods_RefuseBadPathsBeforeRunning(t *testing.T) {
 			return err
 		},
 		"ApplyAIContext": func(b *serviceBase, f string) error {
-			return (&DevToolsService{*b}).ApplyAIContext(f, "x", "", []string{"x"}, []string{"claude"})
+			return (&DevToolsService{*b}).ApplyAIContext(f, "x", "", []string{"x"}, []string{"claude"}, true)
 		},
 		"InstallAgentSkill": func(b *serviceBase, f string) error {
 			return (&DevToolsService{*b}).InstallAgentSkill("daisyui", false, f)

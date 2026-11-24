@@ -271,7 +271,7 @@ func TestTransfer_CarriesCustomContexts(t *testing.T) {
 		t.Fatalf("preview = %+v, %v", changes, err)
 	}
 	var out bytes.Buffer
-	if err := Import(&out, loaded, picks, ws); err != nil {
+	if err := Import(&out, loaded, picks, ws, true); err != nil {
 		t.Fatalf("import: %v\n%s", err, out.String())
 	}
 	if got, err := FindCustomContext(used.ID); err != nil || got != used {
@@ -294,7 +294,7 @@ func TestImport_KeepsALocalCustomContext(t *testing.T) {
 		Custom:   []CustomContext{{ID: local.ID, Name: "Rules", Content: "from file\n"}},
 	}
 	var out bytes.Buffer
-	if err := Import(&out, f, []ImportPick{{Source: "P", Name: "P"}}, ws); err != nil {
+	if err := Import(&out, f, []ImportPick{{Source: "P", Name: "P"}}, ws, true); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := FindCustomContext(local.ID); got != local {

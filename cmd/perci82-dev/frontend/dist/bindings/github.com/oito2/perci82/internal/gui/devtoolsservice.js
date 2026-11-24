@@ -50,18 +50,20 @@ export function AddDevFolder(dev, folder, ptype, name, relPath) {
  * Perci wrote for unchecked models and agents (see GenerateSharedFiles'
  * own doc comment), then registers folder as name with that selection
  * (managerai.RecordContext), filed under category ("" for none). The name
- * and the category are checked before anything is written. "Aplicar" always overwrites (overwrite=true) with no extra
- * confirmation — the button click is itself the confirmation, same
- * convention as every non-interactive GUI action.
+ * and the category are checked before anything is written. "Aplicar"
+ * always replaces the existing files, saving each one that differs as
+ * <file>.perci-bak only with backup; the confirmation the frontend shows
+ * before calling it is where the user chooses.
  * @param {string} folder
  * @param {string} name
  * @param {string} category
  * @param {string[]} selectedNames
  * @param {string[]} agentIDs
+ * @param {boolean} backup
  * @returns {$CancellablePromise<void>}
  */
-export function ApplyAIContext(folder, name, category, selectedNames, agentIDs) {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.ApplyAIContext", folder, name, category, selectedNames, agentIDs);
+export function ApplyAIContext(folder, name, category, selectedNames, agentIDs, backup) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.ApplyAIContext", folder, name, category, selectedNames, agentIDs, backup);
 }
 
 /**
@@ -258,13 +260,15 @@ export function GetMoodlePluginTypes(folder) {
  * ImportAIContexts imports the picks of the export file at path
  * (managerai.Import), on the Execução tab: existing folders get their
  * context and are registered, missing ones are registered as pending. The
- * picks are checked before the action starts.
+ * picks are checked before the action starts. A replaced file that differs
+ * is saved as <file>.perci-bak only with backup.
  * @param {string} path
  * @param {ai$0.ImportPick[]} picks
+ * @param {boolean} backup
  * @returns {$CancellablePromise<void>}
  */
-export function ImportAIContexts(path, picks) {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.ImportAIContexts", path, picks);
+export function ImportAIContexts(path, picks, backup) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.ImportAIContexts", path, picks, backup);
 }
 
 /**
@@ -535,12 +539,14 @@ export function SaveCustomContext(c) {
  * context of its record (standards and agents), one folder after the
  * other. A missing folder or a failing generation is reported and the
  * next folder still runs; the action then ends with
- * executor.ErrCompletedWithWarnings.
+ * executor.ErrCompletedWithWarnings. A replaced file that differs is saved
+ * as <file>.perci-bak only with backup.
  * @param {string[]} paths
+ * @param {boolean} backup
  * @returns {$CancellablePromise<void>}
  */
-export function UpdateAIContexts(paths) {
-    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.UpdateAIContexts", paths);
+export function UpdateAIContexts(paths, backup) {
+    return $Call.ByName("github.com/oito2/perci82/internal/gui.DevToolsService.UpdateAIContexts", paths, backup);
 }
 
 /**

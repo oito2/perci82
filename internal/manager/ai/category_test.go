@@ -17,6 +17,7 @@ package ai
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -110,7 +111,7 @@ func TestTransfer_Category(t *testing.T) {
 	fx.file.Contexts[0].Category = "Clientes"
 	fx.file.Contexts[1].Category = "Novos"
 	picks := []ImportPick{{Source: fx.file.Contexts[0].Name, Name: "Um"}, {Source: fx.file.Contexts[1].Name, Name: "Dois"}}
-	if err := Import(&bytes.Buffer{}, fx.file, picks, fx.ws); err != nil {
+	if err := Import(&bytes.Buffer{}, fx.file, picks, fx.ws, true); err != nil {
 		t.Fatal(err)
 	}
 	all, _ := Contexts()
@@ -128,6 +129,35 @@ func TestTransfer_Category(t *testing.T) {
 	for _, c := range f.Contexts {
 		if c.Category != got[c.Name] {
 			t.Errorf("exported %s with category %q", c.Name, c.Category)
+		}
+	}
+}
+
+// RegenerateSharedFiles replaces an edited file and keeps its earlier
+// version as .perci-bak only when asked to.
+func TestRegenerateSharedFiles_BackupOnlyWhenAsked(t *testing.T) {
+	isolateHome(t)
+	for _, backup := range []bool{false, true} {
+		dir := t.TempDir()
+		if err := RegenerateSharedFiles(dir, ModelsNamed([]string{"Linux Bash"}), []string{AgentCodex}, backup, &bytes.Buffer{}); err != nil {
+			t.Fatal(err)
+		}
+		agents := filepath.Join(dir, "AGENTS.md")
+		if err := os.WriteFile(agents, []byte("edited by hand\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := RegenerateSharedFiles(dir, ModelsNamed([]string{"Linux Bash"}), []string{AgentCodex}, backup, &bytes.Buffer{}); err != nil {
+			t.Fatal(err)
+		}
+		if data, _ := os.ReadFile(agents); string(data) == "edited by hand\n" {
+			t.Errorf("backup=%v: AGENTS.md was not replaced", backup)
+		}
+		bak, err := os.ReadFile(agents + ".perci-bak")
+		switch {
+		case backup && (err != nil || string(bak) != "edited by hand\n"):
+			t.Errorf("backup=true: .perci-bak = %q, %v", bak, err)
+		case !backup && err == nil:
+			t.Error("backup=false: a .perci-bak was written")
 		}
 	}
 }

@@ -1183,6 +1183,25 @@
 
 <!-- "Contextos de IA :: Gerenciar Contextos": the text of one context,
      read only. -->
+<!-- Confirmation of Aplicar, Atualizar and Importar of AI Contexts: the
+     files that change and, when existing files are replaced, whether to
+     keep a .perci-bak copy of them (unchecked each time). -->
+<dialog id="aic-confirm-modal" class="modal">
+  <div class="modal-box">
+    <h3 id="aic-confirm-title" class="font-bold text-lg mb-2"></h3>
+    <p id="aic-confirm-message" class="opacity-80" style="white-space: pre-line;"></p>
+    <label id="aic-confirm-backup-wrap" class="label cursor-pointer justify-start items-start gap-3 o2-wrap mt-4 hidden">
+      <input id="aic-confirm-backup" type="checkbox" class="checkbox mt-0.5" />
+      <span class="label-text" data-i18n="aic.backupOption">Criar uma cópia .perci-bak dos arquivos substituídos</span>
+    </label>
+    <div class="modal-action">
+      <form method="dialog"><button class="btn" data-i18n="oito2.cancel">Cancelar</button></form>
+      <button id="btn-aic-confirm-ok" type="button" class="btn btn-primary" data-i18n="modal.yes">Sim</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button data-i18n="oito2.close">fechar</button></form>
+</dialog>
+
 <!-- The details of one registered folder (the "+" of Contextos
      aplicados): its category, and its standards and agents as badges. -->
 <dialog id="aic-details-modal" class="modal">

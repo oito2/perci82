@@ -434,13 +434,28 @@ func standardsHeader(claudeRules bool) string {
 // empty means the current directory. Progress and warnings go to stdout
 // (the GUI's terminal panel).
 func GenerateSharedFiles(dir string, active []Model, agentIDs []string, overwrite bool, stdout io.Writer) error {
-	return generate(dir, dir, active, agentIDs, overwrite, stdout)
+	return generate(dir, dir, active, agentIDs, writeOpts{overwrite: overwrite, backup: true}, stdout)
+}
+
+// RegenerateSharedFiles is GenerateSharedFiles replacing existing files;
+// with backup, a replaced file that differs is first saved as
+// <file>.perci-bak, otherwise it is replaced without a copy.
+func RegenerateSharedFiles(dir string, active []Model, agentIDs []string, backup bool, stdout io.Writer) error {
+	return generate(dir, dir, active, agentIDs, writeOpts{overwrite: true, backup: backup}, stdout)
+}
+
+// writeOpts says how a run writes the generated files: overwrite replaces
+// existing files (otherwise they are kept), and backup first saves a
+// replaced file that differs as <file>.perci-bak.
+type writeOpts struct {
+	overwrite bool
+	backup    bool
 }
 
 // generate is GenerateSharedFiles writing into dir while taking the list
 // of files git tracks from gitDir (the project itself when dir is a
 // preview copy of it).
-func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite bool, stdout io.Writer) error {
+func generate(dir, gitDir string, active []Model, agentIDs []string, o writeOpts, stdout io.Writer) error {
 	selected, err := agentSet(agentIDs)
 	if err != nil {
 		return err
@@ -462,11 +477,11 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 	g.notesDir = notesDir
 	switch {
 	case notesDir == "":
-		if err := ensureProjectRules(dir, overwrite, stdout); err != nil {
+		if err := ensureProjectRules(dir, o.overwrite, stdout); err != nil {
 			return err
 		}
 	case dir == gitDir:
-		if err := ensureNotes(dir, notesDir, overwrite, stdout); err != nil {
+		if err := ensureNotes(dir, notesDir, o.overwrite, stdout); err != nil {
 			return err
 		}
 	}
@@ -484,7 +499,7 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 			if err := os.MkdirAll(filepath.Join(dir, ".instructions"), 0o755); err != nil {
 				return err
 			}
-			if err := WriteFile(filepath.Join(dir, ".instructions", filepath.Base(m.Instruction)), content, overwrite, stdout); err != nil {
+			if err := writeGenerated(filepath.Join(dir, ".instructions", filepath.Base(m.Instruction)), content, o, stdout); err != nil {
 				return err
 			}
 			rendered[m.Name] = content
@@ -495,7 +510,7 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 		if m.Name == "Moodle" {
 			vars = moodleVars(stdout, dir)
 		}
-		if err := WriteInstruction(dir, m, overwrite, stdout, vars); err != nil {
+		if err := writeInstruction(dir, m, o, stdout, vars); err != nil {
 			return err
 		}
 		content, err := m.source()
@@ -509,11 +524,11 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 	if err != nil {
 		return err
 	}
-	if err := WriteFile(filepath.Join(dir, "AGENTS.md"), agentsContent, overwrite, stdout); err != nil {
+	if err := writeGenerated(filepath.Join(dir, "AGENTS.md"), agentsContent, o, stdout); err != nil {
 		return err
 	}
 
-	if err := writeAgentFiles(dir, gitDir, selected, active, rendered, g, overwrite, stdout); err != nil {
+	if err := writeAgentFiles(dir, gitDir, selected, active, rendered, g, o, stdout); err != nil {
 		return err
 	}
 
@@ -534,12 +549,12 @@ func generate(dir, gitDir string, active []Model, agentIDs []string, overwrite b
 		current := filepath.Join(dir, ".instructions", filepath.Base(m.Instruction))
 		if _, err := os.Stat(current); err == nil && !isPristine(dir, m) {
 			ui.Warning(stdout, i18n.Tr("aic.run.editedKept", i18n.Args{"path": ".instructions/" + filepath.Base(m.Instruction)}))
-			if overwrite {
+			if o.overwrite {
 				removeLegacy(dir, m, stdout)
 			}
 			continue
 		}
-		if _, err := os.Stat(current); err != nil && !overwrite {
+		if _, err := os.Stat(current); err != nil && !o.overwrite {
 			// Only an old-named copy is left (Model.Legacy): same rule as
 			// WriteInstruction — removed only on an overwrite run.
 			continue
@@ -585,7 +600,7 @@ func agentsFile(active []Model, selected map[string]bool, notesDir string) (stri
 // writeAgentFiles writes the files of the selected agents, with what g
 // grants them, and removes those of the others while they are still what
 // Perci wrote.
-func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Model, rendered map[string]string, g grants, overwrite bool, stdout io.Writer) error {
+func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Model, rendered map[string]string, g grants, o writeOpts, stdout io.Writer) error {
 	claudeStub, err := readTpl("templates/CLAUDE-STUB.md")
 	if err != nil {
 		return err
@@ -612,10 +627,10 @@ func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Mode
 	}
 
 	if selected[AgentClaude] {
-		if err := writeStub(dir, "CLAUDE.md", withNotes(claudeStub, g.notesDir), overwrite, stdout); err != nil {
+		if err := writeStub(dir, "CLAUDE.md", withNotes(claudeStub, g.notesDir), o, stdout); err != nil {
 			return err
 		}
-		if err := syncClaudeRules(dir, active, rendered, overwrite, stdout); err != nil {
+		if err := syncClaudeRules(dir, active, rendered, o, stdout); err != nil {
 			return err
 		}
 		// Claude Code does not read an ignore file at all: its equivalent
@@ -628,7 +643,7 @@ func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Mode
 		}
 	} else {
 		removeIfPristine(filepath.Join(dir, "CLAUDE.md"), stdout, claudeStub, oldClaudeStub, withNotes(claudeStub, NotesDir(gitDir)))
-		if err := syncClaudeRules(dir, nil, nil, overwrite, stdout); err != nil {
+		if err := syncClaudeRules(dir, nil, nil, o, stdout); err != nil {
 			return err
 		}
 		if err := writeClaudeSettings(dir, nil, stdout); err != nil {
@@ -640,14 +655,14 @@ func writeAgentFiles(dir, gitDir string, selected map[string]bool, active []Mode
 	}
 
 	if selected[AgentGemini] {
-		if err := writeStub(dir, "GEMINI.md", withNotes(geminiStub, g.notesDir), overwrite, stdout); err != nil {
+		if err := writeStub(dir, "GEMINI.md", withNotes(geminiStub, g.notesDir), o, stdout); err != nil {
 			return err
 		}
 		// .aiexclude is read by Gemini Code Assist, .geminiignore by Gemini CLI.
-		if err := WriteFile(filepath.Join(dir, ".aiexclude"), aiexclude, overwrite, stdout); err != nil {
+		if err := writeGenerated(filepath.Join(dir, ".aiexclude"), aiexclude, o, stdout); err != nil {
 			return err
 		}
-		if err := WriteFile(filepath.Join(dir, ".geminiignore"), geminiignore, overwrite, stdout); err != nil {
+		if err := writeGenerated(filepath.Join(dir, ".geminiignore"), geminiignore, o, stdout); err != nil {
 			return err
 		}
 	} else {
@@ -712,10 +727,21 @@ func sameFile(a, b string) bool {
 // through a symlink at path, with a .perci-bak of a different previous
 // version.
 func WriteFile(path, content string, overwrite bool, stdout io.Writer) error {
-	if _, err := os.Stat(path); err == nil && !overwrite {
+	return writeGenerated(path, content, writeOpts{overwrite: overwrite, backup: true}, stdout)
+}
+
+// writeGenerated is WriteFile following o: an existing file is kept unless
+// o.overwrite, and a replaced file that differs is saved as .perci-bak only
+// with o.backup.
+func writeGenerated(path, content string, o writeOpts, stdout io.Writer) error {
+	if _, err := os.Stat(path); err == nil && !o.overwrite {
 		return nil
 	}
-	if err := fsutil.WriteGenerated(path, []byte(content), 0o644); err != nil {
+	write := fsutil.WriteThroughLink
+	if o.backup {
+		write = fsutil.WriteGenerated
+	}
+	if err := write(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	ui.Info(stdout, i18n.Tr("aic.run.created", i18n.Args{"path": path}))
@@ -725,6 +751,11 @@ func WriteFile(path, content string, overwrite bool, stdout io.Writer) error {
 // WriteInstruction writes the instruction file for a given model under
 // dir/.instructions/.
 func WriteInstruction(dir string, model Model, overwrite bool, stdout io.Writer, vars map[string]string) error {
+	return writeInstruction(dir, model, writeOpts{overwrite: overwrite, backup: true}, stdout, vars)
+}
+
+// writeInstruction is WriteInstruction following o (see writeGenerated).
+func writeInstruction(dir string, model Model, o writeOpts, stdout io.Writer, vars map[string]string) error {
 	instrDir := filepath.Join(dir, ".instructions")
 	if err := os.MkdirAll(instrDir, 0o755); err != nil {
 		return err
@@ -735,12 +766,12 @@ func WriteInstruction(dir string, model Model, overwrite bool, stdout io.Writer,
 		return err
 	}
 	content = substitute(content, vars)
-	if err := WriteFile(dest, content, overwrite, stdout); err != nil {
+	if err := writeGenerated(dest, content, o, stdout); err != nil {
 		return err
 	}
 	// Without overwrite the caller asked not to clobber customizations, and
 	// a legacy copy may be one — leave it for an explicit overwrite run.
-	if overwrite {
+	if o.overwrite {
 		removeLegacy(dir, model, stdout)
 	}
 	return nil

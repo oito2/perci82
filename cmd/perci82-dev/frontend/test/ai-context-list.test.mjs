@@ -48,9 +48,15 @@ async function screen(fixtures = {}) {
   const actions = (tr) => tr.children[3].children[0].children; // [Atualizar, Alterar, +, Remover]
   const click = (el) => (el.listeners.click || []).forEach((fn) => fn({ preventDefault() {} }));
   const confirm = () => loaded.element("btn-confirm-ok").listeners.click.forEach((fn) => fn({}));
+  // aicConfirm answers the AI Contexts confirmation, with the backup box
+  // checked or not.
+  const aicConfirm = (backup) => {
+    loaded.element("aic-confirm-backup").checked = !!backup;
+    loaded.element("btn-aic-confirm-ok").listeners.click.forEach((fn) => fn({}));
+  };
   const called = (name) => loaded.calls.filter((c) => c.name === name);
   const resetRun = () => evalIn(loaded.ctx, "running = false; activeRun = null");
-  return { ...loaded, rows, actions, click, confirm, called, resetRun };
+  return { ...loaded, rows, actions, click, confirm, aicConfirm, called, resetRun };
 }
 
 test("IA: Contextos: the list shows each folder with its name, folder, state and actions", async () => {
@@ -75,15 +81,16 @@ test("IA: Contextos: Atualizar todos previews the outdated and edited folders an
     { name: "Velho", path: "/ws/velho", pending: false, changes: [{ path: "AGENTS.md", action: "update" }] },
     { name: "Mexido", path: "/ws/mexido", pending: false, changes: [] },
   ];
-  const { element, click, confirm, called } = await screen({ PreviewAIContextUpdate: previews });
+  const { element, click, aicConfirm, called } = await screen({ PreviewAIContextUpdate: previews });
   click(element("btn-aic-update-all"));
   await settle();
   assert.deepEqual(JSON.parse(JSON.stringify(called("PreviewAIContextUpdate")[0].args[0])), ["/ws/velho", "/ws/mexido"]);
-  const msg = element("confirm-modal-message").textContent;
+  assert.equal(element("aic-confirm-backup").checked, false, "the backup box starts unchecked");
+  const msg = element("aic-confirm-message").textContent;
   assert.match(msg, /Velho — \/ws\/velho\n {2}• atualizar: AGENTS\.md/);
   assert.match(msg, /Mexido — \/ws\/mexido \(tem arquivos editados à mão\)\n {2}• nada a mudar/);
-  confirm();
-  assert.deepEqual(JSON.parse(JSON.stringify(called("UpdateAIContexts")[0].args[0])), ["/ws/velho"]);
+  aicConfirm(true);
+  assert.deepEqual(JSON.parse(JSON.stringify(called("UpdateAIContexts")[0].args)), [["/ws/velho"], true]);
 });
 
 test("IA: Contextos: Atualizar with nothing to change runs nothing; with all folders up to date the button is off", async () => {
@@ -162,7 +169,7 @@ test("IA: Contextos: Aplicar sends the name; renaming without file changes asks 
   assert.match(element("confirm-modal-message").textContent, /só o registro de "Perci 2"/);
   confirm();
   const apply = called("ApplyAIContext")[0];
-  assert.deepEqual(JSON.parse(JSON.stringify(apply.args)), ["/ws/perci", "Perci 2", "", ["Go"], ["claude"]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(apply.args)), ["/ws/perci", "Perci 2", "", ["Go"], ["claude"], false], "nothing replaced: no backup");
 });
 
 test("IA: Contextos: Exportar saves the checked folders", async () => {
@@ -203,7 +210,7 @@ test("IA: Contextos: Importar lists the file, edits names and folders, and impor
     { name: "Perci B", path: "/ws/outra", pending: false, changes: [{ path: "AGENTS.md", action: "create" }] },
     { name: "Novo", path: "/ws/novo", pending: true, changes: [] },
   ];
-  const { element, click, confirm, called } = await screen({
+  const { element, click, aicConfirm, called } = await screen({
     PickAIContextImportPath: "/tmp/in.yaml", PreviewAIContextImport: preview,
     PickAIContextFolder: "/ws/outra", PreviewAIContextImportChanges: changes,
   });
@@ -234,9 +241,9 @@ test("IA: Contextos: Importar lists the file, edits names and folders, and impor
   await settle();
   const picks = [{ source: "Perci", name: "Perci B", path: "/ws/outra" }, { source: "Novo", name: "Novo", path: "" }];
   assert.deepEqual(JSON.parse(JSON.stringify(called("PreviewAIContextImportChanges")[0].args)), ["/tmp/in.yaml", picks]);
-  assert.match(element("confirm-modal-message").textContent, /Novo — \/ws\/novo\n {2}• fica pendente/);
-  confirm();
-  assert.deepEqual(JSON.parse(JSON.stringify(called("ImportAIContexts")[0].args)), ["/tmp/in.yaml", picks]);
+  assert.match(element("aic-confirm-message").textContent, /Novo — \/ws\/novo\n {2}• fica pendente/);
+  aicConfirm(false);
+  assert.deepEqual(JSON.parse(JSON.stringify(called("ImportAIContexts")[0].args)), ["/tmp/in.yaml", picks, false]);
 });
 
 test("IA: Contextos: Alterar keeps the folder when the menu item renders Aplicar Contexto", async () => {
