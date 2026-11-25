@@ -129,6 +129,8 @@ The script needs `curl`, `gpg` and `sudo`. It downloads the Perci82 repository k
 - [Installing Perci82 Dev](docs/en/dev/installation.md) and [uninstalling it](docs/en/dev/uninstallation.md)
 - Perci82 Dev's screens: [Overview](docs/en/dev/overview.md), [Environment](docs/en/dev/environment.md), [Docker](docs/en/dev/docker.md), [Repositories](docs/en/dev/repositories.md), [AI Contexts](docs/en/dev/ai-contexts.md), [Skills & MCPs](docs/en/dev/skills-mcps.md), [Settings](docs/en/dev/settings.md)
 - Troubleshooting: [Perci82 System](docs/en/system/troubleshooting.md) and [Perci82 Dev](docs/en/dev/troubleshooting.md)
+- [Contributing](CONTRIBUTING.md) — building, checks, pull requests and releases
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 
 ## License
 

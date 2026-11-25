@@ -1,14 +1,23 @@
-# Keeps the SHA-pinned GitHub Actions and Go modules current.
+# Keeps the SHA-pinned GitHub Actions and Go modules current. A new version
+# is proposed only once it is 14 days old (security updates aren't held).
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: ci
   - package-ecosystem: gomod
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: deps
     # Wails is upgraded by hand, as its own change: its releases include
     # nightly builds, and an upgrade needs the bindings regenerated.
     ignore:

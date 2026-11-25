@@ -129,6 +129,8 @@ O script precisa de `curl`, `gpg` e `sudo`. Ele baixa a chave do repositório do
 - [Instalar o Perci82 Dev](dev/installation.md) e [desinstalá-lo](dev/uninstallation.md)
 - Telas do Perci82 Dev: [Visão Geral](dev/overview.md), [Ambiente](dev/environment.md), [Docker](dev/docker.md), [Repositórios](dev/repositories.md), [Contextos de IA](dev/ai-contexts.md), [Skills & MCPs](dev/skills-mcps.md), [Configurações](dev/settings.md)
 - Solução de problemas: [Perci82 System](system/troubleshooting.md) e [Perci82 Dev](dev/troubleshooting.md)
+- [Contribuindo](contribuindo.md) — compilação, verificações, pull requests e releases
+- [Código de Conduta](codigo-de-conduta.md)
 
 ## Licença
 

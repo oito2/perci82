@@ -177,10 +177,14 @@ jobs:
             dist/release-notes.md
           if-no-files-found: error
 
+  # Signing and publishing wait for the owner's approval in the "release"
+  # environment (system-v* and dev-v* tags only); the checks and the build
+  # above run without it.
   publish:
     name: Attest and publish release
     needs: build
     runs-on: ubuntu-24.04
+    environment: release
     permissions:
       contents: write     # create the GitHub release
       id-token: write     # Sigstore certificate for the attestation
@@ -201,17 +205,25 @@ jobs:
             dist/${{ needs.build.outputs.app }}-[0-9]*.rpm
             dist/checksums.txt
 
+      # One call creates the release with its files and notes: the files are
+      # uploaded before it is published, as immutable releases require.
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
-        with:
-          name: ${{ needs.build.outputs.title }} ${{ needs.build.outputs.version }}
-          draft: false
-          prerelease: false
-          files: |
-            dist/${{ needs.build.outputs.app }}_*.deb
-            dist/${{ needs.build.outputs.app }}-[0-9]*.rpm
-            dist/checksums.txt
-          body_path: dist/release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          APP: ${{ needs.build.outputs.app }}
+          TITLE: ${{ needs.build.outputs.title }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          shopt -s nullglob
+          files=(dist/"$APP"_*.deb dist/"$APP"-[0-9]*.rpm dist/checksums.txt)
+          if [ "${#files[@]}" -ne 3 ]; then
+            echo "::error::Expected one .deb, one .rpm and checksums.txt, found: ${files[*]}"
+            exit 1
+          fi
+          gh release create "$TAG" "${files[@]}" -R "$REPO" --verify-tag \
+            --title "$TITLE $VERSION" --notes-file dist/release-notes.md
 
   # The apt/dnf package repository on GitHub Pages, rebuilt from the
   # packages of the latest releases of both apps (pages.yml). Its job reads

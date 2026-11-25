@@ -17,8 +17,7 @@
 coverage.html
 
 # Local, per-machine tool configuration
-/.claude/settings.local.json
-/.claude/settings.json
+/.claude/
 /.sync82.json
 /.agents/mcp_config.json
 /.codex/
@@ -33,9 +32,7 @@ coverage.html
 /.geminiignore
 /GEMINI.md
 /opencode.json
-/.claude/rules/
 /*.perci-bak
-/.claude/*.perci-bak
 
 # Frontend tests use plain Node — no npm dependencies, just in case
 node_modules/
